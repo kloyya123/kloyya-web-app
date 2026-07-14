@@ -1,0 +1,97 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* next-themes toggles a `class` on <html>; tell Tailwind v4 to key `dark:` off it
+   rather than off the OS media query, so the in-app toggle actually wins. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * Focus is visible, always, and only for keyboard users.
+   * KDS lists "Focus Indicators" as a mandatory WCAG 2.2 AA requirement.
+   * Ring is Intelligence Blue with an offset so it reads on any surface.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Mouse users don't get a ring; keyboard users always do. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /*
+   * Reduced motion, handled once, globally.
+   *
+   * The Design Manifesto says "motion should feel invisible"; KDS makes reduced
+   * motion mandatory. Enforcing it here rather than per-component means a new
+   * animation cannot forget to honor it. Framer Motion reads the same media
+   * query via useReducedMotion(), so JS-driven animation is covered too.
+   *
+   * 0.01ms rather than 0s: some browsers skip transitionend/animationend
+   * callbacks entirely at 0s, which can strand state machines that wait on them.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Skip link target, and anchor offsets, shouldn't hide under sticky nav. */
+  :target {
+    scroll-margin-top: calc(var(--spacing) * 20);
+  }
+}
+
+@layer utilities {
+  /*
+   * Visible only to screen readers. Used by skip links, live regions, and the
+   * accessible names of icon-only controls.
+   */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .focusable\:not-sr-only:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+}

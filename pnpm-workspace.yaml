@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Native/binary postinstall steps we explicitly trust (carried from the web app).
+allowBuilds:
+  esbuild: true # vitest's bundler
+  sharp: true # next/image optimization
+  unrs-resolver: true # eslint import resolution

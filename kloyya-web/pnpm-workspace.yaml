@@ -1,0 +1,5 @@
+allowBuilds:
+  # Native/binary postinstall steps we explicitly trust.
+  esbuild: true # vitest's bundler
+  sharp: true # next/image optimization
+  unrs-resolver: true # eslint import resolution
