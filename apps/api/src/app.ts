@@ -9,6 +9,7 @@ import { registerErrorHandler } from './http/errors.js';
 import { newCorrelationId } from './http/envelope.js';
 import { loggerOptions } from './logger.js';
 import { healthRoutes } from './routes/health.js';
+import { meRoutes } from './routes/me.js';
 
 export interface BuildAppOptions {
   /**
@@ -57,8 +58,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // an explicit value (including null) is honored as-is, which is how tests
   // inject a PGLite-backed instance.
   const auth = options.auth !== undefined ? options.auth : await resolveAuthFromEnv();
+  // Every request handler can reach the auth backend via `request.server.auth`.
+  app.decorate('auth', auth);
   if (auth) {
     registerAuthRoutes(app, auth);
+    await app.register(meRoutes);
     app.log.info('Better Auth mounted at /api/auth/*');
   } else {
     app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');

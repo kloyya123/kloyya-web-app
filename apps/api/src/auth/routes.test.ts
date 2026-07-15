@@ -65,3 +65,34 @@ describe('POST /api/auth/sign-up/email', () => {
     expect(res.headers['set-cookie']).toBeUndefined();
   });
 });
+
+describe('GET /v1/me (session-guarded)', () => {
+  it('returns the current user when a valid session cookie is present', async () => {
+    const signup = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { 'content-type': 'application/json' },
+      payload: { email: 'me@kloyya.test', password: 'a long enough passphrase', name: 'Me User' },
+    });
+    expect(signup.statusCode).toBe(200);
+    const cookie = signup.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    expect(cookie).toContain('better-auth');
+
+    const res = await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ data: { id: string; email: string }; correlationId: string }>();
+    expect(body.data.email).toBe('me@kloyya.test');
+    expect(body.data.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    expect(body.correlationId).toBeTruthy();
+  });
+
+  it('rejects an unauthenticated request with a 401 KAS error envelope', async () => {
+    const res = await app.inject({ method: 'GET', url: '/v1/me' });
+
+    expect(res.statusCode).toBe(401);
+    const body = res.json<{ error: { errorCode: string; httpStatus: number } }>();
+    expect(body.error.errorCode).toBe('unauthorized');
+    expect(body.error.httpStatus).toBe(401);
+  });
+});
