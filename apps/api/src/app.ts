@@ -3,10 +3,21 @@ import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
 import { fastify, type FastifyInstance } from 'fastify';
 import { config } from './config.js';
+import { type Auth, resolveAuthFromEnv } from './auth/auth.js';
+import { registerAuthRoutes } from './auth/routes.js';
 import { registerErrorHandler } from './http/errors.js';
 import { newCorrelationId } from './http/envelope.js';
 import { loggerOptions } from './logger.js';
 import { healthRoutes } from './routes/health.js';
+
+export interface BuildAppOptions {
+  /**
+   * The auth instance to mount. Omit to resolve from env (the server's path);
+   * pass an explicit instance to inject a test-backed one; pass `null` to build
+   * the app with auth deliberately disabled.
+   */
+  auth?: Auth | null;
+}
 
 /**
  * Assemble the API. Kept separate from `server.ts` (which listens) so tests can
@@ -17,7 +28,7 @@ import { healthRoutes } from './routes/health.js';
  * layer. All real logic lives in service classes with no framework imports, so
  * the durable worker can share them without dragging Fastify along.
  */
-export async function buildApp(): Promise<FastifyInstance> {
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = fastify({
     logger: loggerOptions,
     // Trust the proxy in front of us (Vercel/Render/etc.) for the real client IP.
@@ -41,6 +52,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerErrorHandler(app);
 
   await app.register(healthRoutes);
+
+  // Auth mounts only when configured. `undefined` means "resolve from env";
+  // an explicit value (including null) is honored as-is, which is how tests
+  // inject a PGLite-backed instance.
+  const auth = options.auth !== undefined ? options.auth : await resolveAuthFromEnv();
+  if (auth) {
+    registerAuthRoutes(app, auth);
+    app.log.info('Better Auth mounted at /api/auth/*');
+  } else {
+    app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');
+  }
 
   return app;
 }
