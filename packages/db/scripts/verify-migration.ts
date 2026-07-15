@@ -21,6 +21,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = resolve(here, '../drizzle');
 
 const EXPECTED_TABLES = [
+  // Better Auth identity tables
+  'user',
+  'session',
+  'account',
+  'verification',
+  // Tenant tables
   'organizations',
   'workspaces',
   'users',

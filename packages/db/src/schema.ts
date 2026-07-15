@@ -22,11 +22,18 @@ import {
  *   • snake_case columns/tables (Postgres/Supabase idiom), camelCase in TS.
  *   • Every table carries audit columns (created/updated/deleted_at, version),
  *     per KDA "Every table includes … Soft Delete Flag, Version".
- *   • RLS is ENABLED on every tenant table here (`.enableRLS()`), a deny-by-
- *     default posture. The service_role the API uses bypasses RLS; the actual
- *     per-tenant policies (which need Supabase's auth.uid()) land with Phase 4/5.
- *   • Identity lives in Supabase's auth.users. `users` here is the profile;
- *     users.id mirrors auth.users.id, FK wired in Phase 4.
+ *   • RLS is ENABLED on every table here (`.enableRLS()`), a deny-by-default
+ *     posture. Our server connects as the table-owning role, which bypasses
+ *     ENABLE'd (not FORCE'd) RLS, so the API and Better Auth work normally;
+ *     unprivileged Supabase roles are denied. The per-tenant policies land in
+ *     Phase 5 and read an app-set GUC — `current_setting('app.current_org_id')`
+ *     — since Better Auth (not Supabase Auth) owns identity, there is no
+ *     `auth.uid()` to key off.
+ *   • Identity lives in Better Auth's own tables (`user`/`session`/`account`/
+ *     `verification`), defined below and driven by its Drizzle adapter. Our
+ *     `users` table is the domain profile, linked 1:1: `users.id` is a FK to
+ *     `user.id`. Auth fields (email, name, image) live on `user`, never
+ *     duplicated here.
  */
 
 // ---------------------------------------------------------------------------
@@ -84,7 +91,94 @@ const audit = {
 };
 
 // ---------------------------------------------------------------------------
-// Tables
+// Better Auth — identity tables
+//
+// Field shapes are exactly what better-auth@1.x's Drizzle adapter expects
+// (verified against `getAuthTables()`); the TS property names must match its
+// field names (`emailVerified`, `createdAt`, …) so the adapter maps correctly,
+// while the DB columns stay snake_case per our convention. Ids are UUIDs minted
+// by Postgres — Better Auth is configured with `generateId: false` so it defers
+// id creation to the database, keeping identity ids consistent with the rest of
+// the schema. These are managed by the auth layer; app code never writes them.
+// ---------------------------------------------------------------------------
+
+export const user = pgTable('user', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+}).enableRLS();
+
+export const session = pgTable(
+  'session',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    token: text('token').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('session_user_id_idx').on(t.userId)],
+).enableRLS();
+
+export const account = pgTable(
+  'account',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    /** For the email/password provider: the hashed password. Never returned. */
+    password: text('password'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('account_user_id_idx').on(t.userId)],
+).enableRLS();
+
+export const verification = pgTable(
+  'verification',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('verification_identifier_idx').on(t.identifier)],
+).enableRLS();
+
+// ---------------------------------------------------------------------------
+// Tenant tables
 // ---------------------------------------------------------------------------
 
 export const organizations = pgTable('organizations', {
@@ -114,15 +208,16 @@ export const workspaces = pgTable(
 export const users = pgTable(
   'users',
   {
-    /** Mirrors auth.users.id (Supabase Auth owns identity). FK wired in Phase 4. */
-    id: uuid('id').primaryKey().defaultRandom(),
+    /** The domain profile for a Better Auth user — 1:1, sharing the auth user's
+     *  id. Auth fields (email, name, image) live on `user`, never duplicated
+     *  here; the API composes the domain `User` DTO by joining the two. */
+    id: uuid('id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    email: text('email').notNull().unique(),
-    fullName: text('full_name').notNull(),
     jobTitle: text('job_title').notNull().default(''),
-    avatarUrl: text('avatar_url'),
     timezone: text('timezone').notNull().default('UTC'),
     /** False until onboarding completes. Gates the dashboard. */
     hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
@@ -185,6 +280,21 @@ export const userPreferences = pgTable('user_preferences', {
 // Relations — for the query builder (db.query.users.findMany({ with: … }))
 // ---------------------------------------------------------------------------
 
+export const userRelations = relations(user, ({ one, many }) => ({
+  /** The 1:1 domain profile. */
+  profile: one(users, { fields: [user.id], references: [users.id] }),
+  sessions: many(session),
+  accounts: many(account),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, { fields: [session.userId], references: [user.id] }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, { fields: [account.userId], references: [user.id] }),
+}));
+
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   workspaces: many(workspaces),
   users: many(users),
@@ -200,6 +310,8 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
+  /** The Better Auth identity this profile belongs to (1:1, shared id). */
+  authUser: one(user, { fields: [users.id], references: [user.id] }),
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],

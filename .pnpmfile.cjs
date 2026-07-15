@@ -19,7 +19,10 @@
  * own zod into the resolver — matching how it resolved when it was green.
  */
 function readPackage(pkg) {
-  if (pkg.name === 'drizzle-orm') {
+  // Both drizzle-orm and better-auth declare Prisma as an optional peer. Strip
+  // it from each so pnpm's autoInstallPeers never drags Prisma back into a tree
+  // that runs entirely on Drizzle + postgres-js.
+  if (pkg.name === 'drizzle-orm' || pkg.name === 'better-auth') {
     for (const key of ['@prisma/client', 'prisma']) {
       if (pkg.peerDependencies) delete pkg.peerDependencies[key];
       if (pkg.peerDependenciesMeta) delete pkg.peerDependenciesMeta[key];

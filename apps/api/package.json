@@ -16,6 +16,7 @@
     "@kloyya/core": "workspace:*",
     "@fastify/helmet": "^13.0.0",
     "@fastify/sensible": "^6.0.2",
+    "better-auth": "^1.6.23",
     "fastify": "^5.2.0",
     "pino": "^9.5.0",
     "zod": "^3.24.1"
