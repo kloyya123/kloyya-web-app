@@ -35,6 +35,13 @@ const schema = z.object({
   DIRECT_URL: z.string().url().optional(),
   REDIS_URL: z.string().optional(),
   TOKEN_ENCRYPTION_KEY: z.string().optional(),
+
+  // Better Auth. The secret signs sessions/tokens — required once auth is
+  // actually mounted (see auth/auth.ts), optional here so the foundation and
+  // its tests boot without it. BETTER_AUTH_URL is the API's own base URL, used
+  // to build callback/verification links.
+  BETTER_AUTH_SECRET: z.string().min(1).optional(),
+  BETTER_AUTH_URL: z.string().url().default('http://localhost:4000'),
 });
 
 export type Config = z.infer<typeof schema>;
