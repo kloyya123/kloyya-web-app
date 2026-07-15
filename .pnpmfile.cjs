@@ -9,6 +9,14 @@
  * We strip Prisma from drizzle-orm's peer declarations so it stays out of the
  * lockfile entirely. This is the one place Prisma is even named in the repo,
  * and it exists only to keep Prisma OUT.
+ *
+ * Second hook: @hookform/resolvers imports `zod/v3` and `zod/v4/core` in its
+ * type definitions but declares ONLY react-hook-form as a peer — never zod.
+ * In a flat/hoisted node_modules (its standalone default) it reaches zod by
+ * directory-walking; under pnpm's strict isolated linking it can't, so tsc
+ * resolves `zod/v4/core` to the wrong module and every zodResolver() call
+ * fails to typecheck. We add zod as an OPTIONAL peer so pnpm wires the app's
+ * own zod into the resolver — matching how it resolved when it was green.
  */
 function readPackage(pkg) {
   if (pkg.name === 'drizzle-orm') {
@@ -16,6 +24,10 @@ function readPackage(pkg) {
       if (pkg.peerDependencies) delete pkg.peerDependencies[key];
       if (pkg.peerDependenciesMeta) delete pkg.peerDependenciesMeta[key];
     }
+  }
+  if (pkg.name === '@hookform/resolvers') {
+    pkg.peerDependencies = { ...pkg.peerDependencies, zod: '*' };
+    pkg.peerDependenciesMeta = { ...pkg.peerDependenciesMeta, zod: { optional: true } };
   }
   return pkg;
 }

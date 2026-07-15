@@ -15,7 +15,7 @@ import {
  * Kloyya database schema — Phase 3, core tenancy.
  *
  * Derived field-for-field from the frontend's domain model
- * (kloyya-web/types/domain.ts + services/auth/types.ts) so the API returns
+ * (apps/web/types/domain.ts + apps/web/services/auth/types.ts) so the API returns
  * these shapes without translation drift.
  *
  * Conventions:

@@ -1,5 +1,5 @@
 {
-  "name": "kloyya-web",
+  "name": "@kloyya/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -9,7 +9,7 @@
 
 The frontend was built frontend-first behind a strict service-abstraction boundary. That was not just a UI convenience — it means **the backend contract already exists, is fully typed, and has been validated by 516 passing tests.** The backend's job in Phase 1 is not to invent an API; it is to formalize the one the frontend already depends on, and to decide how it is hosted, secured, and populated.
 
-Every claim below is grounded in a file that exists today in `kloyya-web/`, cited inline.
+Every claim below is grounded in a file that exists today in `apps/web/`, cited inline.
 
 The engineering guarantee we are honoring: *"Only the data layer should change when moving from mock data to production APIs"* (`services/index.ts`). There is exactly one swap point. When the real backend is ready, we write `SupabaseAuthService implements AuthService`, change 13 lines in the registry, and no component, hook, page, or test changes.
 
@@ -18,7 +18,7 @@ The engineering guarantee we are honoring: *"Only the data layer should change w
 ## 1. Frontend audit — what already defines the contract
 
 ### 1.1 The service layer (the API surface)
-Thirteen typed service interfaces in `kloyya-web/services/*/types.ts`, each a set of `Promise`-returning methods that either resolve with a domain type or throw a typed `ApiError`. These are the endpoints, already specified:
+Thirteen typed service interfaces in `apps/web/services/*/types.ts`, each a set of `Promise`-returning methods that either resolve with a domain type or throw a typed `ApiError`. These are the endpoints, already specified:
 
 | Service | Methods (abbreviated) | Becomes REST |
 |---|---|---|
