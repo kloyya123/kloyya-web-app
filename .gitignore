@@ -17,10 +17,6 @@ coverage/
 .env.*
 !.env.example
 
-# Prisma
-packages/db/prisma/*.db
-packages/db/prisma/migrations/dev.db*
-
 # Editor / OS
 .DS_Store
 Thumbs.db

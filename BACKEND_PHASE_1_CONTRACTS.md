@@ -114,7 +114,7 @@ GET    /v1/search?q                → 200 SearchResult[]
 ```
                     ┌─────────────────────────────────────────┐
    Next.js app  ───▶│  /v1 API (route handlers)                │
-   (existing)       │  zod-validated → service layer → Prisma  │
+   (existing)       │  zod-validated → service layer → Drizzle │
                     │  emits KAS envelope, RLS-scoped           │
                     └───────────────┬─────────────────────────┘
                                     │
@@ -144,7 +144,7 @@ GET    /v1/search?q                → 200 SearchResult[]
 ## 5. Security review (Phase 1 posture)
 
 Grounded in KESM + what the types already require:
-1. **Tenant isolation — defense in depth:** Postgres **Row-Level Security** as the hard backstop (a query *cannot* return another org's rows even if app code is buggy) **plus** Prisma-level orgId/workspaceId scoping for ergonomics. This is non-negotiable for enterprise and is Phase 5's core.
+1. **Tenant isolation — defense in depth:** Postgres **Row-Level Security** as the hard backstop (a query *cannot* return another org's rows even if app code is buggy) **plus** Drizzle-level orgId/workspaceId scoping for ergonomics. This is non-negotiable for enterprise and is Phase 5's core.
 2. **Token encryption:** OAuth access/refresh tokens encrypted at rest (envelope encryption, key in a KMS/secret store), never returned by any endpoint. Phase 8.5 will verify revocation immediately halts sync.
 3. **Secret exclusion:** the API projection = `BaseEntity` shape; `passwordHash`, `*_enc`, and internal columns physically cannot serialize because the response DTO doesn't include them.
 4. **Audit logging:** every mutation and every AI decision writes an `AuditLog` row (actor, action, entity, correlationId). Required for the Trust Center and Phase 8.5.
@@ -155,7 +155,7 @@ Grounded in KESM + what the types already require:
 
 ## 6. What Phase 1 does NOT decide (deferred to their phase)
 - Exact OpenAPI doc (Phase 2, generated).
-- Prisma schema DDL (Phase 3 — but the entity list and relationships above are its spec).
+- Drizzle schema DDL (Phase 3 — but the entity list and relationships above are its spec).
 - Connector implementations (Phase 8) and their validation (Phase 8.5).
 - The AI pipeline internals (Phases 9, 13–16).
 
@@ -167,7 +167,7 @@ Each has my recommendation. You can accept all four and I proceed, or redirect a
 
 **① Repository topology.** Recommend: backend as **route handlers inside the existing Next.js app** (`app/api/v1/*`) sharing the types package, + a **separate worker process** in the same repo for durable jobs. Rationale: shares the 700+ lines of domain types already written, one deploy for the API, worker extracted cleanly. Alternative: fully separate backend service (more isolation, more boilerplate, type duplication).
 
-**② Data + auth + storage platform.** Recommend: **Supabase** (managed Postgres + pgvector + Auth + Storage + RLS). Rationale: it collapses Phases 3 (DB), 4 (Auth: email verification, password reset, JWT, sessions — all built-in), 10 (Storage), and half of 5 (RLS) into managed infrastructure, and your own doc lists it. Prisma as the ORM on top. Alternative: self-host Postgres in Docker + custom JWT auth (more control, materially more to build and secure).
+**② Data + auth + storage platform.** Recommend: **Supabase** (managed Postgres + pgvector + Auth + Storage + RLS). Rationale: it collapses Phases 3 (DB), 4 (Auth: email verification, password reset, JWT, sessions — all built-in), 10 (Storage), and half of 5 (RLS) into managed infrastructure, and your own doc lists it. Drizzle as the ORM on top. Alternative: self-host Postgres in Docker + custom JWT auth (more control, materially more to build and secure).
 
 **③ Multi-tenancy enforcement.** Recommend: **both RLS and app-layer scoping** (defense in depth). If you picked Supabase in ②, RLS is essentially free. Alternative: app-layer only (simpler, weaker guarantee — one buggy query leaks cross-tenant).
 
