@@ -52,6 +52,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // The shared contract ships as raw TypeScript (packages/core/src/*.ts), so
+  // Next must transpile it rather than expecting pre-built JS.
+  transpilePackages: ['@kloyya/core'],
+
   // The Quality Gate treats type and lint errors as blocking.
   // A production build must never paper over them.
   typescript: { ignoreBuildErrors: false },

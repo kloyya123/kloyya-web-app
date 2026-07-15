@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    // Pure type declarations — no Node or DOM runtime is referenced, so we
+    // drop the default `["node"]` lib types and the @types/node dependency.
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

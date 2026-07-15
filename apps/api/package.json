@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
+    "@kloyya/core": "workspace:*",
     "@fastify/helmet": "^13.0.0",
     "@fastify/sensible": "^6.0.2",
     "fastify": "^5.2.0",

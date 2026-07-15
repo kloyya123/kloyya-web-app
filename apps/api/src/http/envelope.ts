@@ -1,52 +1,29 @@
 import { randomUUID } from 'node:crypto';
+import type { ApiResponse } from '@kloyya/core';
 
 /**
- * The KAS response envelope — the server half of the contract the frontend's
- * `types/api.ts` already models. Every response the API emits, success or error,
- * has this shape. The field names are KAS's names; nothing is added.
+ * The KAS response envelope — the server half of the contract.
+ *
+ * The envelope *shapes* now live once in `@kloyya/core` (the same module the
+ * web app's `types/api.ts` re-exports), so the two ends cannot drift. We import
+ * them type-only — `verbatimModuleSyntax` erases these at build time, so the
+ * compiled API carries no runtime dependency on the raw-TS core package — and
+ * re-export them for the rest of the API to consume from one place.
  *
  * This is the seam the whole frontend-first architecture turns on: because the
  * mock services already returned exactly this shape, the real API returning it
  * means swapping the transport is a change of implementation, not of contract.
  */
 
+export type { ApiResponse, ApiErrorPayload, Pagination, Timing } from '@kloyya/core';
+
+/**
+ * The version prefix, as a local runtime constant. Kept here (rather than
+ * imported from @kloyya/core) so the built API has no runtime import of the
+ * raw-TS core package. Sharing runtime values across the Node backend waits on
+ * a package-build/bundle strategy — see also the duplicated API_STATUS.
+ */
 export const API_VERSION = 'v1' as const;
-
-export interface Pagination {
-  currentCursor: string | null;
-  nextCursor: string | null;
-  previousCursor: string | null;
-  pageSize: number;
-  totalCount?: number;
-}
-
-export interface Timing {
-  durationMs: number;
-  databaseMs?: number;
-  externalApiMs?: number;
-}
-
-export interface ApiResponse<T> {
-  data: T;
-  metadata?: Record<string, unknown>;
-  pagination?: Pagination;
-  links?: Record<string, string>;
-  version: string;
-  timing?: Timing;
-  correlationId: string;
-  warnings?: string[];
-}
-
-export interface ApiErrorPayload {
-  errorCode: string;
-  httpStatus: number;
-  message: string;
-  description: string;
-  suggestedResolution: string;
-  correlationId: string;
-  documentationLink?: string;
-  timestamp: string;
-}
 
 /** A correlation id threads a request through logs, DB calls, and the audit log. */
 export function newCorrelationId(): string {

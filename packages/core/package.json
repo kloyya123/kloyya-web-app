@@ -1,0 +1,22 @@
+{
+  "name": "@kloyya/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./domain": "./src/domain.ts",
+    "./api": "./src/api.ts",
+    "./calendar": "./src/calendar.ts",
+    "./integrations": "./src/integrations.ts",
+    "./knowledge": "./src/knowledge.ts",
+    "./search": "./src/search.ts",
+    "./sources": "./src/sources.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
