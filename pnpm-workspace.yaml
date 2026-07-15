@@ -2,8 +2,13 @@ packages:
   - apps/*
   - packages/*
 
-# Native/binary postinstall steps we explicitly trust (carried from the web app).
+# Native/binary postinstall steps.
 allowBuilds:
   esbuild: true # vitest's bundler
   sharp: true # next/image optimization
   unrs-resolver: true # eslint import resolution
+  # Present only as drizzle-orm's OPTIONAL peer (its unused Prisma adapter).
+  # Explicitly not built so pnpm stops prompting; safe to delete if it ever drops out.
+  '@prisma/client': false
+  '@prisma/engines': false
+  prisma: false

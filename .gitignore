@@ -36,3 +36,7 @@ SKILL/
 claude-session.txt/
 *.docx
 *.pdf
+
+# Agent tooling (regenerable via `npx skills add`)
+.agents/
+skills-lock.json
