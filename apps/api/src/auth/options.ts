@@ -1,6 +1,8 @@
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import type { BetterAuthOptions } from 'better-auth';
+import type { AppDb } from '@kloyya/db';
 import { account, session, user, verification } from '@kloyya/db/schema';
+import { provisionTenantForUser } from '../users/provision.js';
 
 /**
  * Better Auth configuration, as a factory over the database.
@@ -25,9 +27,7 @@ export interface AuthDeps {
   trustedOrigins?: string[];
 }
 
-type DrizzleDb = Parameters<typeof drizzleAdapter>[0];
-
-export function buildAuthOptions(db: DrizzleDb, deps: AuthDeps): BetterAuthOptions {
+export function buildAuthOptions(db: AppDb, deps: AuthDeps): BetterAuthOptions {
   return {
     secret: deps.secret,
     baseURL: deps.baseURL,
@@ -44,5 +44,16 @@ export function buildAuthOptions(db: DrizzleDb, deps: AuthDeps): BetterAuthOptio
     },
     // Let Postgres mint ids (UUID defaults), not the application layer.
     advanced: { database: { generateId: false } },
+    databaseHooks: {
+      user: {
+        create: {
+          // Better Auth creates the identity; we turn it into a tenant. Runs
+          // after the `user` row exists, so the id is the Postgres-minted UUID.
+          after: async (created) => {
+            await provisionTenantForUser(db, { id: created.id, name: created.name });
+          },
+        },
+      },
+    },
   };
 }

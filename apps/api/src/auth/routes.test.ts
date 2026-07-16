@@ -5,6 +5,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import type { FastifyInstance } from 'fastify';
+import type { AppDb } from '@kloyya/db';
 import { buildApp } from '../app.js';
 import { buildAuth } from './auth.js';
 
@@ -21,13 +22,17 @@ let app: FastifyInstance;
 
 beforeAll(async () => {
   const client = new PGlite();
-  const db = drizzle(client);
-  await migrate(db, { migrationsFolder });
+  const pglite = drizzle(client);
+  await migrate(pglite, { migrationsFolder });
+
+  // PGLite exposes the same query surface the services use; cast at this seam
+  // rather than threading a driver union through every signature.
+  const db = pglite as unknown as AppDb;
   const auth = buildAuth(db, {
     secret: 'test-secret-value-at-least-32-characters-long',
     baseURL: 'http://localhost:4000',
   });
-  app = await buildApp({ auth });
+  app = await buildApp({ db, auth });
   await app.ready();
 });
 
@@ -81,10 +86,38 @@ describe('GET /v1/me (session-guarded)', () => {
     const res = await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } });
 
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ data: { id: string; email: string }; correlationId: string }>();
+    const body = res.json<{
+      data: {
+        id: string;
+        email: string;
+        fullName: string;
+        organizationId: string;
+        role: string;
+        jobTitle: string;
+        timezone: string;
+        isEmailVerified: boolean;
+        hasCompletedOnboarding: boolean;
+        createdAt: string;
+      };
+      correlationId: string;
+    }>();
+
+    // The full domain User from @kloyya/core — not just the auth identity.
     expect(body.data.email).toBe('me@kloyya.test');
+    expect(body.data.fullName).toBe('Me User');
     expect(body.data.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     expect(body.correlationId).toBeTruthy();
+
+    // Sign-up provisioned a tenant: an org exists and the creator owns it.
+    expect(body.data.organizationId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(body.data.role).toBe('owner');
+    // Fresh account: onboarding hasn't run, so the dashboard stays gated.
+    expect(body.data.hasCompletedOnboarding).toBe(false);
+    expect(body.data.jobTitle).toBe('');
+    expect(body.data.timezone).toBe('UTC');
+    expect(new Date(body.data.createdAt).toString()).not.toBe('Invalid Date');
   });
 
   it('rejects an unauthenticated request with a 401 KAS error envelope', async () => {

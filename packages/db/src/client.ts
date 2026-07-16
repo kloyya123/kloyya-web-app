@@ -29,3 +29,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export const db = drizzle(sql, { schema, casing: 'snake_case' });
+
+/**
+ * The application database type. Services accept this so they can be handed the
+ * real client in production and an in-memory PGLite one in tests (via a cast at
+ * the seam — the query surface they use is identical across drivers).
+ */
+export type AppDb = typeof db;

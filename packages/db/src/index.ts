@@ -6,4 +6,5 @@
  * directly, so the driver and ORM stay swappable behind one package boundary.
  */
 export { db } from './client.js';
+export type { AppDb } from './client.js';
 export * from './schema.js';

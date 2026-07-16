@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import type { AppDb } from '@kloyya/db';
 import { config } from '../config.js';
 import { buildAuthOptions, type AuthDeps } from './options.js';
 
@@ -8,23 +9,26 @@ import { buildAuthOptions, type AuthDeps } from './options.js';
  */
 export type Auth = ReturnType<typeof betterAuth>;
 
-type DrizzleDb = Parameters<typeof buildAuthOptions>[0];
-
 /** Build an auth instance over a given database (server passes the real client,
  *  tests pass PGLite). */
-export function buildAuth(db: DrizzleDb, deps: AuthDeps): Auth {
+export function buildAuth(db: AppDb, deps: AuthDeps): Auth {
   return betterAuth(buildAuthOptions(db, deps));
 }
 
 /**
- * The app's auth, resolved from validated env — or `null` when it isn't
- * configured yet (no DATABASE_URL or no BETTER_AUTH_SECRET). The db client is
- * imported dynamically so the foundation still boots before those exist; the
- * routes simply aren't mounted until they do.
+ * The real database client, or `null` when DATABASE_URL isn't set. Imported
+ * dynamically because @kloyya/db's client throws at module evaluation without a
+ * connection string — the foundation must still boot before one exists.
  */
-export async function resolveAuthFromEnv(): Promise<Auth | null> {
-  if (!config.DATABASE_URL || !config.BETTER_AUTH_SECRET) return null;
+export async function resolveDbFromEnv(): Promise<AppDb | null> {
+  if (!config.DATABASE_URL) return null;
   const { db } = await import('@kloyya/db');
+  return db;
+}
+
+/** Auth over a given db, using the validated env, or null if no secret is set. */
+export function buildAuthFromEnv(db: AppDb): Auth | null {
+  if (!config.BETTER_AUTH_SECRET) return null;
   return buildAuth(db, {
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,

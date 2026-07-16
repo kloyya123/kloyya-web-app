@@ -2,8 +2,9 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
 import { fastify, type FastifyInstance } from 'fastify';
+import type { AppDb } from '@kloyya/db';
 import { config } from './config.js';
-import { type Auth, resolveAuthFromEnv } from './auth/auth.js';
+import { type Auth, buildAuthFromEnv, resolveDbFromEnv } from './auth/auth.js';
 import { registerAuthRoutes } from './auth/routes.js';
 import { registerErrorHandler } from './http/errors.js';
 import { newCorrelationId } from './http/envelope.js';
@@ -13,7 +14,12 @@ import { meRoutes } from './routes/me.js';
 
 export interface BuildAppOptions {
   /**
-   * The auth instance to mount. Omit to resolve from env (the server's path);
+   * The database. Omit to resolve from env (the server's path); pass an explicit
+   * one to inject a test-backed (PGLite) client.
+   */
+  db?: AppDb | null;
+  /**
+   * The auth instance to mount. Omit to build from the resolved db + env secret;
    * pass an explicit instance to inject a test-backed one; pass `null` to build
    * the app with auth deliberately disabled.
    */
@@ -57,8 +63,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // Auth mounts only when configured. `undefined` means "resolve from env";
   // an explicit value (including null) is honored as-is, which is how tests
   // inject a PGLite-backed instance.
-  const auth = options.auth !== undefined ? options.auth : await resolveAuthFromEnv();
-  // Every request handler can reach the auth backend via `request.server.auth`.
+  const db = options.db !== undefined ? options.db : await resolveDbFromEnv();
+  const auth =
+    options.auth !== undefined ? options.auth : db ? buildAuthFromEnv(db) : null;
+
+  // Handlers reach these via request.server.{db,auth}.
+  app.decorate('db', db);
   app.decorate('auth', auth);
   if (auth) {
     registerAuthRoutes(app, auth);

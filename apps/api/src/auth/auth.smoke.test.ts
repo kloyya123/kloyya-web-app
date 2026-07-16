@@ -6,6 +6,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { sql } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
+import type { AppDb } from '@kloyya/db';
 import { buildAuthOptions } from './options.js';
 
 /**
@@ -28,7 +29,8 @@ async function freshAuth() {
   const db = drizzle(client);
   await migrate(db, { migrationsFolder });
   const auth = betterAuth(
-    buildAuthOptions(db, {
+    // PGLite exposes the same query surface; cast at the driver seam.
+    buildAuthOptions(db as unknown as AppDb, {
       secret: 'test-secret-value-at-least-32-characters-long',
       baseURL: 'http://localhost:4000',
     }),
@@ -73,6 +75,62 @@ describe('Better Auth + Drizzle adapter (PGLite)', () => {
 
     await auth.api.signUpEmail({ body });
     await expect(auth.api.signUpEmail({ body })).rejects.toThrow();
+
+    await client.close();
+  });
+
+  it('provisions a full tenant for the new user', async () => {
+    const { client, db, auth } = await freshAuth();
+
+    const { user: created } = await auth.api.signUpEmail({
+      body: { email: 'owner@kloyya.test', password: 'a strong passphrase', name: 'Owner Person' },
+    });
+
+    // The org is a placeholder named from the user; onboarding renames it.
+    const orgs = await db.execute<{ id: string; name: string; industry: string }>(
+      sql`SELECT id, name, industry FROM "organizations"`,
+    );
+    expect(orgs.rows).toHaveLength(1);
+    expect(orgs.rows[0]?.name).toBe("Owner Person's Organization");
+    expect(orgs.rows[0]?.industry).toBe('');
+
+    const workspaces = await db.execute<{ id: string; name: string; organization_id: string }>(
+      sql`SELECT id, name, organization_id FROM "workspaces"`,
+    );
+    expect(workspaces.rows).toHaveLength(1);
+    expect(workspaces.rows[0]?.name).toBe('General');
+    expect(workspaces.rows[0]?.organization_id).toBe(orgs.rows[0]?.id);
+
+    // The profile shares the auth user's id (1:1) and opens on that workspace.
+    const profiles = await db.execute<{
+      id: string;
+      organization_id: string;
+      active_workspace_id: string;
+      has_completed_onboarding: boolean;
+    }>(sql`SELECT id, organization_id, active_workspace_id, has_completed_onboarding FROM "users"`);
+    expect(profiles.rows).toHaveLength(1);
+    expect(profiles.rows[0]?.id).toBe(created.id);
+    expect(profiles.rows[0]?.organization_id).toBe(orgs.rows[0]?.id);
+    expect(profiles.rows[0]?.active_workspace_id).toBe(workspaces.rows[0]?.id);
+    expect(profiles.rows[0]?.has_completed_onboarding).toBe(false);
+
+    // Whoever creates the organization owns it.
+    const mships = await db.execute<{ user_id: string; role: string; workspace_id: string }>(
+      sql`SELECT user_id, role, workspace_id FROM "memberships"`,
+    );
+    expect(mships.rows).toHaveLength(1);
+    expect(mships.rows[0]?.user_id).toBe(created.id);
+    expect(mships.rows[0]?.role).toBe('owner');
+    expect(mships.rows[0]?.workspace_id).toBe(workspaces.rows[0]?.id);
+
+    // Preferences exist with the Manifesto's defaults, not `everything`.
+    const prefs = await db.execute<{ user_id: string; notification_level: string; work_style: string }>(
+      sql`SELECT user_id, notification_level, work_style FROM "user_preferences"`,
+    );
+    expect(prefs.rows).toHaveLength(1);
+    expect(prefs.rows[0]?.user_id).toBe(created.id);
+    expect(prefs.rows[0]?.notification_level).toBe('important_only');
+    expect(prefs.rows[0]?.work_style).toBe('deep_focus');
 
     await client.close();
   });
