@@ -67,6 +67,16 @@ const schema = z.object({
 
   // Where the web app lives — invitation links point here, not at the API.
   WEB_APP_URL: z.string().url().default('http://localhost:3000'),
+
+  // Google OAuth (Phase 8). Optional so the API boots without connectors; the
+  // connect endpoint refuses clearly when they're absent rather than producing a
+  // broken authorization URL.
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z
+    .string()
+    .url()
+    .default('http://localhost:4000/v1/integrations/google/callback'),
 });
 
 export type Config = z.infer<typeof schema>;
