@@ -1,8 +1,11 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { requireSession } from '../auth/guard.js';
+import { requireDb } from '../auth/permission.js';
 import { ok } from '../http/envelope.js';
 import { ApiError, API_STATUS, errors } from '../http/errors.js';
-import { composeUser } from '../users/service.js';
+import { switchActiveWorkspace } from '../organization/workspace.js';
+import { composeSession, composeUser } from '../users/service.js';
 
 /**
  * The current user.
@@ -34,4 +37,43 @@ export async function meRoutes(app: FastifyInstance): Promise<void> {
 
     return ok(user, request.correlationId);
   });
+
+  /**
+   * Switch the workspace you're working in.
+   *
+   * No permission guard: switching between workspaces you already belong to is
+   * not a privileged act. The authorization that matters is the membership check
+   * in switchActiveWorkspace — belonging *is* the permission here.
+   */
+  app.patch(
+    '/v1/me/active-workspace',
+    { preHandler: requireSession },
+    async (request) => {
+      const ctx = request.auth;
+      if (!ctx) throw errors.unauthorized();
+
+      const db = requireDb(request);
+      const { workspaceId } = z
+        .object({ workspaceId: z.string().uuid() })
+        .parse(request.body);
+
+      const switched = await switchActiveWorkspace(db, ctx.user.id, workspaceId);
+      if (!switched) {
+        throw new ApiError({
+          httpStatus: API_STATUS.Forbidden,
+          errorCode: 'not_a_member',
+          message: 'You are not a member of that workspace.',
+          // Deliberately the same answer whether the workspace is someone else's
+          // or doesn't exist — the difference is not the caller's business.
+          description: 'Kloyya could not find that workspace among the ones you belong to.',
+          suggestedResolution: 'Pick a workspace from your switcher, or ask for an invite.',
+        });
+      }
+
+      const session = await composeSession(db, ctx.user.id);
+      if (!session) throw errors.notFound('User profile');
+
+      return ok(session, request.correlationId);
+    },
+  );
 }
