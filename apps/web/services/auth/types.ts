@@ -1,4 +1,29 @@
 import type { Organization, User, Workspace } from '@/types/domain';
+import type { OnboardingProfile, SettingsPatch, UserPreferences } from '@kloyya/core/preferences';
+
+/**
+ * Preferences and onboarding shapes now live in @kloyya/core — the API collects,
+ * validates, and returns exactly these, so one definition serves both ends.
+ * Re-exported here so `@/services/auth/types` remains the app's import site.
+ */
+export {
+  DEFAULT_PREFERENCES,
+  TEAM_SIZES,
+  GOALS,
+  WORK_STYLES,
+  BRIEFING_TIMES,
+  NOTIFICATION_LEVELS,
+} from '@kloyya/core/preferences';
+export type {
+  TeamSize,
+  Goal,
+  WorkStyle,
+  BriefingTime,
+  NotificationLevel,
+  UserPreferences,
+  OnboardingProfile,
+  SettingsPatch,
+} from '@kloyya/core/preferences';
 
 /**
  * KESM session model: "Short-lived access tokens, Refresh tokens, Device
@@ -22,36 +47,6 @@ export interface Session {
   /** Opaque. Never parsed client-side. */
   accessToken: string;
   expiresAt: string;
-}
-
-export interface UserPreferences {
-  teamSize: TeamSize;
-  goals: Goal[];
-  workStyle: WorkStyle;
-  briefingTime: BriefingTime;
-  notificationLevel: NotificationLevel;
-}
-
-/**
- * What a brand-new session starts with. `important_only` rather than
- * `everything`, per the Manifesto: "Does this deserve interruption? If not,
- * don't notify."
- */
-export const DEFAULT_PREFERENCES: UserPreferences = {
-  teamSize: '51-200',
-  goals: [],
-  workStyle: 'deep_focus',
-  briefingTime: '07:00',
-  notificationLevel: 'important_only',
-};
-
-/** Everything Settings may change. Every field optional — it's a patch. */
-export interface SettingsPatch {
-  fullName?: string;
-  jobTitle?: string;
-  companyName?: string;
-  industry?: string;
-  preferences?: Partial<UserPreferences>;
 }
 
 export interface SignInInput {
@@ -111,44 +106,3 @@ export interface AuthService {
   updateSettings(patch: SettingsPatch): Promise<Session>;
 }
 
-/**
- * Everything onboarding collects. Sourced from the Frontend-First Build
- * Instructions (Phase 2) and the V1 spec's onboarding section.
- */
-export interface OnboardingProfile {
-  fullName: string;
-  jobTitle: string;
-  companyName: string;
-  industry: string;
-  teamSize: TeamSize;
-  goals: Goal[];
-  workStyle: WorkStyle;
-  briefingTime: BriefingTime;
-  notificationLevel: NotificationLevel;
-}
-
-export const TEAM_SIZES = ['1-10', '11-50', '51-200', '201-1000', '1000+'] as const;
-export type TeamSize = (typeof TEAM_SIZES)[number];
-
-export const GOALS = [
-  'reduce_meeting_load',
-  'stay_on_top_of_email',
-  'track_project_risk',
-  'prepare_for_meetings',
-  'organize_knowledge',
-  'make_faster_decisions',
-] as const;
-export type Goal = (typeof GOALS)[number];
-
-export const WORK_STYLES = ['deep_focus', 'collaborative', 'reactive'] as const;
-export type WorkStyle = (typeof WORK_STYLES)[number];
-
-export const BRIEFING_TIMES = ['06:00', '07:00', '08:00', '09:00', 'off'] as const;
-export type BriefingTime = (typeof BRIEFING_TIMES)[number];
-
-/**
- * Design Manifesto: "Does this deserve interruption? If not, don't notify."
- * The default is `important_only`, not `everything`.
- */
-export const NOTIFICATION_LEVELS = ['everything', 'important_only', 'critical_only'] as const;
-export type NotificationLevel = (typeof NOTIFICATION_LEVELS)[number];
