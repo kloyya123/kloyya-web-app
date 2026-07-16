@@ -50,13 +50,13 @@ export function resolveEmailSender(): EmailSender {
   return createLoggingSender((message) => logger.info(message));
 }
 
-/** Auth over a given db, using the validated env, or null if no secret is set. */
-export function buildAuthFromEnv(db: AppDb): Auth | null {
+/** Auth over a given db and sender, using the validated env; null if no secret. */
+export function buildAuthFromEnv(db: AppDb, email: EmailSender): Auth | null {
   if (!config.BETTER_AUTH_SECRET) return null;
   return buildAuth(db, {
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
     trustedOrigins: config.CORS_ALLOWED_ORIGINS,
-    email: resolveEmailSender(),
+    email,
   });
 }

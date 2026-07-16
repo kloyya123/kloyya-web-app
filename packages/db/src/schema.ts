@@ -255,6 +255,49 @@ export const memberships = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * Pending invitations into a workspace.
+ *
+ * `tokenHash` holds a SHA-256 of the token we emailed, never the token itself —
+ * the same reason `account.password` is a hash. An invitation is a credential:
+ * whoever holds the token can join the organization, so a leaked database must
+ * not hand out working invites.
+ *
+ * Status is derived, not stored: pending means not accepted, not revoked, and
+ * not past `expiresAt`. A status column would be a second source of truth that
+ * can disagree with the timestamps.
+ */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Stored lowercased; addresses are compared case-insensitively. */
+    email: text('email').notNull(),
+    /** The role the invitee gets on acceptance. */
+    role: membershipRole('role').notNull().default('employee'),
+    /** Kept for the audit trail; survives the inviter leaving. */
+    invitedByUserId: uuid('invited_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    ...audit,
+  },
+  (t) => [
+    index('invitations_organization_id_idx').on(t.organizationId),
+    index('invitations_workspace_id_idx').on(t.workspaceId),
+    index('invitations_email_idx').on(t.email),
+  ],
+).enableRLS();
+
 export const userPreferences = pgTable('user_preferences', {
   userId: uuid('user_id')
     .primaryKey()
@@ -299,6 +342,19 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   workspaces: many(workspaces),
   users: many(users),
   memberships: many(memberships),
+  invitations: many(invitations),
+}));
+
+export const invitationsRelations = relations(invitations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [invitations.organizationId],
+    references: [organizations.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [invitations.workspaceId],
+    references: [workspaces.id],
+  }),
+  invitedBy: one(users, { fields: [invitations.invitedByUserId], references: [users.id] }),
 }));
 
 export const workspacesRelations = relations(workspaces, ({ one, many }) => ({

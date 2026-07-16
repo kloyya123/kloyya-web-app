@@ -15,6 +15,20 @@
       "when": 1784191088667,
       "tag": "0001_rls_tenant_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784195332898,
+      "tag": "0002_past_wallop",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784195361118,
+      "tag": "0003_invitations_rls",
+      "breakpoints": true
     }
   ]
 }

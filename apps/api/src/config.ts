@@ -48,6 +48,9 @@ const schema = z.object({
   // resolveEmailSender, which refuses that fallback in production.
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).default('Kloyya <onboarding@resend.dev>'),
+
+  // Where the web app lives — invitation links point here, not at the API.
+  WEB_APP_URL: z.string().url().default('http://localhost:3000'),
 });
 
 export type Config = z.infer<typeof schema>;

@@ -4,13 +4,15 @@ import sensible from '@fastify/sensible';
 import { fastify, type FastifyInstance } from 'fastify';
 import type { AppDb } from '@kloyya/db';
 import { config } from './config.js';
-import { type Auth, buildAuthFromEnv, resolveDbFromEnv } from './auth/auth.js';
+import { type Auth, buildAuthFromEnv, resolveDbFromEnv, resolveEmailSender } from './auth/auth.js';
 import { registerAuthRoutes } from './auth/routes.js';
+import type { EmailSender } from './email/sender.js';
 import { registerErrorHandler } from './http/errors.js';
 import { newCorrelationId } from './http/envelope.js';
 import { loggerOptions } from './logger.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
+import { invitationRoutes } from './routes/invitations.js';
 import { onboardingRoutes } from './routes/onboarding.js';
 import { organizationRoutes } from './routes/organization.js';
 import { settingsRoutes } from './routes/settings.js';
@@ -27,6 +29,11 @@ export interface BuildAppOptions {
    * the app with auth deliberately disabled.
    */
   auth?: Auth | null;
+  /**
+   * Where email goes. Omit to resolve from env; tests pass a recorder so the
+   * suite proves the flows without sending anything.
+   */
+  email?: EmailSender;
 }
 
 /**
@@ -67,18 +74,21 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // an explicit value (including null) is honored as-is, which is how tests
   // inject a PGLite-backed instance.
   const db = options.db !== undefined ? options.db : await resolveDbFromEnv();
+  const email = options.email ?? resolveEmailSender();
   const auth =
-    options.auth !== undefined ? options.auth : db ? buildAuthFromEnv(db) : null;
+    options.auth !== undefined ? options.auth : db ? buildAuthFromEnv(db, email) : null;
 
-  // Handlers reach these via request.server.{db,auth}.
+  // Handlers reach these via request.server.{db,auth,email}.
   app.decorate('db', db);
   app.decorate('auth', auth);
+  app.decorate('email', email);
   if (auth) {
     registerAuthRoutes(app, auth);
     await app.register(meRoutes);
     await app.register(onboardingRoutes);
     await app.register(settingsRoutes);
     await app.register(organizationRoutes);
+    await app.register(invitationRoutes);
     app.log.info('Better Auth mounted at /api/auth/*');
   } else {
     app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');

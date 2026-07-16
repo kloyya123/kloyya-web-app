@@ -20,6 +20,7 @@ export const TENANT_TABLES = [
   'users',
   'memberships',
   'user_preferences',
+  'invitations',
 ];
 
 export const EXPECTED_TABLES = [

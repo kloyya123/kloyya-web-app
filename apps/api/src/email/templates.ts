@@ -88,3 +88,47 @@ export function passwordResetCodeEmail(params: { code: string; name?: string }):
 
 /** Expiry the auth layer configures, kept next to the copy that promises it. */
 export const OTP_EXPIRY_SECONDS = MINUTES * 60;
+
+/**
+ * An invitation into a workspace.
+ *
+ * Names who invited you and where — an invitation from nobody in particular is
+ * indistinguishable from phishing, which is exactly what we're asking the
+ * recipient to click through.
+ */
+export function invitationEmail(params: {
+  acceptUrl: string;
+  organizationName: string;
+  invitedByName: string;
+}): EmailMessage {
+  const { acceptUrl, organizationName, invitedByName } = params;
+
+  const text = [
+    `${invitedByName} has invited you to join ${organizationName} on Kloyya.`,
+    '',
+    'Accept the invitation:',
+    acceptUrl,
+    '',
+    'The link expires in 7 days.',
+    "If you weren't expecting this, you can ignore this email.",
+  ].join('\n');
+
+  const html = shell(
+    [
+      `<p><strong>${escapeHtml(invitedByName)}</strong> has invited you to join `,
+      `<strong>${escapeHtml(organizationName)}</strong> on Kloyya.</p>`,
+      `<p style="margin:24px 0"><a href="${escapeHtml(acceptUrl)}" `,
+      'style="background:#1a1a1a;color:#fff;padding:11px 18px;border-radius:6px;',
+      'text-decoration:none;display:inline-block">Accept the invitation</a></p>',
+      '<p style="color:#6b6b6b">The link expires in 7 days.</p>',
+      "<p style=\"color:#6b6b6b\">If you weren't expecting this, you can ignore this email.</p>",
+    ].join(''),
+  );
+
+  return {
+    to: '',
+    subject: `${invitedByName} invited you to ${organizationName} on Kloyya`,
+    html,
+    text,
+  };
+}

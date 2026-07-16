@@ -70,7 +70,7 @@ export async function createTestApp(): Promise<TestApp> {
     email,
   });
 
-  const app = await buildApp({ db, auth });
+  const app = await buildApp({ db, auth, email });
   await app.ready();
   return { app, db, client, email };
 }
