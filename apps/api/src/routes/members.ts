@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ROLES } from '@kloyya/core';
-import { requireSession } from '../auth/guard.js';
+import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { requireDb, requirePermission } from '../auth/permission.js';
 import { ok } from '../http/envelope.js';
 import { ApiError, API_STATUS, errors } from '../http/errors.js';
@@ -55,7 +55,7 @@ function toApiError(result: Extract<MemberChangeResult, { ok: false }>): ApiErro
 export async function memberRoutes(app: FastifyInstance): Promise<void> {
   app.patch(
     '/v1/organization/members/:userId/role',
-    { preHandler: [requireSession, requirePermission('member:role:update')] },
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('member:role:update')] },
     async (request) => {
       const ctx = request.auth;
       if (!ctx) throw errors.unauthorized();
@@ -75,7 +75,7 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete(
     '/v1/organization/members/:userId',
-    { preHandler: [requireSession, requirePermission('member:remove')] },
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('member:remove')] },
     async (request) => {
       const ctx = request.auth;
       if (!ctx) throw errors.unauthorized();

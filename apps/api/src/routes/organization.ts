@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { requireSession } from '../auth/guard.js';
+import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { requireDb, requirePermission } from '../auth/permission.js';
 import { ok } from '../http/envelope.js';
 import { errors } from '../http/errors.js';
@@ -14,7 +14,7 @@ import { getOrgOverview } from '../organization/service.js';
 export async function organizationRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/v1/organization',
-    { preHandler: [requireSession, requirePermission('member:read')] },
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('member:read')] },
     async (request) => {
       const ctx = request.auth;
       if (!ctx) throw errors.unauthorized();

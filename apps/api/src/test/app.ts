@@ -81,10 +81,18 @@ export interface SignUpResult {
   userId: string;
 }
 
-/** Sign a user up and return the session cookie to authenticate later calls. */
+/**
+ * Sign a user up and return the session cookie to authenticate later calls.
+ *
+ * Verifies the address by default, because that is what a real user does before
+ * reaching anything past the verify screen — a test fixture that skips it would
+ * be exercising a state the product doesn't let people be in. Pass
+ * `{ verify: false }` to test the unverified path deliberately.
+ */
 export async function signUp(
   app: FastifyInstance,
   input: { email: string; password: string; name: string },
+  options: { verify?: boolean } = {},
 ): Promise<SignUpResult> {
   const res = await app.inject({
     method: 'POST',
@@ -96,8 +104,25 @@ export async function signUp(
     throw new Error(`sign-up failed (${res.statusCode}): ${res.body}`);
   }
   const body = res.json<{ user: { id: string } }>();
-  return {
-    cookie: res.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
-    userId: body.user.id,
-  };
+  const cookie = res.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+
+  if (options.verify ?? true) {
+    // The recorder is the app's own sender here, so the code is read exactly the
+    // way the invitee would read it — out of the email.
+    const sender = app.email as Partial<RecordingSender>;
+    const code = sender.lastCodeTo?.(input.email.trim().toLowerCase());
+    if (!code) throw new Error(`no verification code emailed to ${input.email}`);
+
+    const verified = await app.inject({
+      method: 'POST',
+      url: '/api/auth/email-otp/verify-email',
+      headers: { 'content-type': 'application/json' },
+      payload: { email: input.email.trim().toLowerCase(), otp: code },
+    });
+    if (verified.statusCode !== 200) {
+      throw new Error(`verification failed (${verified.statusCode}): ${verified.body}`);
+    }
+  }
+
+  return { cookie, userId: body.user.id };
 }

@@ -38,3 +38,36 @@ export async function requireSession(
 
   request.auth = session;
 }
+
+/**
+ * A preHandler that requires a PROVEN email address, not merely a claimed one.
+ *
+ * Sign-up accepts any address without proof, so an unverified session says
+ * nothing about who the caller is. That is fine for reading your own profile and
+ * for the verify screen itself, and dangerous everywhere else — most sharply on
+ * invitation acceptance, where the address IS the authorization: without this,
+ * anyone could register as victim@company.com and redeem the invitation sent to
+ * them, joining an organization they were never invited to.
+ *
+ * The domain model already says so — `User.isEmailVerified` "gates workspace
+ * access". This is the server enforcing what the interface merely displays.
+ *
+ * Composes after `requireSession`.
+ */
+export async function requireVerifiedEmail(
+  request: FastifyRequest,
+  _reply: FastifyReply,
+): Promise<void> {
+  const ctx = request.auth;
+  if (!ctx) throw errors.unauthorized();
+
+  if (!ctx.user.emailVerified) {
+    throw new ApiError({
+      httpStatus: API_STATUS.Forbidden,
+      errorCode: 'email_not_verified',
+      message: 'Verify your email address to continue.',
+      description: 'This action needs a confirmed address, and yours has not been confirmed yet.',
+      suggestedResolution: 'Enter the six-digit code we emailed you, or request a new one.',
+    });
+  }
+}

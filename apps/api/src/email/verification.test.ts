@@ -48,11 +48,16 @@ describe('email verification', () => {
   });
 
   it('verifies the account when the emailed code is submitted', async () => {
-    const { cookie } = await signUp(app, {
-      email: 'verifyme@kloyya.test',
-      password: 'a sufficiently long passphrase',
-      name: 'Verify Me',
-    });
+    // This test IS the verification flow, so it starts where a real user does.
+    const { cookie } = await signUp(
+      app,
+      {
+        email: 'verifyme@kloyya.test',
+        password: 'a sufficiently long passphrase',
+        name: 'Verify Me',
+      },
+      { verify: false },
+    );
 
     // Unverified to begin with — this is what gates the dashboard.
     const before = await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } });
@@ -74,11 +79,15 @@ describe('email verification', () => {
   });
 
   it('rejects a wrong code and leaves the account unverified', async () => {
-    const { cookie } = await signUp(app, {
-      email: 'wrongcode@kloyya.test',
-      password: 'a sufficiently long passphrase',
-      name: 'Wrong Code',
-    });
+    const { cookie } = await signUp(
+      app,
+      {
+        email: 'wrongcode@kloyya.test',
+        password: 'a sufficiently long passphrase',
+        name: 'Wrong Code',
+      },
+      { verify: false },
+    );
 
     const res = await app.inject({
       method: 'POST',

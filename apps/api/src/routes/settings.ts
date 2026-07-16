@@ -7,7 +7,7 @@ import {
   TEAM_SIZES,
   WORK_STYLES,
 } from '@kloyya/core';
-import { requireSession } from '../auth/guard.js';
+import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { assertPermission, requireDb } from '../auth/permission.js';
 import { ok } from '../http/envelope.js';
 import { errors } from '../http/errors.js';
@@ -38,7 +38,10 @@ const settingsSchema = z.object({
 });
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
-  app.patch('/v1/settings', { preHandler: requireSession }, async (request) => {
+  app.patch(
+    '/v1/settings',
+    { preHandler: [requireSession, requireVerifiedEmail] },
+    async (request) => {
     const ctx = request.auth;
     if (!ctx) throw errors.unauthorized();
 
@@ -61,5 +64,6 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     if (!session) throw errors.notFound('User profile');
 
     return ok(session, request.correlationId);
-  });
+    },
+  );
 }

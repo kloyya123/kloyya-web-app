@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ROLES } from '@kloyya/core';
-import { requireSession } from '../auth/guard.js';
+import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { requireDb, requirePermission } from '../auth/permission.js';
 import { invitationEmail } from '../email/templates.js';
 import { config } from '../config.js';
@@ -25,7 +25,7 @@ export async function invitationRoutes(app: FastifyInstance): Promise<void> {
   /** Invite someone into your workspace. */
   app.post(
     '/v1/invitations',
-    { preHandler: [requireSession, requirePermission('member:invite')] },
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('member:invite')] },
     async (request, reply) => {
       const ctx = request.auth;
       if (!ctx) throw errors.unauthorized();
@@ -79,7 +79,7 @@ export async function invitationRoutes(app: FastifyInstance): Promise<void> {
   /** Pending invitations for your workspace. */
   app.get(
     '/v1/invitations',
-    { preHandler: [requireSession, requirePermission('member:invite')] },
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('member:invite')] },
     async (request) => {
       const ctx = request.auth;
       if (!ctx) throw errors.unauthorized();
@@ -92,7 +92,7 @@ export async function invitationRoutes(app: FastifyInstance): Promise<void> {
   /** Withdraw an invitation that hasn't been accepted. */
   app.post(
     '/v1/invitations/:id/revoke',
-    { preHandler: [requireSession, requirePermission('member:invite')] },
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('member:invite')] },
     async (request) => {
       const ctx = request.auth;
       if (!ctx) throw errors.unauthorized();
@@ -110,11 +110,16 @@ export async function invitationRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Accept an invitation.
    *
-   * Only a session is required — the token plus a matching address IS the
-   * authorization. No permission applies: the whole point is that the caller
-   * doesn't belong to the organization yet.
+   * No permission applies — the whole point is that the caller doesn't belong to
+   * the organization yet. The token plus a matching address IS the
+   * authorization, which is exactly why the address must be PROVEN: sign-up
+   * accepts any address without proof, so without requireVerifiedEmail anyone
+   * could register as the invitee and redeem their invitation.
    */
-  app.post('/v1/invitations/accept', { preHandler: requireSession }, async (request) => {
+  app.post(
+    '/v1/invitations/accept',
+    { preHandler: [requireSession, requireVerifiedEmail] },
+    async (request) => {
     const ctx = request.auth;
     if (!ctx) throw errors.unauthorized();
 

@@ -7,7 +7,7 @@ import {
   TEAM_SIZES,
   WORK_STYLES,
 } from '@kloyya/core';
-import { requireSession } from '../auth/guard.js';
+import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { ok } from '../http/envelope.js';
 import { ApiError, API_STATUS, errors } from '../http/errors.js';
 import { completeOnboarding } from '../users/onboarding.js';
@@ -33,7 +33,10 @@ const onboardingSchema = z.object({
 });
 
 export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/v1/onboarding', { preHandler: requireSession }, async (request) => {
+  app.post(
+    '/v1/onboarding',
+    { preHandler: [requireSession, requireVerifiedEmail] },
+    async (request) => {
     const ctx = request.auth;
     if (!ctx) throw errors.unauthorized();
 
@@ -57,5 +60,6 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
     if (!session) throw errors.notFound('User profile');
 
     return ok(session, request.correlationId);
-  });
+    },
+  );
 }

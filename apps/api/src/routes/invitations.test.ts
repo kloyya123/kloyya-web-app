@@ -273,6 +273,47 @@ describe('POST /v1/invitations/accept', () => {
     expect(res.statusCode).toBe(422);
   });
 
+  it('refuses an unverified account — a claimed address is not a proven one', async () => {
+    const inviter = await owner('host5@kloyya.test');
+    await app.inject({
+      method: 'POST',
+      url: '/v1/invitations',
+      headers: { cookie: inviter.cookie, 'content-type': 'application/json' },
+      payload: { email: 'target@kloyya.test', role: 'administrator' },
+    });
+    const token = tokenFromEmailTo('target@kloyya.test');
+
+    // The attack: sign up AS the invitee. Nothing stops anyone claiming an
+    // address at sign-up — only verification proves they own it. Without the
+    // guard, the email match in acceptInvitation would be satisfied by a
+    // stranger and they'd join the organization as an administrator.
+    const impostor = await signUp(
+      app,
+      { email: 'target@kloyya.test', password: 'a sufficiently long passphrase', name: 'Impostor' },
+      { verify: false },
+    );
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/invitations/accept',
+      headers: { cookie: impostor.cookie, 'content-type': 'application/json' },
+      payload: { token },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json<{ error: { errorCode: string } }>().error.errorCode).toBe('email_not_verified');
+
+    // The invitation is untouched: still pending, still usable by the real invitee.
+    const pending = await app.inject({
+      method: 'GET',
+      url: '/v1/invitations',
+      headers: { cookie: inviter.cookie },
+    });
+    expect(pending.json<{ data: { email: string }[] }>().data.map((i) => i.email)).toContain(
+      'target@kloyya.test',
+    );
+  });
+
   it('refuses a token that was never real', async () => {
     const nobody = await signUp(app, {
       email: 'nobody@kloyya.test',
