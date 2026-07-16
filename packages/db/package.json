@@ -15,6 +15,7 @@
     "studio": "dotenv -e ../../.env -- drizzle-kit studio",
     "check": "drizzle-kit check",
     "verify:local": "tsx scripts/verify-migration.ts",
+    "verify:remote": "dotenv -e ../../.env -- tsx scripts/verify-remote.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
