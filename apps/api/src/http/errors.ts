@@ -146,6 +146,25 @@ function toErrorPayload(error: unknown, correlationId: string): ApiErrorPayload 
     };
   }
 
+  // Fastify's own errors — an empty JSON body, an unsupported media type, a
+  // payload over the limit — carry the status they deserve. Reporting a client's
+  // malformed request as "something went wrong on our end" is both a lie and an
+  // alert nobody should be woken by; the caller can't fix a 500, but they can fix
+  // a 400.
+  const fastifyStatus = clientErrorStatus(error);
+  if (fastifyStatus) {
+    return {
+      errorCode: fastifyErrorCode(error) ?? 'bad_request',
+      httpStatus: fastifyStatus,
+      message: 'That request could not be read.',
+      description:
+        error instanceof Error ? error.message : 'The request was malformed or unsupported.',
+      suggestedResolution: 'Check the method, headers and body against the API reference.',
+      correlationId,
+      timestamp,
+    };
+  }
+
   // Anything else is an unexpected failure. Never leak its message to the client.
   return {
     errorCode: 'internal_error',
@@ -156,4 +175,26 @@ function toErrorPayload(error: unknown, correlationId: string): ApiErrorPayload 
     correlationId,
     timestamp,
   };
+}
+
+/** The KAS statuses we can report, indexed for lookup. */
+const KNOWN_STATUSES = new Set<number>(Object.values(API_STATUS));
+
+/**
+ * A 4xx carried by a framework error, or null when this isn't the client's
+ * fault. Anything 5xx falls through to the internal-error path deliberately: it
+ * really is ours.
+ */
+function clientErrorStatus(error: unknown): ApiStatus | null {
+  if (typeof error !== 'object' || error === null || !('statusCode' in error)) return null;
+  const status = (error as { statusCode?: unknown }).statusCode;
+  if (typeof status !== 'number' || status < 400 || status >= 500) return null;
+  return KNOWN_STATUSES.has(status) ? (status as ApiStatus) : API_STATUS.BadRequest;
+}
+
+/** Fastify's machine-readable code (FST_ERR_*), lowercased for the envelope. */
+function fastifyErrorCode(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' && code.length > 0 ? code.toLowerCase() : null;
 }

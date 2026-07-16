@@ -13,6 +13,7 @@ import { loggerOptions } from './logger.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { invitationRoutes } from './routes/invitations.js';
+import { memberRoutes } from './routes/members.js';
 import { onboardingRoutes } from './routes/onboarding.js';
 import { organizationRoutes } from './routes/organization.js';
 import { settingsRoutes } from './routes/settings.js';
@@ -89,6 +90,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(settingsRoutes);
     await app.register(organizationRoutes);
     await app.register(invitationRoutes);
+    await app.register(memberRoutes);
     app.log.info('Better Auth mounted at /api/auth/*');
   } else {
     app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');
