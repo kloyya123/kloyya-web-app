@@ -7,4 +7,6 @@
  */
 export { db } from './client.js';
 export type { AppDb } from './client.js';
+export { withTenantScope } from './scope.js';
+export type { Tx } from './scope.js';
 export * from './schema.js';

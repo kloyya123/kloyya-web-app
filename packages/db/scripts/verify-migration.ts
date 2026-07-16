@@ -20,18 +20,20 @@ import { sql } from 'drizzle-orm';
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = resolve(here, '../drizzle');
 
+/**
+ * The tenant tables — everything scoped to an organization. These carry the
+ * isolation policies; the identity tables below deliberately do not (Better Auth
+ * must reach them before any org context exists).
+ */
+const TENANT_TABLES = ['organizations', 'workspaces', 'users', 'memberships', 'user_preferences'];
+
 const EXPECTED_TABLES = [
   // Better Auth identity tables
   'user',
   'session',
   'account',
   'verification',
-  // Tenant tables
-  'organizations',
-  'workspaces',
-  'users',
-  'memberships',
-  'user_preferences',
+  ...TENANT_TABLES,
 ];
 const EXPECTED_ENUMS = [
   'plan',
@@ -94,6 +96,32 @@ async function main(): Promise<void> {
   for (const t of EXPECTED_TABLES) {
     assert(rlsByTable.get(t) === true, `RLS enabled on "${t}"`);
   }
+
+  // Enabling RLS without policies protects nothing from the owner; the tenant
+  // tables must also FORCE it and carry an isolation policy.
+  const forced = await db.execute<{ relname: string; relforcerowsecurity: boolean }>(sql`
+    SELECT c.relname, c.relforcerowsecurity
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r'
+  `);
+  const forcedByTable = new Map(forced.rows.map((r) => [r.relname, r.relforcerowsecurity]));
+  for (const t of TENANT_TABLES) {
+    assert(forcedByTable.get(t) === true, `RLS FORCED on "${t}"`);
+  }
+
+  const policies = await db.execute<{ tablename: string; policyname: string }>(sql`
+    SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public'
+  `);
+  const policyTables = new Set(policies.rows.map((r) => r.tablename));
+  for (const t of TENANT_TABLES) {
+    assert(policyTables.has(t), `tenant isolation policy on "${t}"`);
+  }
+
+  const roles = await db.execute<{ rolname: string }>(sql`
+    SELECT rolname FROM pg_roles WHERE rolname = 'app_tenant'
+  `);
+  assert(roles.rows.length === 1, 'role "app_tenant" exists');
 
   await client.close();
   console.log('\nMigration verified against PGLite — schema is sound. ✓');
