@@ -34,7 +34,23 @@ const schema = z.object({
   DATABASE_URL: z.string().url().optional(),
   DIRECT_URL: z.string().url().optional(),
   REDIS_URL: z.string().optional(),
-  TOKEN_ENCRYPTION_KEY: z.string().optional(),
+
+  /**
+   * Encrypts customers' third-party OAuth tokens at rest (Phase 8).
+   *
+   * Validated here, at boot, rather than at the first connection: a key that
+   * decodes to the wrong length is a deployment mistake, and the moment to find
+   * out is on startup — not when someone is halfway through connecting Gmail.
+   * (A base64 key can contain '/', which shells on Windows will happily rewrite
+   * into a path; that failure is silent until it isn't.)
+   */
+  TOKEN_ENCRYPTION_KEY: z
+    .string()
+    .optional()
+    .refine(
+      (value) => value === undefined || Buffer.from(value, 'base64').length === 32,
+      'TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64url\'))"',
+    ),
 
   // Better Auth. The secret signs sessions/tokens — required once auth is
   // actually mounted (see auth/auth.ts), optional here so the foundation and
