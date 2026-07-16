@@ -43,6 +43,20 @@
       "when": 1784200290448,
       "tag": "0005_connections_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784210353482,
+      "tag": "0006_far_infant_terrible",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784210356153,
+      "tag": "0007_sync_records_rls",
+      "breakpoints": true
     }
   ]
 }

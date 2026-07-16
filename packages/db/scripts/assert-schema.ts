@@ -22,6 +22,7 @@ export const TENANT_TABLES = [
   'user_preferences',
   'invitations',
   'connections',
+  'sync_records',
 ];
 
 export const EXPECTED_TABLES = [

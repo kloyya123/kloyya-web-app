@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -346,6 +347,15 @@ export const connections = pgTable(
       onDelete: 'set null',
     }),
     lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    /**
+     * Where the last incremental sync got to, per resource.
+     *
+     * A map because one connection has many streams — Google Calendar issues a
+     * separate syncToken per calendar, so a single cursor column would silently
+     * only ever sync one of them. Opaque provider values; we store and return
+     * them, never parse them.
+     */
+    syncCursors: jsonb('sync_cursors').notNull().default(sql`'{}'::jsonb`),
     /** Human-readable, shown with a Reconnect action. Present only on 'error'. */
     errorReason: text('error_reason'),
     ...audit,
@@ -355,6 +365,64 @@ export const connections = pgTable(
     // a feature, and two live token pairs for one provider is a sync race.
     uniqueIndex('connections_workspace_id_integration_id_uq').on(t.workspaceId, t.integrationId),
     index('connections_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Raw provider data, exactly as the provider gave it.
+ *
+ * Connectors land; the pipeline interprets. Nothing in this table has been
+ * reshaped, renamed, scored or summarised — `payload` is verbatim provider JSON.
+ * That separation is what makes the pipeline re-runnable: when the way we read a
+ * calendar event changes, we re-read what Google already told us instead of
+ * asking Google again. Re-fetching everyone's history to fix our own bug is a
+ * rate limit, a bill, and an outage.
+ *
+ * One row per provider object per connection, holding its latest raw form.
+ * `contentHash` is what makes a re-sync cheap: an unchanged payload is skipped
+ * rather than re-processed downstream.
+ *
+ * Provider deletions are tombstoned (`deletedAtSource`) rather than deleted:
+ * "this meeting was cancelled" is intelligence, and a row that vanishes cannot
+ * tell the pipeline anything.
+ */
+export const syncRecords = pgTable(
+  'sync_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Disconnecting a tool takes its landed data with it. */
+    connectionId: uuid('connection_id')
+      .notNull()
+      .references(() => connections.id, { onDelete: 'cascade' }),
+    /** Denormalized from the connection so the pipeline can filter without a join. */
+    integrationId: text('integration_id').notNull(),
+    /** What kind of thing this is: 'calendar_event', 'message', 'file'. */
+    resourceType: text('resource_type').notNull(),
+    /** The provider's own id. Stable across syncs; ours is not. */
+    externalId: text('external_id').notNull(),
+    /** Verbatim provider JSON. Never edited, never interpreted here. */
+    payload: jsonb('payload').notNull(),
+    /** SHA-256 of the payload — an unchanged object is skipped, not reprocessed. */
+    contentHash: text('content_hash').notNull(),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Set when the provider says it's gone. A tombstone, not a delete. */
+    deletedAtSource: timestamp('deleted_at_source', { withTimezone: true }),
+    ...audit,
+  },
+  (t) => [
+    uniqueIndex('sync_records_connection_resource_external_uq').on(
+      t.connectionId,
+      t.resourceType,
+      t.externalId,
+    ),
+    index('sync_records_workspace_resource_idx').on(t.workspaceId, t.resourceType),
+    index('sync_records_organization_id_idx').on(t.organizationId),
   ],
 ).enableRLS();
 
