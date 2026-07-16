@@ -298,6 +298,66 @@ export const invitations = pgTable(
   ],
 ).enableRLS();
 
+/** The connection lifecycle the frontend's IntegrationsService already models. */
+export const connectionStatus = pgEnum('connection_status', [
+  'not_connected',
+  'connecting',
+  'syncing',
+  'connected',
+  'paused',
+  'error',
+]);
+
+/**
+ * A workspace's connection to a third-party tool.
+ *
+ * The catalogue (what CAN be connected, and the permissions each card promises)
+ * is static config in @kloyya/core — only the live connection state lives here,
+ * keyed by that catalogue's `integrationId`. There is deliberately no foreign key
+ * to a providers table: the catalogue is code, reviewed and deployed, not rows a
+ * bug could invent.
+ *
+ * The tokens are the customer's access to their own Gmail, Calendar and Drive.
+ * They are stored ONLY as ciphertext (AES-256-GCM, see api/src/crypto/tokens.ts)
+ * and are never selected into any response — no endpoint returns them, and the
+ * connection DTO the API sends has no field to put them in.
+ */
+export const connections = pgTable(
+  'connections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Matches IntegrationDefinition.id in the shared catalogue, e.g. 'gmail'. */
+    integrationId: text('integration_id').notNull(),
+    status: connectionStatus('status').notNull().default('not_connected'),
+    /** Ciphertext. Never plaintext, never returned. */
+    accessTokenEnc: text('access_token_enc'),
+    refreshTokenEnc: text('refresh_token_enc'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    /** The scopes the provider actually granted — which can be less than we asked. */
+    grantedScopes: text('granted_scopes').array().notNull().default(sql`'{}'::text[]`),
+    /** Who connected it; kept for the audit trail. */
+    connectedByUserId: uuid('connected_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    /** Human-readable, shown with a Reconnect action. Present only on 'error'. */
+    errorReason: text('error_reason'),
+    ...audit,
+  },
+  (t) => [
+    // One connection per tool per workspace: connecting Gmail twice is a bug, not
+    // a feature, and two live token pairs for one provider is a sync race.
+    uniqueIndex('connections_workspace_id_integration_id_uq').on(t.workspaceId, t.integrationId),
+    index('connections_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
 export const userPreferences = pgTable('user_preferences', {
   userId: uuid('user_id')
     .primaryKey()

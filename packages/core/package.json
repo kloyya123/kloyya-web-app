@@ -13,7 +13,8 @@
     "./integrations": "./src/integrations.ts",
     "./knowledge": "./src/knowledge.ts",
     "./search": "./src/search.ts",
-    "./sources": "./src/sources.ts"
+    "./sources": "./src/sources.ts",
+    "./integration-catalogue": "./src/integration-catalogue.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

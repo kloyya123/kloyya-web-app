@@ -16,6 +16,7 @@ export * from './permissions.js';
 export * from './preferences.js';
 export * from './calendar.js';
 export * from './integrations.js';
+export * from './integration-catalogue.js';
 export * from './knowledge.js';
 export * from './search.js';
 export * from './sources.js';

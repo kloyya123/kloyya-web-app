@@ -21,6 +21,7 @@ export const TENANT_TABLES = [
   'memberships',
   'user_preferences',
   'invitations',
+  'connections',
 ];
 
 export const EXPECTED_TABLES = [
@@ -32,7 +33,14 @@ export const EXPECTED_TABLES = [
   ...TENANT_TABLES,
 ];
 
-export const EXPECTED_ENUMS = ['plan', 'membership_role', 'work_style', 'notification_level', 'goal'];
+export const EXPECTED_ENUMS = [
+  'plan',
+  'membership_role',
+  'work_style',
+  'notification_level',
+  'goal',
+  'connection_status',
+];
 
 /**
  * Run raw SQL and return rows.
