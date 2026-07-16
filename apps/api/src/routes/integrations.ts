@@ -23,6 +23,7 @@ import {
   storeGoogleTokens,
 } from '../integrations/connect.js';
 import { buildGoogleAuthUrl, exchangeGoogleCode, GOOGLE_SCOPES, isGoogleIntegration } from '../integrations/google.js';
+import { syncGoogleCalendar, type SyncOutcome } from '../integrations/sync.js';
 import { decodeState, encodeState } from '../integrations/state.js';
 
 /**
@@ -39,6 +40,51 @@ import { decodeState, encodeState } from '../integrations/state.js';
  */
 const idParams = z.object({ id: z.string().min(1) });
 const listQuery = z.object({ category: z.enum(INTEGRATION_CATEGORIES).optional() });
+
+/**
+ * A failed sync, explained.
+ *
+ * Each reason gets the status its cause deserves: a revoked grant needs a human
+ * (409, reconnect), Google being down is temporary (503, retry), and neither is
+ * a 500 — nothing went wrong on our end.
+ */
+function syncFailureToApiError(outcome: SyncOutcome, id: string): ApiError {
+  switch (outcome.reason) {
+    case 'revoked':
+      return new ApiError({
+        httpStatus: API_STATUS.Conflict,
+        errorCode: 'connection_revoked',
+        message: 'Google no longer accepts this connection.',
+        description: 'It was revoked, or the Google account password changed.',
+        suggestedResolution: 'Reconnect the integration to resume syncing.',
+      });
+    case 'refresh_failed':
+    case 'transient':
+      return new ApiError({
+        httpStatus: API_STATUS.ServiceUnavailable,
+        errorCode: 'provider_unavailable',
+        message: 'Google is not responding right now.',
+        description: 'The connection is fine; the provider is rate-limiting or briefly unavailable.',
+        suggestedResolution: 'Try again in a few minutes — nothing needs fixing.',
+      });
+    case 'not_connected':
+      return new ApiError({
+        httpStatus: API_STATUS.Conflict,
+        errorCode: 'wrong_connection_state',
+        message: 'That integration is not connected.',
+        description: `${id} has no connection to sync.`,
+        suggestedResolution: 'Connect it first.',
+      });
+    default:
+      return new ApiError({
+        httpStatus: API_STATUS.ServiceUnavailable,
+        errorCode: 'sync_failed',
+        message: 'Kloyya could not read from Google.',
+        description: 'The sync did not complete.',
+        suggestedResolution: 'Try again; reconnect if it keeps failing.',
+      });
+  }
+}
 
 function toApiError(result: Extract<LifecycleResult, { ok: false }>, id: string): ApiError {
   switch (result.reason) {
@@ -275,6 +321,74 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       return reply.redirect(back('failed', state.integrationId));
     }
   });
+
+  /**
+   * Sync now.
+   *
+   * Real work, not a timestamp: it reads Google and lands what changed. It runs
+   * inline because a calendar is small and the user is watching; mail and drive
+   * will need the durable worker, and this is where that boundary will show.
+   */
+  app.post(
+    '/v1/integrations/:id/sync',
+    { preHandler: [requireSession, requireVerifiedEmail, requirePermission('integration:connect')] },
+    async (request) => {
+      const ctx = request.auth;
+      if (!ctx) throw errors.unauthorized();
+
+      const { id } = idParams.parse(request.params);
+      if (id !== 'google_calendar') {
+        throw new ApiError({
+          httpStatus: API_STATUS.NotFound,
+          errorCode: 'connector_unavailable',
+          message: 'That integration cannot sync yet.',
+          description: `Kloyya has no sync for "${id}" — only Google Calendar is wired up so far.`,
+          suggestedResolution: 'Check back as more connectors land.',
+        });
+      }
+
+      if (!config.GOOGLE_OAUTH_CLIENT_ID || !config.GOOGLE_OAUTH_CLIENT_SECRET) {
+        throw new ApiError({
+          httpStatus: API_STATUS.ServiceUnavailable,
+          errorCode: 'google_oauth_unconfigured',
+          message: 'Google connections are not configured on this server.',
+          description: 'GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET are not set.',
+          suggestedResolution: 'Set both, then restart the API.',
+        });
+      }
+      if (!config.TOKEN_ENCRYPTION_KEY) {
+        throw new ApiError({
+          httpStatus: API_STATUS.ServiceUnavailable,
+          errorCode: 'encryption_unconfigured',
+          message: 'This server cannot read stored connections securely.',
+          description: 'TOKEN_ENCRYPTION_KEY is not set.',
+          suggestedResolution: 'Set it, then restart the API.',
+        });
+      }
+
+      const db = requireDb(request);
+      const start = await resolveStartContext(db, ctx.user.id);
+      if (!start) throw errors.notFound('User profile');
+
+      const outcome = await syncGoogleCalendar(db, createTokenCrypto(config.TOKEN_ENCRYPTION_KEY), start, {
+        clientId: config.GOOGLE_OAUTH_CLIENT_ID,
+        clientSecret: config.GOOGLE_OAUTH_CLIENT_SECRET,
+      });
+
+      if (!outcome.ok) throw syncFailureToApiError(outcome, id);
+
+      const connection = await getConnection(db, ctx.user.id, id);
+      if (!connection) throw errors.notFound('Integration');
+
+      return ok(
+        {
+          connection,
+          synced: { fetched: outcome.fetched, written: outcome.written, removed: outcome.tombstoned },
+        },
+        request.correlationId,
+      );
+    },
+  );
 
   app.post(
     '/v1/integrations/:id/disconnect',
