@@ -6,6 +6,7 @@ import { connections, syncRecords } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens.js';
 import type { StartContext } from './connect.js';
 import { getValidAccessToken } from './tokens.js';
+import { validateCalendarEvents } from './validation.js';
 import {
   GoogleTransientError,
   isCancelled,
@@ -36,6 +37,12 @@ export interface SyncOutcome {
   written: number;
   /** Objects Google says are gone. */
   tombstoned: number;
+  /**
+   * Objects refused before storage (Phase 8.5). Reported, never swallowed — a
+   * connector that quietly drops records is indistinguishable from one that
+   * works.
+   */
+  rejected: number;
   reason?: 'not_connected' | 'revoked' | 'refresh_failed' | 'transient' | 'failed';
 }
 
@@ -44,6 +51,8 @@ export interface SyncDeps {
   clientSecret: string;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** Called for each record refused before storage, so rejections are visible. */
+  onRejected?: (calendarId: string, failure: { externalId: string | null; reason: string }) => void;
 }
 
 function hashPayload(payload: unknown): string {
@@ -186,13 +195,15 @@ export async function syncGoogleCalendar(
   const now = new Date((deps.now ?? Date.now)());
 
   const connection = await readConnection(db, ctx, integrationId);
-  if (!connection) return { ok: false, fetched: 0, written: 0, tombstoned: 0, reason: 'not_connected' };
+  if (!connection) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: 'not_connected' };
+  }
 
   const token = await getValidAccessToken(db, crypto, ctx, integrationId, deps);
   if (!token.ok) {
     // getValidAccessToken already parked a revoked connection with a reason; a
     // transient failure deliberately left it alone.
-    return { ok: false, fetched: 0, written: 0, tombstoned: 0, reason: token.reason };
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: token.reason };
   }
 
   await saveProgress(db, ctx, integrationId, connection.cursors, { status: 'syncing' });
@@ -201,6 +212,7 @@ export async function syncGoogleCalendar(
   let fetched = 0;
   let written = 0;
   let tombstoned = 0;
+  let rejected = 0;
 
   try {
     const calendars = await listCalendars({
@@ -234,9 +246,18 @@ export async function syncGoogleCalendar(
         });
       }
 
-      for (const event of result.events as RawGoogleEvent[]) {
-        if (!event.id) continue; // Nothing to key on; not ours to invent.
-        fetched += 1;
+      fetched += result.events.length;
+
+      // Phase 8.5: nothing reaches storage unvalidated. Landing raw means we
+      // don't reinterpret what Google says — not that we accept what it can't
+      // have meant.
+      const batch = validateCalendarEvents(result.events as RawGoogleEvent[]);
+      rejected += batch.rejected.length;
+      for (const failure of batch.rejected) {
+        deps.onRejected?.(calendar.id, failure);
+      }
+
+      for (const event of batch.valid) {
         const cancelled = isCancelled(event);
         const changed = await landRecord(
           db,
@@ -274,6 +295,7 @@ export async function syncGoogleCalendar(
       fetched,
       written,
       tombstoned,
+      rejected,
       reason: transient ? 'transient' : 'failed',
     };
   }
@@ -284,5 +306,5 @@ export async function syncGoogleCalendar(
     syncedAt: now,
   });
 
-  return { ok: true, fetched, written, tombstoned };
+  return { ok: true, fetched, written, tombstoned, rejected };
 }

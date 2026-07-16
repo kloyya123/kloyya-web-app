@@ -318,6 +318,42 @@ describe('syncGoogleCalendar', () => {
     expect(Object.keys(cursors).sort()).toEqual(['primary', 'team@group.calendar.google.com']);
   });
 
+  it('refuses corrupted records before storage, and keeps the good ones', async () => {
+    const ctx = await connected('sync-validation@kloyya.test');
+    const seen: { externalId: string | null; reason: string }[] = [];
+
+    const outcome = await syncGoogleCalendar(db, crypto, ctx, {
+      clientId: 'id',
+      clientSecret: 'secret',
+      onRejected: (_cal, failure) => seen.push(failure),
+      fetchImpl: fakeGoogle({
+        pages: {
+          full: {
+            items: [
+              meeting('good-1', 'Real meeting'),
+              { id: '', summary: 'No id' },
+              { id: 'bad-time', status: 'confirmed', start: { dateTime: 'not-a-date' } },
+              { id: 'good-1', summary: 'Duplicate of the first' },
+              meeting('good-2', 'Another real meeting'),
+            ],
+            nextSyncToken: 'tok-1',
+          },
+        },
+      }),
+    });
+
+    // Phase 8.5: nothing corrupted reaches storage, and one bad record does not
+    // cost the user their whole calendar.
+    expect(outcome).toMatchObject({ ok: true, fetched: 5, written: 2, rejected: 3 });
+
+    const rows = await records(ctx);
+    expect(rows.map((r) => r.externalId).sort()).toEqual(['good-1', 'good-2']);
+
+    // Rejections are reported, not swallowed.
+    expect(seen).toHaveLength(3);
+    expect(seen.map((f) => f.reason).join(' ')).toMatch(/invalid id|timestamp|duplicate/i);
+  });
+
   it('refuses to sync an integration that was never connected', async () => {
     const { userId } = await signUp(app, {
       email: 'sync-none@kloyya.test',
