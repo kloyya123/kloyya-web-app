@@ -12,6 +12,7 @@
  */
 export * from './domain.js';
 export * from './api.js';
+export * from './permissions.js';
 export * from './preferences.js';
 export * from './calendar.js';
 export * from './integrations.js';

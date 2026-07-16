@@ -8,8 +8,9 @@ import {
   WORK_STYLES,
 } from '@kloyya/core';
 import { requireSession } from '../auth/guard.js';
+import { assertPermission, requireDb } from '../auth/permission.js';
 import { ok } from '../http/envelope.js';
-import { ApiError, API_STATUS, errors } from '../http/errors.js';
+import { errors } from '../http/errors.js';
 import { updateSettings } from '../users/onboarding.js';
 import { composeSession } from '../users/service.js';
 
@@ -41,18 +42,17 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     const ctx = request.auth;
     if (!ctx) throw errors.unauthorized();
 
-    const db = request.server.db;
-    if (!db) {
-      throw new ApiError({
-        httpStatus: API_STATUS.ServiceUnavailable,
-        errorCode: 'database_unavailable',
-        message: 'The database is not configured.',
-        description: 'This deployment has no database connection wired up.',
-        suggestedResolution: 'Set DATABASE_URL, then restart.',
-      });
-    }
-
+    const db = requireDb(request);
     const patch = settingsSchema.parse(request.body ?? {});
+
+    // Authorization here depends on the body, not the route: your own job title
+    // and the organization's name arrive at the same endpoint. Renaming the
+    // company is a different act from editing your profile, so it is refused
+    // out loud rather than silently ignored — a 200 that quietly didn't do what
+    // was asked is worse than an honest 403.
+    if (patch.companyName !== undefined || patch.industry !== undefined) {
+      await assertPermission(db, ctx.user.id, 'org:update');
+    }
 
     const updated = await updateSettings(db, ctx.user.id, patch);
     if (!updated) throw errors.notFound('User profile');

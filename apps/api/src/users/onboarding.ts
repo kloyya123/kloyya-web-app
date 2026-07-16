@@ -1,7 +1,32 @@
 import { and, eq } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db';
+import type { Tx } from '@kloyya/db/scope';
 import { memberships, organizations, user, userPreferences, users } from '@kloyya/db/schema';
-import type { OnboardingProfile, SettingsPatch, UserPreferences } from '@kloyya/core';
+import { can, type OnboardingProfile, type SettingsPatch, type UserPreferences } from '@kloyya/core';
+
+/**
+ * Whether this caller may rename the organization they belong to.
+ *
+ * Asks the permission matrix rather than testing for `role === 'owner'`: an
+ * administrator legitimately runs the company's Kloyya too, and hardcoding the
+ * owner here would be a second, quietly diverging answer to a question
+ * @kloyya/core already answers.
+ */
+async function mayUpdateOrganization(
+  tx: Tx,
+  authUserId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const [membership] = await tx
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(
+      and(eq(memberships.userId, authUserId), eq(memberships.organizationId, organizationId)),
+    )
+    .limit(1);
+
+  return membership ? can(membership.role, 'org:update') : false;
+}
 
 /**
  * The wire form of a {@link SettingsPatch}.
@@ -68,19 +93,7 @@ export async function completeOnboarding(
       .set({ jobTitle: profile.jobTitle, hasCompletedOnboarding: true })
       .where(eq(users.id, authUserId));
 
-    const [owner] = await tx
-      .select({ role: memberships.role })
-      .from(memberships)
-      .where(
-        and(
-          eq(memberships.userId, authUserId),
-          eq(memberships.organizationId, row.organizationId),
-          eq(memberships.role, 'owner'),
-        ),
-      )
-      .limit(1);
-
-    if (owner) {
+    if (await mayUpdateOrganization(tx, authUserId, row.organizationId)) {
       await tx
         .update(organizations)
         .set({ name: profile.companyName, industry: profile.industry })
@@ -137,24 +150,11 @@ export async function updateSettings(
       ...(patch.companyName !== undefined ? { name: patch.companyName } : {}),
       ...(patch.industry !== undefined ? { industry: patch.industry } : {}),
     };
-    if (Object.keys(orgChanges).length > 0) {
-      const [owner] = await tx
-        .select({ role: memberships.role })
-        .from(memberships)
-        .where(
-          and(
-            eq(memberships.userId, authUserId),
-            eq(memberships.organizationId, row.organizationId),
-            eq(memberships.role, 'owner'),
-          ),
-        )
-        .limit(1);
-      if (owner) {
-        await tx
-          .update(organizations)
-          .set(orgChanges)
-          .where(eq(organizations.id, row.organizationId));
-      }
+    if (
+      Object.keys(orgChanges).length > 0 &&
+      (await mayUpdateOrganization(tx, authUserId, row.organizationId))
+    ) {
+      await tx.update(organizations).set(orgChanges).where(eq(organizations.id, row.organizationId));
     }
 
     const prefs = patch.preferences;

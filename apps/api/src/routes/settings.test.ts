@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import type { FastifyInstance } from 'fastify';
+import { eq } from 'drizzle-orm';
+import type { AppDb } from '@kloyya/db';
+import { memberships } from '@kloyya/db/schema';
 import { createTestApp, signUp } from '../test/app.js';
 
 /**
@@ -10,9 +13,10 @@ import { createTestApp, signUp } from '../test/app.js';
  */
 let app: FastifyInstance;
 let client: PGlite;
+let db: AppDb;
 
 beforeAll(async () => {
-  ({ app, client } = await createTestApp());
+  ({ app, client, db } = await createTestApp());
 });
 
 afterAll(async () => {
@@ -161,5 +165,89 @@ describe('PATCH /v1/settings', () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json<{ error: { errorCode: string } }>().error.errorCode).toBe('unauthorized');
+  });
+
+  describe('authorization (RBAC)', () => {
+    /** Sign up (which makes an owner), then demote to a role without org:update. */
+    async function employeeCookie(email: string): Promise<string> {
+      const { cookie, userId } = await signUp(app, {
+        email,
+        password: 'a sufficiently long passphrase',
+        name: 'Rank And File',
+      });
+      await db
+        .update(memberships)
+        .set({ role: 'employee' })
+        .where(eq(memberships.userId, userId));
+      return cookie;
+    }
+
+    it('refuses to let an employee rename the organization — 403, not a silent no-op', async () => {
+      const cookie = await employeeCookie('employee@kloyya.test');
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/v1/settings',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: { companyName: 'Hostile Takeover Inc' },
+      });
+
+      expect(res.statusCode).toBe(403);
+      const body = res.json<{ error: { errorCode: string; description: string } }>();
+      expect(body.error.errorCode).toBe('forbidden');
+      // Names the permission, not the role.
+      expect(body.error.description).toContain('org:update');
+
+      // And it really didn't happen.
+      const me = await app.inject({
+        method: 'PATCH',
+        url: '/v1/settings',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: {},
+      });
+      expect(me.json<{ data: { organization: { name: string } } }>().data.organization.name).not.toBe(
+        'Hostile Takeover Inc',
+      );
+    });
+
+    it('still lets that employee edit their own profile', async () => {
+      const cookie = await employeeCookie('employee2@kloyya.test');
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/v1/settings',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: { jobTitle: 'Analyst' },
+      });
+
+      // Losing org:update must not cost you your own settings.
+      expect(res.statusCode).toBe(200);
+      expect(res.json<{ data: { user: { jobTitle: string } } }>().data.user.jobTitle).toBe('Analyst');
+    });
+
+    it('lets an administrator rename the organization', async () => {
+      const { cookie, userId } = await signUp(app, {
+        email: 'admin@kloyya.test',
+        password: 'a sufficiently long passphrase',
+        name: 'Admin Person',
+      });
+      await db
+        .update(memberships)
+        .set({ role: 'administrator' })
+        .where(eq(memberships.userId, userId));
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/v1/settings',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: { companyName: 'Admin Renamed Co' },
+      });
+
+      // The permission matrix, not a hardcoded `role === 'owner'`, decides this.
+      expect(res.statusCode).toBe(200);
+      expect(res.json<{ data: { organization: { name: string } } }>().data.organization.name).toBe(
+        'Admin Renamed Co',
+      );
+    });
   });
 });
