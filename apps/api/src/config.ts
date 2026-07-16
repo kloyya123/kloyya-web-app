@@ -42,6 +42,12 @@ const schema = z.object({
   // to build callback/verification links.
   BETTER_AUTH_SECRET: z.string().min(1).optional(),
   BETTER_AUTH_URL: z.string().url().default('http://localhost:4000'),
+
+  // Email (Resend). Optional so the foundation and its tests boot without it;
+  // when absent, verification codes are logged instead of sent — see
+  // resolveEmailSender, which refuses that fallback in production.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).default('Kloyya <onboarding@resend.dev>'),
 });
 
 export type Config = z.infer<typeof schema>;

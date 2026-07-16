@@ -1,6 +1,9 @@
 import { betterAuth } from 'better-auth';
 import type { AppDb } from '@kloyya/db';
-import { config } from '../config.js';
+import { config, isProduction } from '../config.js';
+import { createLoggingSender, type EmailSender } from '../email/sender.js';
+import { createResendSender } from '../email/resend.js';
+import { logger } from '../logger.js';
 import { buildAuthOptions, type AuthDeps } from './options.js';
 
 /**
@@ -26,6 +29,27 @@ export async function resolveDbFromEnv(): Promise<AppDb | null> {
   return db;
 }
 
+/**
+ * The email sender for this environment.
+ *
+ * Without an API key we fall back to logging the message. That is a genuinely
+ * useful dev affordance — you can read the code out of the terminal — and a
+ * catastrophe in production, where it would print verification codes into the
+ * logs and deliver nothing. So production refuses to start instead.
+ */
+export function resolveEmailSender(): EmailSender {
+  if (config.RESEND_API_KEY) {
+    return createResendSender(config.RESEND_API_KEY, config.EMAIL_FROM);
+  }
+  if (isProduction) {
+    throw new Error(
+      'RESEND_API_KEY is required in production — refusing to start with an email sender that only logs.',
+    );
+  }
+  logger.warn('No RESEND_API_KEY — verification codes will be logged, not emailed.');
+  return createLoggingSender((message) => logger.info(message));
+}
+
 /** Auth over a given db, using the validated env, or null if no secret is set. */
 export function buildAuthFromEnv(db: AppDb): Auth | null {
   if (!config.BETTER_AUTH_SECRET) return null;
@@ -33,5 +57,6 @@ export function buildAuthFromEnv(db: AppDb): Auth | null {
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
     trustedOrigins: config.CORS_ALLOWED_ORIGINS,
+    email: resolveEmailSender(),
   });
 }

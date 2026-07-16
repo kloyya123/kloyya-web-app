@@ -1,13 +1,7 @@
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PGlite } from '@electric-sql/pglite';
-import { drizzle } from 'drizzle-orm/pglite';
-import { migrate } from 'drizzle-orm/pglite/migrator';
+import type { PGlite } from '@electric-sql/pglite';
 import type { FastifyInstance } from 'fastify';
-import type { AppDb } from '@kloyya/db';
-import { buildApp } from '../app.js';
-import { buildAuth } from './auth.js';
+import { createTestApp } from '../test/app.js';
 
 /**
  * End-to-end mount test: a real HTTP sign-up flows through the Fastify route,
@@ -15,29 +9,16 @@ import { buildAuth } from './auth.js';
  * the request/response adapter in routes.ts (URL, headers, JSON body, and the
  * Set-Cookie handling) actually works — not just that it compiles.
  */
-const here = dirname(fileURLToPath(import.meta.url));
-const migrationsFolder = resolve(here, '../../../../packages/db/drizzle');
-
 let app: FastifyInstance;
+let client: PGlite;
 
 beforeAll(async () => {
-  const client = new PGlite();
-  const pglite = drizzle(client);
-  await migrate(pglite, { migrationsFolder });
-
-  // PGLite exposes the same query surface the services use; cast at this seam
-  // rather than threading a driver union through every signature.
-  const db = pglite as unknown as AppDb;
-  const auth = buildAuth(db, {
-    secret: 'test-secret-value-at-least-32-characters-long',
-    baseURL: 'http://localhost:4000',
-  });
-  app = await buildApp({ db, auth });
-  await app.ready();
+  ({ app, client } = await createTestApp());
 });
 
 afterAll(async () => {
   await app.close();
+  await client.close();
 });
 
 describe('POST /api/auth/sign-up/email', () => {

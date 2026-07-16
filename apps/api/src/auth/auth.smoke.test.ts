@@ -7,6 +7,7 @@ import { migrate } from 'drizzle-orm/pglite/migrator';
 import { sql } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import type { AppDb } from '@kloyya/db';
+import { createRecordingSender } from '../test/app.js';
 import { buildAuthOptions } from './options.js';
 
 /**
@@ -28,14 +29,16 @@ async function freshAuth() {
   const client = new PGlite();
   const db = drizzle(client);
   await migrate(db, { migrationsFolder });
+  const email = createRecordingSender();
   const auth = betterAuth(
     // PGLite exposes the same query surface; cast at the driver seam.
     buildAuthOptions(db as unknown as AppDb, {
       secret: 'test-secret-value-at-least-32-characters-long',
       baseURL: 'http://localhost:4000',
+      email,
     }),
   );
-  return { client, db, auth };
+  return { client, db, auth, email };
 }
 
 describe('Better Auth + Drizzle adapter (PGLite)', () => {

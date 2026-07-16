@@ -1,8 +1,15 @@
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { emailOTP } from 'better-auth/plugins/email-otp';
 import type { BetterAuthOptions } from 'better-auth';
 import type { AppDb } from '@kloyya/db';
 import { account, session, user, verification } from '@kloyya/db/schema';
 import { provisionTenantForUser } from '../users/provision.js';
+import type { EmailSender } from '../email/sender.js';
+import {
+  OTP_EXPIRY_SECONDS,
+  passwordResetCodeEmail,
+  verificationCodeEmail,
+} from '../email/templates.js';
 
 /**
  * Better Auth configuration, as a factory over the database.
@@ -25,6 +32,8 @@ export interface AuthDeps {
   baseURL: string;
   /** Origins allowed to drive the auth flows (the web app). */
   trustedOrigins?: string[];
+  /** Where verification and reset codes go. Tests pass a recorder. */
+  email: EmailSender;
 }
 
 export function buildAuthOptions(db: AppDb, deps: AuthDeps): BetterAuthOptions {
@@ -38,10 +47,30 @@ export function buildAuthOptions(db: AppDb, deps: AuthDeps): BetterAuthOptions {
     }),
     emailAndPassword: {
       enabled: true,
-      // Email delivery is wired in Phase 4c; until then, don't gate sign-in on a
-      // verification link nobody can receive.
+      // Deliberately false. With it true, Better Auth withholds the session at
+      // sign-up — but the frontend's flow needs one to reach the verify-email
+      // screen at all (its mock returns a session with isEmailVerified:false).
+      // The UI gates on that flag; enforcing verification server-side belongs on
+      // the protected routes, as its own guard, not by breaking sign-up.
       requireEmailVerification: false,
     },
+    plugins: [
+      emailOTP({
+        // The verify-email screen is a six-box code input, not a link — the
+        // frontend was built for OTP, so the backend sends OTP.
+        otpLength: 6,
+        expiresIn: OTP_EXPIRY_SECONDS,
+        // The code should already be waiting when the verify screen appears.
+        sendVerificationOnSignUp: true,
+        async sendVerificationOTP({ email, otp, type }) {
+          const message =
+            type === 'forget-password'
+              ? passwordResetCodeEmail({ code: otp })
+              : verificationCodeEmail({ code: otp });
+          await deps.email.send({ ...message, to: email });
+        },
+      }),
+    ],
     // Let Postgres mint ids (UUID defaults), not the application layer.
     advanced: { database: { generateId: false } },
     databaseHooks: {
