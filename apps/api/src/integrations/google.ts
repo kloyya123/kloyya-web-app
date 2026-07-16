@@ -113,3 +113,70 @@ export async function exchangeGoogleCode(params: {
     grantedScopes: body.scope ? body.scope.split(' ').filter(Boolean) : [],
   };
 }
+
+/**
+ * A refresh failed in a way that will never succeed again.
+ *
+ * Google answers `invalid_grant` when the user revoked Kloyya in their Google
+ * account, changed their password, or the token simply aged out. Retrying that
+ * is pointless — the only cure is a human re-consenting. Distinguishing it from
+ * a transient failure is the difference between a connection that asks to be
+ * reconnected and one that hammers Google forever.
+ */
+export class GoogleAuthRevokedError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = 'GoogleAuthRevokedError';
+  }
+}
+
+export interface RefreshedToken {
+  accessToken: string;
+  expiresAt: Date | null;
+  /** Google may rotate the refresh token; null means keep the one we hold. */
+  refreshToken: string | null;
+}
+
+/**
+ * Trade a refresh token for a new access token.
+ *
+ * Access tokens last about an hour, so this — not the initial handshake — is
+ * what a connection actually lives on. Everything after day one depends on it.
+ */
+export async function refreshGoogleToken(params: {
+  refreshToken: string;
+  clientId: string;
+  clientSecret: string;
+  fetchImpl?: typeof fetch;
+}): Promise<RefreshedToken> {
+  const doFetch = params.fetchImpl ?? fetch;
+
+  const response = await doFetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      refresh_token: params.refreshToken,
+      client_id: params.clientId,
+      client_secret: params.clientSecret,
+      grant_type: 'refresh_token',
+    }).toString(),
+  });
+
+  const body = (await response.json()) as GoogleTokenResponse;
+
+  // Permanent: the user took the permission back. Say so, don't retry.
+  if (body.error === 'invalid_grant') {
+    throw new GoogleAuthRevokedError('Google no longer accepts this connection.');
+  }
+  if (body.error || !body.access_token) {
+    // Transient (5xx, rate limit, network): worth retrying later, so it stays a
+    // plain Error and the caller keeps the connection intact.
+    throw new Error(`Google refused the refresh: ${body.error ?? 'no access_token returned'}`);
+  }
+
+  return {
+    accessToken: body.access_token,
+    expiresAt: body.expires_in ? new Date(Date.now() + body.expires_in * 1000) : null,
+    refreshToken: body.refresh_token ?? null,
+  };
+}

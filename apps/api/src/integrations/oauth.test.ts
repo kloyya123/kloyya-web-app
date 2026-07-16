@@ -1,6 +1,12 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { buildGoogleAuthUrl, exchangeGoogleCode, GOOGLE_SCOPES } from './google.js';
+import {
+  buildGoogleAuthUrl,
+  exchangeGoogleCode,
+  GoogleAuthRevokedError,
+  GOOGLE_SCOPES,
+  refreshGoogleToken,
+} from './google.js';
 import { decodeState, encodeState } from './state.js';
 
 const SECRET = randomBytes(32).toString('base64url');
@@ -159,6 +165,45 @@ describe('google token exchange', () => {
         fetchImpl: fetchReturning({ token_type: 'Bearer' }),
       }),
     ).rejects.toThrow(/no access_token/);
+  });
+
+  it('distinguishes a revoked grant from a transient failure', async () => {
+    // invalid_grant is permanent: the user took the permission back, and only a
+    // human re-consenting fixes it. Retrying is pointless; a distinct error type
+    // is what stops a connector hammering Google forever.
+    await expect(
+      refreshGoogleToken({
+        refreshToken: 'rt',
+        clientId: 'id',
+        clientSecret: 's',
+        fetchImpl: fetchReturning({ error: 'invalid_grant' }),
+      }),
+    ).rejects.toBeInstanceOf(GoogleAuthRevokedError);
+
+    // A 5xx is Google's problem, not ours — it stays an ordinary Error so the
+    // caller keeps the connection intact and tries again later.
+    const transient = await refreshGoogleToken({
+      refreshToken: 'rt',
+      clientId: 'id',
+      clientSecret: 's',
+      fetchImpl: fetchReturning({ error: 'backend_error' }),
+    }).catch((e: Error) => e);
+    expect(transient).toBeInstanceOf(Error);
+    expect(transient).not.toBeInstanceOf(GoogleAuthRevokedError);
+  });
+
+  it('refreshes into a new access token', async () => {
+    const refreshed = await refreshGoogleToken({
+      refreshToken: 'rt',
+      clientId: 'id',
+      clientSecret: 's',
+      fetchImpl: fetchReturning({ access_token: 'fresh', expires_in: 3600 }),
+    });
+
+    expect(refreshed.accessToken).toBe('fresh');
+    expect(refreshed.expiresAt).toBeInstanceOf(Date);
+    // null means "keep the one we hold" — Google only sometimes rotates it.
+    expect(refreshed.refreshToken).toBeNull();
   });
 
   it('never echoes the secret or code into the error', async () => {
