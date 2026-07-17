@@ -3,7 +3,8 @@ import type { AppDb } from '@kloyya/db';
 import { withTenantScope } from '@kloyya/db/scope';
 import { connections } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens.js';
-import { GoogleAuthRevokedError, refreshGoogleToken } from './google.js';
+import { refreshGoogleToken } from './google.js';
+import { AuthRevokedError, type RefreshFn } from './oauth.js';
 import type { StartContext } from './connect.js';
 
 /**
@@ -29,6 +30,12 @@ export interface RefreshDeps {
   fetchImpl?: typeof fetch;
   /** Injectable so tests don't wait for a real clock. */
   now?: () => number;
+  /**
+   * How this provider refreshes a token. Defaults to Google, so the three Google
+   * connectors need not pass it; Microsoft supplies its own, and a provider whose
+   * tokens never expire (Notion) never reaches this path at all.
+   */
+  refresh?: RefreshFn;
 }
 
 /**
@@ -77,22 +84,23 @@ export async function getValidAccessToken(
 
   const refreshToken = crypto.decrypt(row.refreshTokenEnc);
 
+  const refresh = deps.refresh ?? refreshGoogleToken;
   let refreshed;
   try {
-    refreshed = await refreshGoogleToken({
+    refreshed = await refresh({
       refreshToken,
       clientId: deps.clientId,
       clientSecret: deps.clientSecret,
       ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     });
   } catch (error) {
-    if (error instanceof GoogleAuthRevokedError) {
-      // Permanent. Park the connection with a reason a person can act on, rather
-      // than retrying something that will never work again.
+    if (error instanceof AuthRevokedError) {
+      // Permanent, whatever the provider. Park the connection with a reason a
+      // person can act on, rather than retrying what will never work again.
       await markRevoked(db, ctx, integrationId);
       return { ok: false, reason: 'revoked' };
     }
-    // Transient. Leave the connection alone — it is not broken, Google was.
+    // Transient. Leave the connection alone — it is not broken, the provider was.
     return { ok: false, reason: 'refresh_failed' };
   }
 

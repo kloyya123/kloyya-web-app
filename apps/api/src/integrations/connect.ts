@@ -3,8 +3,9 @@ import type { AppDb } from '@kloyya/db';
 import { withTenantScope } from '@kloyya/db/scope';
 import { connections, users } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens.js';
-import type { GoogleTokens } from './google.js';
 import { GOOGLE_SCOPES } from './google.js';
+import { MICROSOFT_SCOPES } from './microsoft.js';
+import type { ProviderTokens } from './oauth.js';
 
 export interface StartContext {
   userId: string;
@@ -73,17 +74,29 @@ export type StoreResult =
  * Tokens are encrypted before they touch the row. Nothing else in this file, or
  * any file, writes them in the clear.
  */
-export async function storeGoogleTokens(
+/**
+ * Persist the tokens a provider returned. Shared by every OAuth connector.
+ *
+ * `scopeGranted` is the one part that differs by provider: Google echoes every
+ * scope it granted verbatim, so an exact-includes check is right; Microsoft omits
+ * the OIDC scopes from the token response and may return the resource scope in
+ * short or full form, so its check is a suffix match on the resource scope alone.
+ * Everything else — refuse a missing refresh token, encrypt before storing, never
+ * write plaintext — is identical, so it lives here once.
+ */
+export async function storeProviderTokens(
   db: AppDb,
   crypto: TokenCrypto,
   ctx: StartContext,
   integrationId: string,
-  tokens: GoogleTokens,
+  tokens: ProviderTokens,
+  opts: {
+    requiredScopes: readonly string[];
+    scopeGranted: (granted: string[], required: readonly string[]) => boolean;
+    noRefreshMessage: string;
+  },
 ): Promise<StoreResult> {
-  const required = GOOGLE_SCOPES[integrationId] ?? [];
-  const missing = required.filter((scope) => !tokens.grantedScopes.includes(scope));
-
-  if (missing.length > 0) {
+  if (!opts.scopeGranted(tokens.grantedScopes, opts.requiredScopes)) {
     await failConnection(
       db,
       ctx,
@@ -94,12 +107,7 @@ export async function storeGoogleTokens(
   }
 
   if (!tokens.refreshToken) {
-    await failConnection(
-      db,
-      ctx,
-      integrationId,
-      'Google did not return a refresh token, so the connection would expire within the hour. Reconnect to try again.',
-    );
+    await failConnection(db, ctx, integrationId, opts.noRefreshMessage);
     return { ok: false, reason: 'no_refresh_token' };
   }
 
@@ -133,6 +141,48 @@ export async function storeGoogleTokens(
   });
 
   return { ok: true, missingScopes: [] };
+}
+
+/** Google grants every scope verbatim, so require them all, exactly. */
+export function storeGoogleTokens(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  integrationId: string,
+  tokens: ProviderTokens,
+): Promise<StoreResult> {
+  return storeProviderTokens(db, crypto, ctx, integrationId, tokens, {
+    requiredScopes: GOOGLE_SCOPES[integrationId] ?? [],
+    scopeGranted: (granted, required) => required.every((s) => granted.includes(s)),
+    noRefreshMessage:
+      'Google did not return a refresh token, so the connection would expire within the hour. Reconnect to try again.',
+  });
+}
+
+/**
+ * Microsoft omits offline_access/openid from the token response and may return
+ * the resource scope short (Mail.Read) or full (…/Mail.Read), so we verify only
+ * the resource scope, by suffix.
+ */
+export function storeMicrosoftTokens(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  integrationId: string,
+  tokens: ProviderTokens,
+): Promise<StoreResult> {
+  // The resource scope is the last one in the requested list (offline_access,
+  // openid, profile, email, then the Graph scope).
+  const resourceScope = (MICROSOFT_SCOPES[integrationId] ?? []).at(-1) ?? '';
+  const resourceSuffix = resourceScope.split('/').at(-1) ?? resourceScope;
+
+  return storeProviderTokens(db, crypto, ctx, integrationId, tokens, {
+    requiredScopes: [resourceScope],
+    scopeGranted: (granted) =>
+      resourceSuffix.length === 0 || granted.some((s) => s.endsWith(resourceSuffix)),
+    noRefreshMessage:
+      'Microsoft did not return a refresh token, so the connection would expire within the hour. Reconnect and grant offline access.',
+  });
 }
 
 /** Put a connection into `error` with a reason a human can act on. */

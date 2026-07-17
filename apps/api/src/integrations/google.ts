@@ -10,6 +10,8 @@
  *
  * KESM: "Every permission must be intentional and documented."
  */
+import { AuthRevokedError, type RefreshedToken } from './oauth.js';
+
 export const GOOGLE_SCOPES: Record<string, readonly string[]> = {
   google_calendar: [
     'https://www.googleapis.com/auth/calendar.readonly',
@@ -123,19 +125,14 @@ export async function exchangeGoogleCode(params: {
  * a transient failure is the difference between a connection that asks to be
  * reconnected and one that hammers Google forever.
  */
-export class GoogleAuthRevokedError extends Error {
+export class GoogleAuthRevokedError extends AuthRevokedError {
   constructor(reason: string) {
     super(reason);
     this.name = 'GoogleAuthRevokedError';
   }
 }
 
-export interface RefreshedToken {
-  accessToken: string;
-  expiresAt: Date | null;
-  /** Google may rotate the refresh token; null means keep the one we hold. */
-  refreshToken: string | null;
-}
+export type { RefreshedToken } from './oauth.js';
 
 /**
  * Trade a refresh token for a new access token.

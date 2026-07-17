@@ -1,6 +1,7 @@
 import type { RawDriveFile } from './google-drive.js';
 import type { RawGmailMessage } from './gmail.js';
 import type { RawGoogleEvent } from './google-calendar.js';
+import type { RawGraphItem } from './graph.js';
 
 /**
  * Phase 8.5 — validation before storage.
@@ -186,6 +187,37 @@ export function validateDriveFiles(files: RawDriveFile[]): ValidatedBatch<RawDri
 
     seen.add(id);
     valid.push(file);
+  }
+
+  return { valid, rejected };
+}
+
+/**
+ * Validate a batch of Microsoft Graph items (Outlook mail or calendar).
+ *
+ * A Graph resource needs an id to be keyed; that is the only hard requirement.
+ * The shape of a message versus an event is Graph's to define, and we don't
+ * second-guess it — we only refuse what can't be stored or joined. Removals are
+ * handled before validation (they carry `@removed` and are tombstoned by id), so
+ * everything reaching here should be a live item.
+ */
+export function validateGraphItems(items: RawGraphItem[]): ValidatedBatch<RawGraphItem> {
+  const valid: RawGraphItem[] = [];
+  const rejected: ValidationFailure[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const id = item?.id;
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      rejected.push({ externalId: null, reason: 'missing or invalid id' });
+      continue;
+    }
+    if (seen.has(id)) {
+      rejected.push({ externalId: id, reason: 'duplicate identifier in batch' });
+      continue;
+    }
+    seen.add(id);
+    valid.push(item);
   }
 
   return { valid, rejected };

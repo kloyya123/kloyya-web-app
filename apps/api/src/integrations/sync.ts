@@ -23,6 +23,9 @@ import {
   listDriveFiles,
   type RawDriveFile,
 } from './google-drive.js';
+import { validateGraphItems } from './validation.js';
+import { GraphTransientError, listOutlookCalendarDelta, listOutlookMailDelta } from './graph.js';
+import { refreshMicrosoftToken } from './microsoft.js';
 
 /**
  * The Google Calendar sync.
@@ -322,6 +325,8 @@ export async function syncGoogleCalendar(
 const GMAIL_CURSOR_KEY = 'mailbox';
 /** Drive is one change stream, so one cursor — its opaque page token. */
 const DRIVE_CURSOR_KEY = 'changes';
+/** Graph carries the cursor as a whole @odata.deltaLink URL. */
+const GRAPH_CURSOR_KEY = 'delta';
 
 /**
  * Sync a workspace's Gmail.
@@ -602,4 +607,145 @@ export async function syncGoogleDrive(
   });
 
   return { ok: true, fetched, written, tombstoned, rejected };
+}
+
+/**
+ * Sync one Microsoft Graph delta resource (Outlook mail or calendar).
+ *
+ * Both Outlook connectors are the same shape — a delta feed whose cursor is an
+ * @odata.deltaLink URL — so they share this and differ only in which lister and
+ * resource type they pass. Microsoft rotates the refresh token on nearly every
+ * refresh, which the token manager already persists; we just hand it Microsoft's
+ * refresher and its own client credentials.
+ */
+async function syncGraphResource(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+  config: {
+    integrationId: string;
+    resourceType: string;
+    listDelta: (params: {
+      accessToken: string;
+      deltaLink?: string | undefined;
+      fetchImpl?: typeof fetch;
+    }) => Promise<{ items: { id: string }[]; removed: string[]; nextDeltaLink: string | null }>;
+  },
+): Promise<SyncOutcome> {
+  const { integrationId, resourceType } = config;
+  const now = new Date((deps.now ?? Date.now)());
+  const fetchOpt = deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {};
+
+  const connection = await readConnection(db, ctx, integrationId);
+  if (!connection) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: 'not_connected' };
+  }
+
+  const token = await getValidAccessToken(db, crypto, ctx, integrationId, {
+    ...deps,
+    // Microsoft's grant, refreshed the Microsoft way.
+    refresh: refreshMicrosoftToken,
+  });
+  if (!token.ok) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: token.reason };
+  }
+
+  await saveProgress(db, ctx, integrationId, connection.cursors, { status: 'syncing' });
+
+  const cursors = { ...connection.cursors };
+  let fetched = 0;
+  let written = 0;
+  let tombstoned = 0;
+  let rejected = 0;
+
+  try {
+    const savedDelta = cursors[GRAPH_CURSOR_KEY];
+
+    let result;
+    try {
+      result = await config.listDelta({ accessToken: token.accessToken, deltaLink: savedDelta, ...fetchOpt });
+    } catch (error) {
+      if (!(error instanceof SyncTokenExpiredError)) throw error;
+      // The deltaLink aged out; drop it and read the current window whole.
+      delete cursors[GRAPH_CURSOR_KEY];
+      result = await config.listDelta({ accessToken: token.accessToken, deltaLink: undefined, ...fetchOpt });
+    }
+
+    // Tombstone the removals: an id and a tombstone are the whole record.
+    for (const id of result.removed) {
+      const changed = await landRecord(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        resourceType,
+        id,
+        { id, removed: true },
+        true,
+        now,
+      );
+      if (changed) {
+        written += 1;
+        tombstoned += 1;
+      }
+    }
+
+    const batch = validateGraphItems(result.items);
+    rejected += batch.rejected.length;
+    for (const failure of batch.rejected) deps.onRejected?.(resourceType, failure);
+
+    for (const item of batch.valid) {
+      const changed = await landRecord(db, ctx, connection.id, integrationId, resourceType, item.id, item, false, now);
+      if (changed) written += 1;
+    }
+    fetched = result.items.length + result.removed.length;
+
+    if (result.nextDeltaLink) cursors[GRAPH_CURSOR_KEY] = result.nextDeltaLink;
+  } catch (error) {
+    const transient = error instanceof GraphTransientError;
+    await saveProgress(db, ctx, integrationId, cursors, {
+      status: transient ? 'connected' : 'error',
+      errorReason: transient
+        ? null
+        : 'Kloyya could not read this Microsoft account. It will try again; reconnect if this persists.',
+    });
+    return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
+  }
+
+  await saveProgress(db, ctx, integrationId, cursors, { status: 'connected', errorReason: null, syncedAt: now });
+  return { ok: true, fetched, written, tombstoned, rejected };
+}
+
+/** Outlook mail. */
+export async function syncOutlookMail(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+): Promise<SyncOutcome> {
+  return syncGraphResource(db, crypto, ctx, deps, {
+    integrationId: 'outlook',
+    resourceType: 'message',
+    listDelta: (params) => listOutlookMailDelta(params),
+  });
+}
+
+/** Outlook calendar. */
+export async function syncOutlookCalendar(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+): Promise<SyncOutcome> {
+  return syncGraphResource(db, crypto, ctx, deps, {
+    integrationId: 'outlook_calendar',
+    resourceType: 'calendar_event',
+    listDelta: (params) =>
+      listOutlookCalendarDelta({
+        ...params,
+        windowDays: FIRST_SYNC_WINDOW_DAYS,
+        ...(deps.now ? { now: deps.now } : {}),
+      }),
+  });
 }

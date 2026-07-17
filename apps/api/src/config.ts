@@ -77,6 +77,15 @@ const schema = z.object({
     .string()
     .url()
     .default('http://localhost:4000/v1/integrations/google/callback'),
+
+  // Microsoft OAuth (Outlook mail + calendar via Graph). One Azure app, common
+  // authority. Optional for the same reason as Google's.
+  MICROSOFT_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  MICROSOFT_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  MICROSOFT_OAUTH_REDIRECT_URI: z
+    .string()
+    .url()
+    .default('http://localhost:4000/v1/integrations/microsoft/callback'),
 });
 
 export type Config = z.infer<typeof schema>;
