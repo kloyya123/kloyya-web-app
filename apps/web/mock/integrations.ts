@@ -18,7 +18,6 @@ export const INITIALLY_CONNECTED: ReadonlyArray<{
   { id: 'google_calendar', minutesSinceSync: 1 },
   { id: 'google_drive', minutesSinceSync: 14 },
   { id: 'notion', minutesSinceSync: 22 },
-  { id: 'whatsapp_business', minutesSinceSync: 3 },
   {
     id: 'outlook_calendar',
     minutesSinceSync: 720,

@@ -164,7 +164,7 @@ describe('GET /v1/integrations', () => {
       password: 'a sufficiently long passphrase',
       name: 'Conn B',
     });
-    await seedConnection(a.userId, 'whatsapp_business', 'connected');
+    await seedConnection(a.userId, 'google_drive', 'connected');
     await seedConnection(b.userId, 'notion', 'connected');
 
     const res = await app.inject({
@@ -174,7 +174,7 @@ describe('GET /v1/integrations', () => {
     });
     const { data } = res.json<{ data: ConnectionBody['data'][] }>();
 
-    expect(data.find((c) => c.definition.id === 'whatsapp_business')?.status).toBe('connected');
+    expect(data.find((c) => c.definition.id === 'google_drive')?.status).toBe('connected');
     // B's Notion connection is not ours to see.
     expect(data.find((c) => c.definition.id === 'notion')?.status).toBe('not_connected');
   });
@@ -189,7 +189,7 @@ describe('GET /v1/integrations/summary', () => {
     });
     await seedConnection(userId, 'gmail', 'connected');
     await seedConnection(userId, 'google_calendar', 'paused');
-    await seedConnection(userId, 'whatsapp_business', 'error', 'WhatsApp revoked the token.');
+    await seedConnection(userId, 'google_drive', 'error', 'Google revoked the token.');
 
     const res = await app.inject({
       method: 'GET',

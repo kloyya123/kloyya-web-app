@@ -39,7 +39,6 @@ const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> =
   // and Business groups are gone with the tools that filled them — an empty
   // heading is worse than no heading.
   { label: 'Email', ids: ['gmail', 'outlook'] },
-  { label: 'Messaging', ids: ['whatsapp_business'] },
   { label: 'Calendar', ids: ['google_calendar', 'outlook_calendar'] },
   { label: 'Documents', ids: ['google_drive', 'notion'] },
 ];

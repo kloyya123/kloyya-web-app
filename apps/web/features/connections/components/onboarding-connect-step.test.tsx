@@ -9,7 +9,6 @@ import { OnboardingConnectStep } from './onboarding-connect-step';
 
 const CURATED_IDS = [
   'gmail', 'outlook',
-  'whatsapp_business',
   'google_calendar', 'outlook_calendar',
   'google_drive', 'notion',
 ];
@@ -38,7 +37,6 @@ describe('OnboardingConnectStep', () => {
     renderWithProviders(<OnboardingConnectStep />);
 
     expect(await screen.findByRole('heading', { name: 'Email', level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Messaging', level: 2 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Calendar', level: 2 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Documents', level: 2 })).toBeInTheDocument();
 
