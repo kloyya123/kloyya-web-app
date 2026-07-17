@@ -6,15 +6,16 @@ import { connections, syncRecords } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens.js';
 import type { StartContext } from './connect.js';
 import { getValidAccessToken } from './tokens.js';
-import { validateCalendarEvents } from './validation.js';
+import { validateCalendarEvents, validateGmailMessages } from './validation.js';
+import { GoogleTransientError, SyncTokenExpiredError } from './google-http.js';
+import { isCancelled, listCalendars, listEvents, type RawGoogleEvent } from './google-calendar.js';
 import {
-  GoogleTransientError,
-  isCancelled,
-  listCalendars,
-  listEvents,
-  SyncTokenExpiredError,
-  type RawGoogleEvent,
-} from './google-calendar.js';
+  getMailboxHistoryId,
+  getMessage,
+  listGmailHistory,
+  listRecentMessageIds,
+  type RawGmailMessage,
+} from './gmail.js';
 
 /**
  * The Google Calendar sync.
@@ -27,7 +28,6 @@ import {
 
 /** A first sync reaches back this far. A decade of history helps nobody today. */
 const FIRST_SYNC_WINDOW_DAYS = 90;
-const RESOURCE_TYPE = 'calendar_event';
 
 export interface SyncOutcome {
   ok: boolean;
@@ -71,6 +71,7 @@ async function landRecord(
   ctx: StartContext,
   connectionId: string,
   integrationId: string,
+  resourceType: string,
   externalId: string,
   payload: unknown,
   cancelled: boolean,
@@ -85,7 +86,7 @@ async function landRecord(
       .where(
         and(
           eq(syncRecords.connectionId, connectionId),
-          eq(syncRecords.resourceType, RESOURCE_TYPE),
+          eq(syncRecords.resourceType, resourceType),
           eq(syncRecords.externalId, externalId),
         ),
       )
@@ -103,7 +104,7 @@ async function landRecord(
         workspaceId: ctx.workspaceId,
         connectionId,
         integrationId,
-        resourceType: RESOURCE_TYPE,
+        resourceType,
         externalId,
         payload: payload as object,
         contentHash,
@@ -116,9 +117,9 @@ async function landRecord(
           payload: payload as object,
           contentHash,
           fetchedAt: now,
-          // A cancelled event is tombstoned, not removed — "this meeting was
-          // cancelled" is intelligence. An un-cancelled one clears the tombstone,
-          // because Google lets an event come back.
+          // A cancelled/deleted object is tombstoned, not removed — "this was
+          // cancelled" is intelligence. Re-appearing clears the tombstone, because
+          // providers do let objects come back.
           deletedAtSource: cancelled ? now : null,
         },
       });
@@ -264,6 +265,7 @@ export async function syncGoogleCalendar(
           ctx,
           connection.id,
           integrationId,
+          'calendar_event',
           event.id,
           event,
           cancelled,
@@ -298,6 +300,159 @@ export async function syncGoogleCalendar(
       rejected,
       reason: transient ? 'transient' : 'failed',
     };
+  }
+
+  await saveProgress(db, ctx, integrationId, cursors, {
+    status: 'connected',
+    errorReason: null,
+    syncedAt: now,
+  });
+
+  return { ok: true, fetched, written, tombstoned, rejected };
+}
+
+/** The single mailbox stream. Gmail's cursor is one historyId, not per-folder. */
+const GMAIL_CURSOR_KEY = 'mailbox';
+
+/**
+ * Sync a workspace's Gmail.
+ *
+ * The shape is the same as Calendar's — refresh the token, read incrementally,
+ * validate before storage, advance the cursor only on success — but the middle
+ * is Gmail's own:
+ *
+ *  • The cursor is a single historyId. With one, we ask "what changed since?";
+ *    without one (first sync, or an aged-out cursor), we read the recent mailbox
+ *    by id and fetch each message's metadata.
+ *  • Listing gives ids; each needs its own GET. A message deleted between the two
+ *    comes back null and is simply skipped — an ordinary race, not a failure.
+ *  • Gmail reports deletions explicitly in its history; those are tombstoned, so
+ *    "this thread was deleted" survives as intelligence.
+ *
+ * After any sync the mailbox's current historyId becomes the next cursor —
+ * taken from the profile, because the history feed's own id lags on an empty
+ * delta and would re-read the same window forever.
+ */
+export async function syncGmail(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+): Promise<SyncOutcome> {
+  const integrationId = 'gmail';
+  const now = new Date((deps.now ?? Date.now)());
+  const fetchOpt = deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {};
+
+  const connection = await readConnection(db, ctx, integrationId);
+  if (!connection) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: 'not_connected' };
+  }
+
+  const token = await getValidAccessToken(db, crypto, ctx, integrationId, deps);
+  if (!token.ok) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: token.reason };
+  }
+
+  await saveProgress(db, ctx, integrationId, connection.cursors, { status: 'syncing' });
+
+  const cursors = { ...connection.cursors };
+  let fetched = 0;
+  let written = 0;
+  let tombstoned = 0;
+  let rejected = 0;
+
+  try {
+    const startHistoryId = cursors[GMAIL_CURSOR_KEY];
+
+    let changedIds: string[] = [];
+    let deletedIds: string[] = [];
+
+    if (startHistoryId) {
+      try {
+        const changes = await listGmailHistory({
+          accessToken: token.accessToken,
+          startHistoryId,
+          ...fetchOpt,
+        });
+        changedIds = changes.changed;
+        deletedIds = changes.deleted;
+      } catch (error) {
+        if (!(error instanceof SyncTokenExpiredError)) throw error;
+        // The cursor aged out; fall back to a bounded full read.
+        changedIds = await listRecentMessageIds({
+          accessToken: token.accessToken,
+          days: FIRST_SYNC_WINDOW_DAYS,
+          ...fetchOpt,
+        });
+      }
+    } else {
+      changedIds = await listRecentMessageIds({
+        accessToken: token.accessToken,
+        days: FIRST_SYNC_WINDOW_DAYS,
+        ...fetchOpt,
+      });
+    }
+
+    // Tombstone the deletions Gmail reported. A raw payload isn't needed to say
+    // "gone"; the id and the tombstone are the record.
+    for (const id of deletedIds) {
+      const changed = await landRecord(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        'message',
+        id,
+        { id, deleted: true },
+        true,
+        now,
+      );
+      if (changed) {
+        written += 1;
+        tombstoned += 1;
+      }
+    }
+
+    // Fetch and land the changed messages, metadata only.
+    const fetchedMessages: RawGmailMessage[] = [];
+    for (const id of changedIds) {
+      const message = await getMessage({ accessToken: token.accessToken, id, ...fetchOpt });
+      // null = deleted between list and get. An ordinary race, skipped.
+      if (message) fetchedMessages.push(message);
+    }
+    fetched = fetchedMessages.length + deletedIds.length;
+
+    const batch = validateGmailMessages(fetchedMessages);
+    rejected += batch.rejected.length;
+    for (const failure of batch.rejected) deps.onRejected?.('mailbox', failure);
+
+    for (const message of batch.valid) {
+      const changed = await landRecord(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        'message',
+        message.id,
+        message,
+        false,
+        now,
+      );
+      if (changed) written += 1;
+    }
+
+    // The profile's historyId is the true "you are caught up to here" marker.
+    const nextHistoryId = await getMailboxHistoryId({ accessToken: token.accessToken, ...fetchOpt });
+    if (nextHistoryId) cursors[GMAIL_CURSOR_KEY] = nextHistoryId;
+  } catch (error) {
+    const transient = error instanceof GoogleTransientError;
+    await saveProgress(db, ctx, integrationId, cursors, {
+      status: transient ? 'connected' : 'error',
+      errorReason: transient
+        ? null
+        : 'Kloyya could not read this mailbox. It will try again; reconnect if this persists.',
+    });
+    return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
   }
 
   await saveProgress(db, ctx, integrationId, cursors, {

@@ -1,3 +1,4 @@
+import type { RawGmailMessage } from './gmail.js';
 import type { RawGoogleEvent } from './google-calendar.js';
 
 /**
@@ -108,6 +109,44 @@ export function validateCalendarEvents(events: RawGoogleEvent[]): ValidatedBatch
 
     seen.add(id);
     valid.push(event);
+  }
+
+  return { valid, rejected };
+}
+
+/**
+ * Validate a batch of raw Gmail messages.
+ *
+ * A message needs an id to be keyed and a threadId to be reasoned about — the
+ * pipeline follows conversations, and a message with no thread belongs to none.
+ * Everything else about the message is Gmail's to define; we don't second-guess
+ * headers or labels, only refuse what can't be stored or joined.
+ */
+export function validateGmailMessages(
+  messages: RawGmailMessage[],
+): ValidatedBatch<RawGmailMessage> {
+  const valid: RawGmailMessage[] = [];
+  const rejected: ValidationFailure[] = [];
+  const seen = new Set<string>();
+
+  for (const message of messages) {
+    const id = message?.id;
+
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      rejected.push({ externalId: null, reason: 'missing or invalid id' });
+      continue;
+    }
+    if (seen.has(id)) {
+      rejected.push({ externalId: id, reason: 'duplicate identifier in batch' });
+      continue;
+    }
+    if (message.threadId !== undefined && typeof message.threadId !== 'string') {
+      rejected.push({ externalId: id, reason: 'threadId is not a string' });
+      continue;
+    }
+
+    seen.add(id);
+    valid.push(message);
   }
 
   return { valid, rejected };

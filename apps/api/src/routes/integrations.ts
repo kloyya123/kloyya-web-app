@@ -23,7 +23,7 @@ import {
   storeGoogleTokens,
 } from '../integrations/connect.js';
 import { buildGoogleAuthUrl, exchangeGoogleCode, GOOGLE_SCOPES, isGoogleIntegration } from '../integrations/google.js';
-import { syncGoogleCalendar, type SyncOutcome } from '../integrations/sync.js';
+import { syncGmail, syncGoogleCalendar, type SyncOutcome } from '../integrations/sync.js';
 import { decodeState, encodeState } from '../integrations/state.js';
 
 /**
@@ -337,12 +337,19 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       if (!ctx) throw errors.unauthorized();
 
       const { id } = idParams.parse(request.params);
-      if (id !== 'google_calendar') {
+      // The providers with a working sync. As more land, they join this map — the
+      // route stays one shape rather than growing an if-ladder.
+      const SYNCERS: Record<string, typeof syncGoogleCalendar> = {
+        google_calendar: syncGoogleCalendar,
+        gmail: syncGmail,
+      };
+      const syncer = SYNCERS[id];
+      if (!syncer) {
         throw new ApiError({
           httpStatus: API_STATUS.NotFound,
           errorCode: 'connector_unavailable',
           message: 'That integration cannot sync yet.',
-          description: `Kloyya has no sync for "${id}" — only Google Calendar is wired up so far.`,
+          description: `Kloyya has no sync for "${id}" — only Google Calendar and Gmail are wired up so far.`,
           suggestedResolution: 'Check back as more connectors land.',
         });
       }
@@ -370,7 +377,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const start = await resolveStartContext(db, ctx.user.id);
       if (!start) throw errors.notFound('User profile');
 
-      const outcome = await syncGoogleCalendar(db, createTokenCrypto(config.TOKEN_ENCRYPTION_KEY), start, {
+      const outcome = await syncer(db, createTokenCrypto(config.TOKEN_ENCRYPTION_KEY), start, {
         clientId: config.GOOGLE_OAUTH_CLIENT_ID,
         clientSecret: config.GOOGLE_OAUTH_CLIENT_SECRET,
       });
