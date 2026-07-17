@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import { Toaster, TooltipProvider } from '@/components/ui';
 import { parseSessionCookie, SESSION_COOKIE_NAME } from '@/services/auth/session-store';
+import { AnalyticsProvider } from '@/providers/analytics-provider';
 import { AuthProvider } from '@/providers/auth-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
@@ -50,7 +51,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider initialSession={initialSession}>
-              <TooltipProvider delayDuration={300}>
+              <AnalyticsProvider>
+                <TooltipProvider delayDuration={300}>
                 {/* WCAG 2.4.1 bypass block. Hidden until it receives focus. */}
                 <a
                   href="#main"
@@ -58,9 +60,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 >
                   Skip to content
                 </a>
-                {children}
-                <Toaster />
-              </TooltipProvider>
+                  {children}
+                  <Toaster />
+                </TooltipProvider>
+              </AnalyticsProvider>
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>

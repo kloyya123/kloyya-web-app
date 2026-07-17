@@ -2,8 +2,11 @@ packages:
   - apps/*
   - packages/*
 
-# Native/binary postinstall steps.
+# Native/binary postinstall steps. `true` runs the build; `false` skips it.
+# core-js's postinstall only prints a funding ad — nothing to build — so it is
+# skipped. The others are real native builds we need.
 allowBuilds:
+  core-js: false
   esbuild: true # vitest's bundler
   sharp: true # next/image optimization
   unrs-resolver: true # eslint import resolution

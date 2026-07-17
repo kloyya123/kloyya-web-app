@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui';
-import type { Organization, User, Workspace } from '@/types/domain';
+import type { User, Workspace } from '@/types/domain';
 import { CommandPaletteTrigger } from './command-palette';
 import { NotificationCenter } from './notification-center';
 import { ThemeToggle } from './theme-toggle';
@@ -18,14 +18,12 @@ import { UserMenu } from './user-menu';
 
 export interface TopBarProps {
   user: User;
-  organization: Organization;
   workspace: Workspace;
   onOpenMobileNav: () => void;
 }
 
 export function TopBar({
   user,
-  organization,
   workspace,
   onOpenMobileNav,
 }: TopBarProps) {
@@ -41,7 +39,7 @@ export function TopBar({
         <span className="sr-only">Open navigation</span>
       </Button>
 
-      <WorkspaceSwitcher organization={organization} workspace={workspace} />
+      <WorkspaceSwitcher workspace={workspace} />
 
       <div className="flex flex-1 justify-center px-2">
         <CommandPaletteTrigger />
@@ -57,43 +55,33 @@ export function TopBar({
 }
 
 /**
- * KDS Navigation: "Workspace Switcher, Organization Switcher."
+ * The workspace label.
  *
- * One control, because the hierarchy is Organization → Workspace and a user
- * switching workspaces almost never wants to leave the organization. Only the
- * seeded workspace exists today; the menu says so rather than pretending.
+ * Organizations are removed from the product surface for the private beta —
+ * everything operates around a single Workspace — so there is nothing to switch
+ * between and no org to name above it. The control stays as a menu anchor for the
+ * workspace itself, so multi-workspace support can return without moving the UI.
  */
-function WorkspaceSwitcher({
-  organization,
-  workspace,
-}: {
-  organization: Organization;
-  workspace: Workspace;
-}) {
+function WorkspaceSwitcher({ workspace }: { workspace: Workspace }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="min-w-0 gap-2">
-          <span className="min-w-0 text-left">
-            <span className="text-small text-foreground block truncate font-medium">
-              {organization.name}
-            </span>
-            <span className="text-caption text-subtle block truncate">
-              {workspace.name}
-            </span>
+          <span className="text-small text-foreground min-w-0 truncate text-left font-medium">
+            {workspace.name}
           </span>
           <ChevronDown aria-hidden="true" className="text-subtle shrink-0" />
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="min-w-64">
-        <DropdownMenuLabel>Workspaces in {organization.name}</DropdownMenuLabel>
+        <DropdownMenuLabel>Your workspace</DropdownMenuLabel>
         <DropdownMenuItem>
           {workspace.name}
           <span className="sr-only">, current workspace</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Create a workspace</DropdownMenuItem>
+        <DropdownMenuItem disabled>More workspaces coming soon</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

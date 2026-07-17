@@ -5,7 +5,6 @@ import { InboxList } from '@/features/inbox/components/inbox-list';
 import { KnowledgeBase } from '@/features/knowledge/components/knowledge-base';
 import { MeetingsList } from '@/features/meetings/components/meetings-list';
 import { NotificationsView } from '@/features/notifications/components/notifications-view';
-import { OrganizationOverview } from '@/features/organization/components/organization-overview';
 import { ProjectsBoard } from '@/features/projects/components/projects-board';
 import { RecommendationFeed } from '@/features/recommendations/components/recommendation-feed';
 import { configureMockTransport } from '@/services/http/mock-transport';
@@ -27,7 +26,6 @@ const SCREENS: [name: string, ui: ReactElement][] = [
   ['Inbox', <InboxList key="inbox" />],
   ['Meetings', <MeetingsList key="meetings" />],
   ['Projects', <ProjectsBoard key="projects" />],
-  ['Organization', <OrganizationOverview key="org" />],
   ['Knowledge', <KnowledgeBase key="knowledge" />],
   ['Recommendations', <RecommendationFeed key="recs" />],
   ['Notifications', <NotificationsView key="notifications" />],

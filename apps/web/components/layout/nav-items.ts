@@ -1,14 +1,16 @@
 import {
-  Building2,
   Calendar,
   CheckSquare,
+  FileStack,
   FolderKanban,
   Inbox,
   LayoutDashboard,
-  Lightbulb,
   Library,
+  Lightbulb,
+  PenLine,
   Plug,
   ShieldCheck,
+  Sparkles,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -24,21 +26,28 @@ export interface NavItem {
 }
 
 /**
- * The primary navigation, in the order the roadmap builds it.
+ * The primary navigation, in the order the beta builds it.
  *
  * Routes not yet implemented are marked rather than hidden. Hiding them would
  * make the product look smaller than it is; linking them would send the user to
- * a 404. A disabled item with a "Soon" badge tells the truth.
+ * a 404. A disabled item with a "Soon" badge tells the truth — and each flips to
+ * live as its rebuild phase lands.
+ *
+ * Organizations are removed from the product surface for the private beta
+ * (everything operates around a single Workspace); the org tenancy still exists
+ * internally, it just has no navigation.
  */
 export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/ask', label: 'Ask Kloyya', icon: Sparkles, isComingSoon: true },
   { href: '/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/meetings', label: 'Meetings', icon: Users },
   { href: '/inbox', label: 'Inbox', icon: Inbox },
+  { href: '/drafts', label: 'Drafts', icon: PenLine, isComingSoon: true },
+  { href: '/documents', label: 'Documents', icon: FileStack, isComingSoon: true },
   { href: '/knowledge', label: 'Knowledge', icon: Library },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/organization', label: 'Organization', icon: Building2 },
   { href: '/recommendations', label: 'Recommendations', icon: Lightbulb },
   // These surfaces sit in their own group — they are about Kloyya itself, not a
   // place work lives.

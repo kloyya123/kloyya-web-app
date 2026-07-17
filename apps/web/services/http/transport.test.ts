@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch, authFetch } from './transport';
-import { ApiError, isApiError } from './errors';
+import { type ApiError, isApiError } from './errors';
 
 /**
  * The real transport.
