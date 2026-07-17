@@ -56,7 +56,12 @@ async function seedConnection(
 
 interface ConnectionBody {
   data: {
-    definition: { id: string; name: string; permissions: { granted: string[]; notGranted: string[] } };
+    definition: {
+      id: string;
+      name: string;
+      category: string;
+      permissions: { granted: string[]; notGranted: string[] };
+    };
     status: string;
     lastSyncedAt: string | null;
     errorReason?: string;
@@ -113,9 +118,7 @@ describe('GET /v1/integrations', () => {
 
     const { data } = res.json<{ data: ConnectionBody['data'][] }>();
     expect(data.length).toBeGreaterThan(0);
-    expect(data.every((c) => c.definition.id.includes('calendar') || c.definition.id === 'calendly')).toBe(
-      true,
-    );
+    expect(data.every((c) => c.definition.category === 'calendar')).toBe(true);
   });
 
   it('rejects a category outside the catalogue with 422', async () => {
@@ -161,7 +164,7 @@ describe('GET /v1/integrations', () => {
       password: 'a sufficiently long passphrase',
       name: 'Conn B',
     });
-    await seedConnection(a.userId, 'slack', 'connected');
+    await seedConnection(a.userId, 'whatsapp_business', 'connected');
     await seedConnection(b.userId, 'notion', 'connected');
 
     const res = await app.inject({
@@ -171,7 +174,7 @@ describe('GET /v1/integrations', () => {
     });
     const { data } = res.json<{ data: ConnectionBody['data'][] }>();
 
-    expect(data.find((c) => c.definition.id === 'slack')?.status).toBe('connected');
+    expect(data.find((c) => c.definition.id === 'whatsapp_business')?.status).toBe('connected');
     // B's Notion connection is not ours to see.
     expect(data.find((c) => c.definition.id === 'notion')?.status).toBe('not_connected');
   });
@@ -186,7 +189,7 @@ describe('GET /v1/integrations/summary', () => {
     });
     await seedConnection(userId, 'gmail', 'connected');
     await seedConnection(userId, 'google_calendar', 'paused');
-    await seedConnection(userId, 'slack', 'error', 'Slack revoked the token.');
+    await seedConnection(userId, 'whatsapp_business', 'error', 'WhatsApp revoked the token.');
 
     const res = await app.inject({
       method: 'GET',

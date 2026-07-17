@@ -29,10 +29,18 @@ export type {
  * KESM session model: "Short-lived access tokens, Refresh tokens, Device
  * binding, ... Session revocation."
  *
- * The refresh token is deliberately absent from this type. In production it
- * lives in an httpOnly cookie the client cannot read; modelling it here would
- * invite a component to touch it. See MockAuthService for how the mock
- * approximates that boundary.
+ * NO TOKEN APPEARS HERE, deliberately. The real session lives entirely in an
+ * httpOnly cookie the server writes and JavaScript cannot read — the browser
+ * attaches it, `credentials: 'include'` sends it, and no client code ever holds
+ * it. That absence is the security property: a token this type could carry is a
+ * token an XSS could steal.
+ *
+ * Expiry is absent for the same reason. The cookie's own lifetime is the
+ * expiry, enforced by the browser (which stops sending it) and by the server
+ * (which stops accepting it) — a timestamp mirrored into JavaScript would only
+ * ever be a second opinion, and the wrong one when it disagreed.
+ *
+ * This type is what a signed-in client RENDERS from, not what authenticates it.
  */
 export interface Session {
   user: User;
@@ -44,9 +52,6 @@ export interface Session {
    * threw the answers away.
    */
   preferences: UserPreferences;
-  /** Opaque. Never parsed client-side. */
-  accessToken: string;
-  expiresAt: string;
 }
 
 export interface SignInInput {

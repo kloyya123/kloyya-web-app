@@ -35,10 +35,13 @@ import { IntegrationCard } from './integration-card';
 
 /** The spec's groups, mapped onto the catalogue's ids. Order is display order. */
 const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> = [
-  { label: 'Communication', ids: ['gmail', 'outlook', 'slack', 'microsoft_teams'] },
-  { label: 'Productivity', ids: ['google_calendar', 'google_drive', 'notion'] },
-  { label: 'Development', ids: ['github', 'jira'] },
-  { label: 'Business', ids: ['salesforce', 'hubspot'] },
+  // The private-beta catalogue, grouped the way the spec presents it. Development
+  // and Business groups are gone with the tools that filled them — an empty
+  // heading is worse than no heading.
+  { label: 'Email', ids: ['gmail', 'outlook'] },
+  { label: 'Messaging', ids: ['whatsapp_business'] },
+  { label: 'Calendar', ids: ['google_calendar', 'outlook_calendar'] },
+  { label: 'Documents', ids: ['google_drive', 'notion'] },
 ];
 
 export function OnboardingConnectStep() {

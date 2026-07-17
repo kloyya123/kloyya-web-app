@@ -1,6 +1,7 @@
 import { setClock } from '@/lib/clock';
 import { MOCK_NOW } from '@/mock/organization';
 import { MockAuthService } from './auth/mock-auth-service';
+import { HttpAuthService } from './auth/http-auth-service';
 import type { AuthService } from './auth/types';
 import { MockCalendarService } from './calendar/mock-calendar-service';
 import type { CalendarService } from './calendar/types';
@@ -15,12 +16,14 @@ import type { SearchService } from './search/types';
 import { MockMeetingService } from './meetings/mock-meeting-service';
 import type { MeetingService } from './meetings/types';
 import { MockIntegrationsService } from './integrations/mock-integrations-service';
+import { HttpIntegrationsService } from './integrations/http-integrations-service';
 import type { IntegrationsService } from './integrations/types';
 import { MockIntelligenceService } from './intelligence/mock-intelligence-service';
 import type { IntelligenceService } from './intelligence/types';
 import { MockNotificationService } from './notifications/mock-notification-service';
 import type { NotificationService } from './notifications/types';
 import { MockOrganizationService } from './organization/mock-organization-service';
+import { HttpOrganizationService } from './organization/http-organization-service';
 import type { OrganizationService } from './organization/types';
 import { MockSourcesService } from './sources/mock-sources-service';
 import type { SourcesService } from './sources/types';
@@ -59,25 +62,42 @@ export interface Services {
 }
 
 /**
- * The mock data layer runs on a pinned narrative day, so the UI's "now" must be
- * that day too — otherwise Atlas's deadline ages into the past and the demo rots.
- * Installing it here, at the swap point, keeps the mock out of the UI entirely:
- * a real backend simply never calls this, and lib/clock falls back to wall time.
+ * Which services talk to the real backend.
+ *
+ * `NEXT_PUBLIC_USE_REAL_API=true` flips the built connectors on. It defaults OFF,
+ * so the demo, the test suite, and anyone without a running API keep the mock
+ * layer — the 527 tests stay green because they never touch this branch.
+ *
+ * Only the services with a real backend are switched; the rest (tasks, calendar,
+ * meetings, inbox, knowledge, projects, search, notifications, intelligence,
+ * sources) have no API yet and stay on the mock until their phases land. Mixing
+ * is fine on purpose: a page reading real auth and mock tasks is exactly the
+ * incremental cut-over the frontend-first architecture was built to allow.
  */
-setClock(() => MOCK_NOW);
+const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
+
+/**
+ * The pinned narrative "now" is a property of the MOCK dataset — Atlas's deadline
+ * only makes sense on the demo day. With the real backend, time is real, so the
+ * clock is only frozen when the mocks are actually in use.
+ */
+if (!USE_REAL_API) {
+  setClock(() => MOCK_NOW);
+}
 
 export const services: Services = {
-  auth: new MockAuthService(),
+  auth: USE_REAL_API ? new HttpAuthService() : new MockAuthService(),
+  organization: USE_REAL_API ? new HttpOrganizationService() : new MockOrganizationService(),
+  integrations: USE_REAL_API ? new HttpIntegrationsService() : new MockIntegrationsService(),
+  // No backend yet — these land with their roadmap phases.
   intelligence: new MockIntelligenceService(),
   tasks: new MockTaskService(),
   sources: new MockSourcesService(),
-  integrations: new MockIntegrationsService(),
   calendar: new MockCalendarService(),
   meetings: new MockMeetingService(),
   inbox: new MockInboxService(),
   knowledge: new MockKnowledgeService(),
   projects: new MockProjectService(),
-  organization: new MockOrganizationService(),
   search: new MockSearchService(),
   notifications: new MockNotificationService(),
 };

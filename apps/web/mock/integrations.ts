@@ -12,18 +12,16 @@ export const INITIALLY_CONNECTED: ReadonlyArray<{
   error?: string;
   minutesSinceSync: number;
 }> = [
+  // Outlook is deliberately absent: the demo needs one tool still waiting to be
+  // connected, and a catalogue where everything is already on shows nothing.
   { id: 'gmail', minutesSinceSync: 0.2 },
   { id: 'google_calendar', minutesSinceSync: 1 },
   { id: 'google_drive', minutesSinceSync: 14 },
   { id: 'notion', minutesSinceSync: 22 },
-  { id: 'confluence', minutesSinceSync: 45 },
-  { id: 'dropbox', minutesSinceSync: 130 },
-  { id: 'slack', minutesSinceSync: 3 },
-  { id: 'microsoft_teams', minutesSinceSync: 720, error: 'Sync has been paused for 12 hours. Reconnect to resume.' },
-  { id: 'salesforce', minutesSinceSync: 2880, error: 'Access token expired. Re-authorize to restore CRM context.' },
-  { id: 'hubspot', minutesSinceSync: 30 },
-  { id: 'jira', minutesSinceSync: 6 },
-  { id: 'github', minutesSinceSync: 2 },
-  { id: 'outlook', minutesSinceSync: 8 },
-  { id: 'onedrive', minutesSinceSync: 55 },
+  { id: 'whatsapp_business', minutesSinceSync: 3 },
+  {
+    id: 'outlook_calendar',
+    minutesSinceSync: 720,
+    error: 'Sync has been paused for 12 hours. Reconnect to resume.',
+  },
 ];

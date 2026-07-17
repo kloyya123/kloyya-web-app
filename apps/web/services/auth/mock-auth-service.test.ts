@@ -34,8 +34,10 @@ describe('MockAuthService', () => {
       const session = await auth.signIn(DEMO_CREDENTIALS);
 
       expect(session.user.email).toBe(DEMO_CREDENTIALS.email);
-      expect(session.accessToken).toMatch(/^mock_at_/);
-      expect(new Date(session.expiresAt).getTime()).toBeGreaterThan(Date.now());
+      // The session renders the whole authenticated shell — org and workspace,
+      // not a token the client was never meant to hold.
+      expect(session.organization.id).toBeTruthy();
+      expect(session.workspace.id).toBeTruthy();
     });
 
     it('persists the session so getSession finds it', async () => {

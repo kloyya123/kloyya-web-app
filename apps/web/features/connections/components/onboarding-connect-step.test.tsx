@@ -8,9 +8,10 @@ import { renderWithProviders } from '@/test/render';
 import { OnboardingConnectStep } from './onboarding-connect-step';
 
 const CURATED_IDS = [
-  'gmail', 'outlook', 'slack', 'microsoft_teams',
-  'google_calendar', 'google_drive', 'notion',
-  'github', 'jira', 'salesforce', 'hubspot',
+  'gmail', 'outlook',
+  'whatsapp_business',
+  'google_calendar', 'outlook_calendar',
+  'google_drive', 'notion',
 ];
 
 /**
@@ -36,21 +37,21 @@ describe('OnboardingConnectStep', () => {
   it('shows the curated groups, not the whole catalogue', async () => {
     renderWithProviders(<OnboardingConnectStep />);
 
-    expect(
-      await screen.findByRole('heading', { name: 'Communication', level: 2 }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Productivity', level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Development', level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Business', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Email', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Messaging', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Calendar', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Documents', level: 2 })).toBeInTheDocument();
 
-    // Curated means curated: a marketing tool from the full catalogue is absent.
     expect(screen.getByRole('heading', { name: /Gmail/ })).toBeInTheDocument();
-    expect(screen.queryByText('Mailchimp')).not.toBeInTheDocument();
+    // The private beta is seven tools; the long tail is post-beta and must not
+    // appear as a card the user can click and get nothing from.
+    expect(screen.queryByText('Slack')).not.toBeInTheDocument();
+    expect(screen.queryByText('Salesforce')).not.toBeInTheDocument();
   });
 
   it('a fresh user can create the workspace, or skip', async () => {
     renderWithProviders(<OnboardingConnectStep />);
-    await screen.findByRole('heading', { name: 'Communication', level: 2 });
+    await screen.findByRole('heading', { name: 'Email', level: 2 });
 
     expect(screen.getByRole('button', { name: 'Create My Workspace' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Skip and continue/ })).toBeInTheDocument();
@@ -59,10 +60,10 @@ describe('OnboardingConnectStep', () => {
   it('connecting a tool runs the real permission-review flow and updates the count', async () => {
     const user = userEvent.setup();
     renderWithProviders(<OnboardingConnectStep />);
-    await screen.findByRole('heading', { name: 'Communication', level: 2 });
+    await screen.findByRole('heading', { name: 'Email', level: 2 });
 
     // The same ConnectDialog the Connection Manager uses: review, then approve.
-    // Gmail leads the Communication group, so the first Connect is Gmail's.
+    // Gmail leads the Email group, so the first Connect is Gmail's.
     const [connect] = screen.getAllByRole('button', { name: 'Connect' });
     await user.click(connect!);
     const approve = await screen.findByRole('button', { name: /Connect Gmail/ });
@@ -84,7 +85,7 @@ describe('OnboardingConnectStep', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = renderWithProviders(<OnboardingConnectStep />);
-    await screen.findByRole('heading', { name: 'Communication', level: 2 });
+    await screen.findByRole('heading', { name: 'Email', level: 2 });
     await expectNoA11yViolations(container);
   });
 });

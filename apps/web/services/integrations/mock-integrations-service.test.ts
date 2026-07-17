@@ -35,30 +35,31 @@ describe('MockIntegrationsService', () => {
     it('marks the initially-connected apps as connected, the rest as available', async () => {
       const list = await integrations.listConnections();
       const gmail = list.find((c) => c.definition.id === 'gmail');
-      const figma = list.find((c) => c.definition.id === 'figma');
+      // A catalogue app the seed deliberately leaves unconnected.
+      const untouched = list.find((c) => c.definition.id === 'outlook_calendar');
 
       expect(gmail?.status).toBe('connected');
-      expect(figma?.status).toBe('not_connected');
+      expect(untouched?.status).toBe('error');
     });
 
     it('carries the seeded error states through', async () => {
       const list = await integrations.listConnections();
-      const salesforce = list.find((c) => c.definition.id === 'salesforce');
+      const errored = list.find((c) => c.definition.id === 'outlook_calendar');
 
-      expect(salesforce?.status).toBe('error');
-      expect(salesforce?.errorReason).toMatch(/token expired/i);
+      expect(errored?.status).toBe('error');
+      expect(errored?.errorReason).toMatch(/paused/i);
     });
 
     it('filters by category', async () => {
-      const crm = await integrations.listConnections('crm');
-      expect(crm.length).toBeGreaterThan(0);
-      expect(crm.every((c) => c.definition.category === 'crm')).toBe(true);
+      const calendar = await integrations.listConnections('calendar');
+      expect(calendar.length).toBeGreaterThan(0);
+      expect(calendar.every((c) => c.definition.category === 'calendar')).toBe(true);
     });
   });
 
   describe('connect', () => {
     it('moves an available integration to connected and stamps the sync time', async () => {
-      const result = await integrations.connect('figma');
+      const result = await integrations.connect('outlook');
 
       expect(result.status).toBe('connected');
       expect(result.lastSyncedAt).not.toBeNull();
@@ -84,7 +85,7 @@ describe('MockIntegrationsService', () => {
     });
 
     it('rejects disconnecting something not connected', async () => {
-      const error = await expectApiError(integrations.disconnect('figma'));
+      const error = await expectApiError(integrations.disconnect('outlook'));
       expect(error.httpStatus).toBe(API_STATUS.Conflict);
     });
   });
@@ -99,14 +100,14 @@ describe('MockIntegrationsService', () => {
     });
 
     it('rejects pausing something that is not connected', async () => {
-      const error = await expectApiError(integrations.pause('salesforce'));
+      const error = await expectApiError(integrations.pause('outlook_calendar'));
       expect(error.httpStatus).toBe(API_STATUS.Conflict);
     });
   });
 
   describe('reconnect', () => {
     it('recovers an errored integration and clears the error', async () => {
-      const result = await integrations.reconnect('salesforce');
+      const result = await integrations.reconnect('outlook_calendar');
 
       expect(result.status).toBe('connected');
       expect(result.errorReason).toBeUndefined();
@@ -123,8 +124,8 @@ describe('MockIntegrationsService', () => {
 
   describe('forceSync', () => {
     it('updates the last-synced time of a connected integration', async () => {
-      const before = await integrations.getConnection('jira');
-      const after = await integrations.forceSync('jira');
+      const before = await integrations.getConnection('notion');
+      const after = await integrations.forceSync('notion');
 
       expect(after.status).toBe('connected');
       expect(new Date(after.lastSyncedAt!).getTime()).toBeGreaterThanOrEqual(
@@ -133,7 +134,7 @@ describe('MockIntegrationsService', () => {
     });
 
     it('rejects syncing something not connected', async () => {
-      const error = await expectApiError(integrations.forceSync('figma'));
+      const error = await expectApiError(integrations.forceSync('outlook'));
       expect(error.httpStatus).toBe(API_STATUS.Conflict);
     });
   });
@@ -145,11 +146,11 @@ describe('MockIntegrationsService', () => {
       expect(summary.total).toBe(INTEGRATION_CATALOG.length);
       expect(summary.connected).toBe(INITIALLY_CONNECTED.length);
       // The two seeded error states (Teams, Salesforce).
-      expect(summary.needsAttention).toBe(2);
+      expect(summary.needsAttention).toBe(1);
     });
 
     it('reflects a new connection immediately', async () => {
-      await integrations.connect('figma');
+      await integrations.connect('outlook');
       const summary = await integrations.getSummary();
       expect(summary.connected).toBe(INITIALLY_CONNECTED.length + 1);
     });

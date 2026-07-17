@@ -27,7 +27,6 @@ interface SessionShape {
   organization?: unknown;
   workspace?: unknown;
   preferences?: unknown;
-  expiresAt?: string;
 }
 
 function readSessionCookie(request: NextRequest): SessionShape | null {
@@ -36,9 +35,8 @@ function readSessionCookie(request: NextRequest): SessionShape | null {
 
   try {
     const session = JSON.parse(decodeURIComponent(raw)) as SessionShape;
-    if (!session.expiresAt || new Date(session.expiresAt).getTime() <= Date.now()) {
-      return null;
-    }
+    // No expiry check: the cookie's Max-Age already means an expired session is
+    // never sent here, and the API independently authorizes every call anyway.
     // A session missing the pieces the app renders from (org, workspace,
     // preferences) must read as no session, not as a half-authenticated state
     // that lets a page through only to crash on `organization.name` — or, worse,

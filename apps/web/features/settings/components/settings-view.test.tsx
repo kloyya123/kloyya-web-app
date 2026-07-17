@@ -15,8 +15,6 @@ const session: Session = {
   organization: mockOrganization,
   workspace: mockWorkspace,
   preferences: DEFAULT_PREFERENCES,
-  accessToken: 'mock_at_test',
-  expiresAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
 };
 
 function renderSettings() {

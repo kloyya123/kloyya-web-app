@@ -41,8 +41,9 @@ export function parseSessionCookie(rawValue: string | undefined): Session | null
   try {
     const parsed: unknown = JSON.parse(decodeURIComponent(rawValue));
     if (!isWellFormedSession(parsed)) return null;
-    // An expired token is no token — on the server or the client.
-    if (new Date(parsed.expiresAt).getTime() <= Date.now()) return null;
+    // Expiry is the cookie's own Max-Age: an expired cookie is never sent, so
+    // there is nothing to re-check here. A timestamp inside the payload would be
+    // a second opinion, and the wrong one whenever the two disagreed.
     return parsed;
   } catch {
     return null;
@@ -68,9 +69,7 @@ function isWellFormedSession(value: unknown): value is Session {
     // Settings renders straight from these; a session without them would 500 the
     // page rather than fail closed. A cookie predating this field reads as no
     // session, which lands the user on login — the correct outcome.
-    isRecord(session.preferences) &&
-    typeof session.expiresAt === 'string' &&
-    typeof session.accessToken === 'string'
+    isRecord(session.preferences)
   );
 }
 

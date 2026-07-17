@@ -17,6 +17,25 @@ import { composeSession, composeUser } from '../users/service.js';
  * of implementation, not of contract.
  */
 export async function meRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * The full session the frontend renders the app shell from: identity,
+   * organization, active workspace and preferences — the exact shape onboarding
+   * and settings already return, so getSession() and those flows agree.
+   *
+   * Only requireSession, NOT requireVerifiedEmail: an unverified user must be
+   * able to load their session so the client can route them to the verify
+   * screen. Gating this would strand them with no way to discover why.
+   */
+  app.get('/v1/session', { preHandler: requireSession }, async (request) => {
+    const ctx = request.auth;
+    if (!ctx) throw errors.unauthorized();
+
+    const session = await composeSession(requireDb(request), ctx.user.id);
+    if (!session) throw errors.notFound('User profile');
+
+    return ok(session, request.correlationId);
+  });
+
   app.get('/v1/me', { preHandler: requireSession }, async (request) => {
     const ctx = request.auth;
     if (!ctx) throw errors.unauthorized(); // guard guarantees this; satisfies the type
