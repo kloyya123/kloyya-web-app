@@ -6,7 +6,7 @@ import { connections, syncRecords } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens.js';
 import type { StartContext } from './connect.js';
 import { getValidAccessToken } from './tokens.js';
-import { validateCalendarEvents, validateGmailMessages } from './validation.js';
+import { validateCalendarEvents, validateDriveFiles, validateGmailMessages } from './validation.js';
 import { GoogleTransientError, SyncTokenExpiredError } from './google-http.js';
 import { isCancelled, listCalendars, listEvents, type RawGoogleEvent } from './google-calendar.js';
 import {
@@ -16,6 +16,13 @@ import {
   listRecentMessageIds,
   type RawGmailMessage,
 } from './gmail.js';
+import {
+  getDriveStartPageToken,
+  isDriveRemoval,
+  listDriveChanges,
+  listDriveFiles,
+  type RawDriveFile,
+} from './google-drive.js';
 
 /**
  * The Google Calendar sync.
@@ -313,6 +320,8 @@ export async function syncGoogleCalendar(
 
 /** The single mailbox stream. Gmail's cursor is one historyId, not per-folder. */
 const GMAIL_CURSOR_KEY = 'mailbox';
+/** Drive is one change stream, so one cursor — its opaque page token. */
+const DRIVE_CURSOR_KEY = 'changes';
 
 /**
  * Sync a workspace's Gmail.
@@ -451,6 +460,137 @@ export async function syncGmail(
       errorReason: transient
         ? null
         : 'Kloyya could not read this mailbox. It will try again; reconnect if this persists.',
+    });
+    return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
+  }
+
+  await saveProgress(db, ctx, integrationId, cursors, {
+    status: 'connected',
+    errorReason: null,
+    syncedAt: now,
+  });
+
+  return { ok: true, fetched, written, tombstoned, rejected };
+}
+
+/**
+ * Sync a workspace's Google Drive.
+ *
+ * Drive's incremental model is one opaque page token, not a per-resource cursor.
+ * On a first sync there is no token, so we take a start token for NEXT time and
+ * enumerate current files. On later syncs, changes.list from the saved token
+ * returns only what moved — created, renamed, trashed or removed.
+ *
+ * A removal (gone from view, or trashed) is a tombstone, not a delete: "this
+ * document was removed" is intelligence the pipeline will want. Only metadata is
+ * ever stored; the scope cannot read a byte of file content, so there is none to
+ * leak.
+ */
+export async function syncGoogleDrive(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+): Promise<SyncOutcome> {
+  const integrationId = 'google_drive';
+  const now = new Date((deps.now ?? Date.now)());
+  const fetchOpt = deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {};
+
+  const connection = await readConnection(db, ctx, integrationId);
+  if (!connection) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: 'not_connected' };
+  }
+
+  const token = await getValidAccessToken(db, crypto, ctx, integrationId, deps);
+  if (!token.ok) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: token.reason };
+  }
+
+  await saveProgress(db, ctx, integrationId, connection.cursors, { status: 'syncing' });
+
+  const cursors = { ...connection.cursors };
+  let fetched = 0;
+  let written = 0;
+  let tombstoned = 0;
+  let rejected = 0;
+
+  /** Land one file: live files are validated; removals are tombstoned by id. */
+  const land = async (
+    fileId: string,
+    file: RawDriveFile | null,
+    removed: boolean,
+  ): Promise<void> => {
+    fetched += 1;
+    if (removed) {
+      const changed = await landRecord(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        'file',
+        fileId,
+        file ?? { id: fileId, removed: true },
+        true,
+        now,
+      );
+      if (changed) {
+        written += 1;
+        tombstoned += 1;
+      }
+      return;
+    }
+
+    const batch = validateDriveFiles(file ? [file] : []);
+    rejected += batch.rejected.length;
+    for (const failure of batch.rejected) deps.onRejected?.('drive', failure);
+
+    for (const valid of batch.valid) {
+      const changed = await landRecord(db, ctx, connection.id, integrationId, 'file', valid.id, valid, false, now);
+      if (changed) written += 1;
+    }
+  };
+
+  try {
+    const savedToken = cursors[DRIVE_CURSOR_KEY];
+
+    if (savedToken) {
+      let result;
+      try {
+        result = await listDriveChanges({ accessToken: token.accessToken, pageToken: savedToken, ...fetchOpt });
+      } catch (error) {
+        if (!(error instanceof SyncTokenExpiredError)) throw error;
+        // The page token aged out; fall back to a full read and a fresh token.
+        delete cursors[DRIVE_CURSOR_KEY];
+        result = null;
+      }
+
+      if (result) {
+        for (const change of result.changes) {
+          await land(change.fileId, change.file, isDriveRemoval(change));
+        }
+        if (result.nextPageToken) cursors[DRIVE_CURSOR_KEY] = result.nextPageToken;
+      }
+    }
+
+    // First sync, or recovery after an expired token: enumerate current files and
+    // take a start token for next time.
+    if (!cursors[DRIVE_CURSOR_KEY]) {
+      // Grab the resume point BEFORE listing, so changes made mid-enumeration are
+      // caught next run rather than falling in the gap between list and token.
+      const startToken = await getDriveStartPageToken({ accessToken: token.accessToken, ...fetchOpt });
+      const files = await listDriveFiles({ accessToken: token.accessToken, ...fetchOpt });
+      for (const file of files) {
+        await land(file.id, file, file.trashed === true);
+      }
+      if (startToken) cursors[DRIVE_CURSOR_KEY] = startToken;
+    }
+  } catch (error) {
+    const transient = error instanceof GoogleTransientError;
+    await saveProgress(db, ctx, integrationId, cursors, {
+      status: transient ? 'connected' : 'error',
+      errorReason: transient
+        ? null
+        : 'Kloyya could not read this Drive. It will try again; reconnect if this persists.',
     });
     return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
   }

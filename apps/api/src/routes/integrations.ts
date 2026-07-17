@@ -23,7 +23,7 @@ import {
   storeGoogleTokens,
 } from '../integrations/connect.js';
 import { buildGoogleAuthUrl, exchangeGoogleCode, GOOGLE_SCOPES, isGoogleIntegration } from '../integrations/google.js';
-import { syncGmail, syncGoogleCalendar, type SyncOutcome } from '../integrations/sync.js';
+import { syncGmail, syncGoogleCalendar, syncGoogleDrive, type SyncOutcome } from '../integrations/sync.js';
 import { decodeState, encodeState } from '../integrations/state.js';
 
 /**
@@ -342,6 +342,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const SYNCERS: Record<string, typeof syncGoogleCalendar> = {
         google_calendar: syncGoogleCalendar,
         gmail: syncGmail,
+        google_drive: syncGoogleDrive,
       };
       const syncer = SYNCERS[id];
       if (!syncer) {
@@ -349,7 +350,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
           httpStatus: API_STATUS.NotFound,
           errorCode: 'connector_unavailable',
           message: 'That integration cannot sync yet.',
-          description: `Kloyya has no sync for "${id}" — only Google Calendar and Gmail are wired up so far.`,
+          description: `Kloyya has no sync for "${id}" — only Google Calendar, Gmail and Google Drive are wired up so far.`,
           suggestedResolution: 'Check back as more connectors land.',
         });
       }

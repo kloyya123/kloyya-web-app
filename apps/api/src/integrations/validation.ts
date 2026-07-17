@@ -1,3 +1,4 @@
+import type { RawDriveFile } from './google-drive.js';
 import type { RawGmailMessage } from './gmail.js';
 import type { RawGoogleEvent } from './google-calendar.js';
 
@@ -147,6 +148,44 @@ export function validateGmailMessages(
 
     seen.add(id);
     valid.push(message);
+  }
+
+  return { valid, rejected };
+}
+
+/**
+ * Validate a batch of raw Drive files.
+ *
+ * A file needs an id to be keyed; that is the only hard requirement, because a
+ * trashed file arrives as little more than an id and a `trashed` flag — exactly
+ * what a tombstone is, and demanding a name from it would reject the very records
+ * that say a document is gone. Live files must carry a name, since a nameless
+ * file is nothing search or the pipeline can present or reason about.
+ */
+export function validateDriveFiles(files: RawDriveFile[]): ValidatedBatch<RawDriveFile> {
+  const valid: RawDriveFile[] = [];
+  const rejected: ValidationFailure[] = [];
+  const seen = new Set<string>();
+
+  for (const file of files) {
+    const id = file?.id;
+
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      rejected.push({ externalId: null, reason: 'missing or invalid id' });
+      continue;
+    }
+    if (seen.has(id)) {
+      rejected.push({ externalId: id, reason: 'duplicate identifier in batch' });
+      continue;
+    }
+    // A live file with no name is unusable downstream; a trashed one needs none.
+    if (file.trashed !== true && (typeof file.name !== 'string' || file.name.length === 0)) {
+      rejected.push({ externalId: id, reason: 'live file has no name' });
+      continue;
+    }
+
+    seen.add(id);
+    valid.push(file);
   }
 
   return { valid, rejected };
