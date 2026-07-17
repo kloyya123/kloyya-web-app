@@ -2,6 +2,7 @@ import type { RawDriveFile } from './google-drive.js';
 import type { RawGmailMessage } from './gmail.js';
 import type { RawGoogleEvent } from './google-calendar.js';
 import type { RawGraphItem } from './graph.js';
+import type { RawNotionItem } from './notion-client.js';
 
 /**
  * Phase 8.5 — validation before storage.
@@ -203,6 +204,37 @@ export function validateDriveFiles(files: RawDriveFile[]): ValidatedBatch<RawDri
  */
 export function validateGraphItems(items: RawGraphItem[]): ValidatedBatch<RawGraphItem> {
   const valid: RawGraphItem[] = [];
+  const rejected: ValidationFailure[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const id = item?.id;
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      rejected.push({ externalId: null, reason: 'missing or invalid id' });
+      continue;
+    }
+    if (seen.has(id)) {
+      rejected.push({ externalId: id, reason: 'duplicate identifier in batch' });
+      continue;
+    }
+    seen.add(id);
+    valid.push(item);
+  }
+
+  return { valid, rejected };
+}
+
+/**
+ * Validate a batch of raw Notion items (pages or databases from search).
+ *
+ * A Notion object needs an id to be keyed; that is the only hard requirement.
+ * A page and a database carry different shapes, and both are legitimate — the
+ * pipeline sorts that out — so we don't demand a title or properties here, only
+ * refuse what can't be stored. Archived/trashed items are handled before
+ * validation (tombstoned by id), so what reaches here should be live.
+ */
+export function validateNotionItems(items: RawNotionItem[]): ValidatedBatch<RawNotionItem> {
+  const valid: RawNotionItem[] = [];
   const rejected: ValidationFailure[] = [];
   const seen = new Set<string>();
 

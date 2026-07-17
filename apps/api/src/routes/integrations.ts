@@ -22,6 +22,7 @@ import {
   resolveStartContext,
   storeGoogleTokens,
   storeMicrosoftTokens,
+  storeNotionTokens,
   type StartContext,
   type StoreResult,
 } from '../integrations/connect.js';
@@ -32,11 +33,13 @@ import {
   isMicrosoftIntegration,
   MICROSOFT_SCOPES,
 } from '../integrations/microsoft.js';
+import { buildNotionAuthUrl, exchangeNotionCode, isNotionIntegration } from '../integrations/notion.js';
 import type { ProviderTokens } from '../integrations/oauth.js';
 import {
   syncGmail,
   syncGoogleCalendar,
   syncGoogleDrive,
+  syncNotion,
   syncOutlookCalendar,
   syncOutlookMail,
   type SyncOutcome,
@@ -66,14 +69,22 @@ const listQuery = z.object({ category: z.enum(INTEGRATION_CATEGORIES).optional()
  * (409, reconnect), Google being down is temporary (503, retry), and neither is
  * a 500 — nothing went wrong on our end.
  */
+/** The provider behind a card, named for user-facing errors. */
+function providerLabel(id: string): string {
+  if (isMicrosoftIntegration(id)) return 'Microsoft';
+  if (isNotionIntegration(id)) return 'Notion';
+  return 'Google';
+}
+
 function syncFailureToApiError(outcome: SyncOutcome, id: string): ApiError {
+  const provider = providerLabel(id);
   switch (outcome.reason) {
     case 'revoked':
       return new ApiError({
         httpStatus: API_STATUS.Conflict,
         errorCode: 'connection_revoked',
-        message: 'Google no longer accepts this connection.',
-        description: 'It was revoked, or the Google account password changed.',
+        message: `${provider} no longer accepts this connection.`,
+        description: 'The grant was revoked, or the account changed.',
         suggestedResolution: 'Reconnect the integration to resume syncing.',
       });
     case 'refresh_failed':
@@ -81,7 +92,7 @@ function syncFailureToApiError(outcome: SyncOutcome, id: string): ApiError {
       return new ApiError({
         httpStatus: API_STATUS.ServiceUnavailable,
         errorCode: 'provider_unavailable',
-        message: 'Google is not responding right now.',
+        message: `${provider} is not responding right now.`,
         description: 'The connection is fine; the provider is rate-limiting or briefly unavailable.',
         suggestedResolution: 'Try again in a few minutes — nothing needs fixing.',
       });
@@ -97,7 +108,7 @@ function syncFailureToApiError(outcome: SyncOutcome, id: string): ApiError {
       return new ApiError({
         httpStatus: API_STATUS.ServiceUnavailable,
         errorCode: 'sync_failed',
-        message: 'Kloyya could not read from Google.',
+        message: `Kloyya could not read from ${provider}.`,
         description: 'The sync did not complete.',
         suggestedResolution: 'Try again; reconnect if it keeps failing.',
       });
@@ -302,13 +313,15 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
 
       const { id } = idParams.parse(request.params);
 
-      // Which OAuth provider owns this card. Google and Microsoft both live here;
-      // adding a provider is a new branch, not a new route.
+      // Which OAuth provider owns this card. Google, Microsoft and Notion all live
+      // here; adding a provider is a new branch, not a new route.
       const provider = isGoogleIntegration(id)
         ? 'google'
         : isMicrosoftIntegration(id)
           ? 'microsoft'
-          : null;
+          : isNotionIntegration(id)
+            ? 'notion'
+            : null;
 
       if (!provider) {
         throw new ApiError({
@@ -316,7 +329,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
           errorCode: 'connector_unavailable',
           message: 'That integration cannot be connected yet.',
           description: `Kloyya has a card for "${id}" but no connector for it yet.`,
-          suggestedResolution: 'Connect a Google or Microsoft app, or check back as more land.',
+          suggestedResolution: 'Connect a Google, Microsoft or Notion app, or check back as more land.',
         });
       }
       if (!config.BETTER_AUTH_SECRET) throw errors.unauthorized();
@@ -355,7 +368,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
           scopes: GOOGLE_SCOPES[id]!,
           state,
         });
-      } else {
+      } else if (provider === 'microsoft') {
         if (!config.MICROSOFT_OAUTH_CLIENT_ID || !config.MICROSOFT_OAUTH_CLIENT_SECRET) {
           throw new ApiError({
             httpStatus: API_STATUS.ServiceUnavailable,
@@ -370,6 +383,23 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
           clientId: config.MICROSOFT_OAUTH_CLIENT_ID,
           redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI,
           scopes: MICROSOFT_SCOPES[id]!,
+          state,
+        });
+      } else {
+        if (!config.NOTION_OAUTH_CLIENT_ID || !config.NOTION_OAUTH_CLIENT_SECRET) {
+          throw new ApiError({
+            httpStatus: API_STATUS.ServiceUnavailable,
+            errorCode: 'notion_oauth_unconfigured',
+            message: 'Notion connections are not configured on this server.',
+            description: 'NOTION_OAUTH_CLIENT_ID and NOTION_OAUTH_CLIENT_SECRET are not set.',
+            suggestedResolution: 'Set both, then restart the API.',
+          });
+        }
+        await markConnecting(db, start, id);
+        // Notion has no scopes — access is granted per-page in Notion's own UI.
+        authUrl = buildNotionAuthUrl({
+          clientId: config.NOTION_OAUTH_CLIENT_ID,
+          redirectUri: config.NOTION_OAUTH_REDIRECT_URI,
           state,
         });
       }
@@ -417,6 +447,21 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
     }),
   );
 
+  app.get('/v1/integrations/notion/callback', (request, reply) =>
+    runOAuthCallback(request, reply, {
+      label: 'Notion',
+      configured: Boolean(config.NOTION_OAUTH_CLIENT_ID && config.NOTION_OAUTH_CLIENT_SECRET),
+      exchange: (code) =>
+        exchangeNotionCode({
+          code,
+          clientId: config.NOTION_OAUTH_CLIENT_ID!,
+          clientSecret: config.NOTION_OAUTH_CLIENT_SECRET!,
+          redirectUri: config.NOTION_OAUTH_REDIRECT_URI,
+        }),
+      store: storeNotionTokens,
+    }),
+  );
+
   /**
    * Sync now.
    *
@@ -440,6 +485,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
         google_drive: syncGoogleDrive,
         outlook: syncOutlookMail,
         outlook_calendar: syncOutlookCalendar,
+        notion: syncNotion,
       };
       const syncer = SYNCERS[id];
       if (!syncer) {
@@ -447,20 +493,31 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
           httpStatus: API_STATUS.NotFound,
           errorCode: 'connector_unavailable',
           message: 'That integration cannot sync yet.',
-          description: `Kloyya has no sync for "${id}" — only Google Calendar, Gmail and Google Drive are wired up so far.`,
+          description: `Kloyya has no sync for "${id}".`,
           suggestedResolution: 'Check back as more connectors land.',
         });
       }
 
       // Each provider syncs on its own credentials — Outlook cannot run on
       // Google's, and refusing with the wrong provider's error would misdirect.
+      // Notion is the exception: its token never expires, so the sync needs no
+      // client credentials at all, only the key to decrypt the stored token.
       const usesMicrosoft = isMicrosoftIntegration(id);
-      const clientId = usesMicrosoft ? config.MICROSOFT_OAUTH_CLIENT_ID : config.GOOGLE_OAUTH_CLIENT_ID;
-      const clientSecret = usesMicrosoft
-        ? config.MICROSOFT_OAUTH_CLIENT_SECRET
-        : config.GOOGLE_OAUTH_CLIENT_SECRET;
+      const usesNotion = isNotionIntegration(id);
+      const clientId =
+        (usesNotion
+          ? ''
+          : usesMicrosoft
+            ? config.MICROSOFT_OAUTH_CLIENT_ID
+            : config.GOOGLE_OAUTH_CLIENT_ID) ?? '';
+      const clientSecret =
+        (usesNotion
+          ? ''
+          : usesMicrosoft
+            ? config.MICROSOFT_OAUTH_CLIENT_SECRET
+            : config.GOOGLE_OAUTH_CLIENT_SECRET) ?? '';
 
-      if (!clientId || !clientSecret) {
+      if (!usesNotion && (!clientId || !clientSecret)) {
         throw new ApiError({
           httpStatus: API_STATUS.ServiceUnavailable,
           errorCode: usesMicrosoft ? 'microsoft_oauth_unconfigured' : 'google_oauth_unconfigured',

@@ -5,8 +5,20 @@ import { withTenantScope } from '@kloyya/db/scope';
 import { connections, syncRecords } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens.js';
 import type { StartContext } from './connect.js';
-import { getValidAccessToken } from './tokens.js';
-import { validateCalendarEvents, validateDriveFiles, validateGmailMessages } from './validation.js';
+import { getStaticAccessToken, getValidAccessToken, markRevoked } from './tokens.js';
+import {
+  validateCalendarEvents,
+  validateDriveFiles,
+  validateGmailMessages,
+  validateNotionItems,
+} from './validation.js';
+import {
+  isNotionRemoval,
+  listNotionChanges,
+  NotionTransientError,
+  NotionUnauthorizedError,
+  type RawNotionItem,
+} from './notion-client.js';
 import { GoogleTransientError, SyncTokenExpiredError } from './google-http.js';
 import { isCancelled, listCalendars, listEvents, type RawGoogleEvent } from './google-calendar.js';
 import {
@@ -327,6 +339,8 @@ const GMAIL_CURSOR_KEY = 'mailbox';
 const DRIVE_CURSOR_KEY = 'changes';
 /** Graph carries the cursor as a whole @odata.deltaLink URL. */
 const GRAPH_CURSOR_KEY = 'delta';
+/** Notion has no cursor of its own; ours is a last_edited_time high-water mark. */
+const NOTION_CURSOR_KEY = 'last_edited';
 
 /**
  * Sync a workspace's Gmail.
@@ -748,4 +762,141 @@ export async function syncOutlookCalendar(
         ...(deps.now ? { now: deps.now } : {}),
       }),
   });
+}
+
+/**
+ * Sync a workspace's Notion.
+ *
+ * The same shape as the others — read incrementally, validate before storage,
+ * advance the cursor only on success — but every incremental mechanism is
+ * Notion's absence of one:
+ *
+ *  • No refresh. The token never expires, so we read it straight (getStaticAccessToken)
+ *    rather than through the refresh manager. Revocation surfaces only as a 401 at
+ *    call time, and that parks the connection like any other dead grant.
+ *  • No changes feed. The cursor is a last_edited_time high-water mark; the client
+ *    walks search newest-first and stops when it reaches something that old.
+ *  • No deletion feed. An archived or trashed page simply carries a flag, which we
+ *    tombstone — "this page was removed" is intelligence the same as any provider's.
+ *
+ * Pages and databases both come back from one search; each is landed under its own
+ * resource type so the pipeline can tell a document from a table without reparsing.
+ */
+export async function syncNotion(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+): Promise<SyncOutcome> {
+  const integrationId = 'notion';
+  const now = new Date((deps.now ?? Date.now)());
+  const fetchOpt = deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {};
+
+  const connection = await readConnection(db, ctx, integrationId);
+  if (!connection) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: 'not_connected' };
+  }
+
+  const token = await getStaticAccessToken(db, crypto, ctx, integrationId);
+  if (!token.ok) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: token.reason };
+  }
+
+  await saveProgress(db, ctx, integrationId, connection.cursors, { status: 'syncing' });
+
+  const cursors = { ...connection.cursors };
+  let fetched = 0;
+  let written = 0;
+  let tombstoned = 0;
+  let rejected = 0;
+
+  /** A Notion object is either a page or a database — keep them apart downstream. */
+  const resourceTypeOf = (item: RawNotionItem): string =>
+    item.object === 'database' ? 'notion_database' : 'notion_page';
+
+  try {
+    const since = cursors[NOTION_CURSOR_KEY];
+    const page = await listNotionChanges({
+      accessToken: token.accessToken,
+      ...(since ? { since } : {}),
+      ...fetchOpt,
+    });
+    fetched = page.items.length;
+
+    // Split removals from live items: an archived/trashed page is a tombstone,
+    // landed by id, and must not go through validation as a live record.
+    const removals = page.items.filter(isNotionRemoval);
+    const live = page.items.filter((item) => !isNotionRemoval(item));
+
+    for (const item of removals) {
+      const changed = await landRecord(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        resourceTypeOf(item),
+        item.id,
+        item,
+        true,
+        now,
+      );
+      if (changed) {
+        written += 1;
+        tombstoned += 1;
+      }
+    }
+
+    const batch = validateNotionItems(live);
+    rejected += batch.rejected.length;
+    for (const failure of batch.rejected) deps.onRejected?.('notion', failure);
+
+    for (const item of batch.valid) {
+      const changed = await landRecord(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        resourceTypeOf(item),
+        item.id,
+        item,
+        false,
+        now,
+      );
+      if (changed) written += 1;
+    }
+
+    // Advance the high-water mark only if this run saw something newer — an empty
+    // sync must not push the mark backward to null and re-read the world next time.
+    if (page.newWatermark && (!since || page.newWatermark > since)) {
+      cursors[NOTION_CURSOR_KEY] = page.newWatermark;
+    }
+  } catch (error) {
+    if (error instanceof NotionUnauthorizedError) {
+      // Notion gives no earlier signal; a 401 here is the revocation. Park it and
+      // drop the dead token.
+      await markRevoked(
+        db,
+        ctx,
+        integrationId,
+        'Notion no longer accepts this connection — the integration was removed in Notion. Reconnect to resume syncing.',
+      );
+      return { ok: false, fetched, written, tombstoned, rejected, reason: 'revoked' };
+    }
+    const transient = error instanceof NotionTransientError;
+    await saveProgress(db, ctx, integrationId, cursors, {
+      status: transient ? 'connected' : 'error',
+      errorReason: transient
+        ? null
+        : 'Kloyya could not read this Notion workspace. It will try again; reconnect if this persists.',
+    });
+    return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
+  }
+
+  await saveProgress(db, ctx, integrationId, cursors, {
+    status: 'connected',
+    errorReason: null,
+    syncedAt: now,
+  });
+
+  return { ok: true, fetched, written, tombstoned, rejected };
 }

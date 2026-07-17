@@ -131,6 +131,38 @@ export async function getValidAccessToken(
 }
 
 /**
+ * The stored access token for a provider whose tokens never expire (Notion).
+ *
+ * There is no refresh token and nothing to refresh, so this is the whole of it:
+ * decrypt what we stored, or report the connection isn't there. A revoked Notion
+ * grant is discovered at call time — the API returns 401 — not here, because
+ * Notion gives us no earlier signal that a token has died.
+ */
+export async function getStaticAccessToken(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  integrationId: string,
+): Promise<{ ok: true; accessToken: string } | { ok: false; reason: 'not_connected' }> {
+  const rows = await withTenantScope(db, ctx.organizationId, async (tx) =>
+    tx
+      .select({ accessTokenEnc: connections.accessTokenEnc })
+      .from(connections)
+      .where(
+        and(
+          eq(connections.workspaceId, ctx.workspaceId),
+          eq(connections.integrationId, integrationId),
+        ),
+      )
+      .limit(1),
+  );
+
+  const row = rows[0];
+  if (!row?.accessTokenEnc) return { ok: false, reason: 'not_connected' };
+  return { ok: true, accessToken: crypto.decrypt(row.accessTokenEnc) };
+}
+
+/**
  * Park a connection whose grant is gone, and destroy the tokens with it.
  *
  * They are dead weight the moment Google stops honouring them, and a revoked
@@ -141,14 +173,14 @@ export async function markRevoked(
   db: AppDb,
   ctx: StartContext,
   integrationId: string,
+  reason = 'Google no longer accepts this connection — it was revoked, or the account password changed. Reconnect to resume syncing.',
 ): Promise<void> {
   await withTenantScope(db, ctx.organizationId, async (tx) => {
     await tx
       .update(connections)
       .set({
         status: 'error',
-        errorReason:
-          'Google no longer accepts this connection — it was revoked, or the account password changed. Reconnect to resume syncing.',
+        errorReason: reason,
         accessTokenEnc: null,
         refreshTokenEnc: null,
         accessTokenExpiresAt: null,

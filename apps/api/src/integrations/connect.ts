@@ -93,7 +93,12 @@ export async function storeProviderTokens(
   opts: {
     requiredScopes: readonly string[];
     scopeGranted: (granted: string[], required: readonly string[]) => boolean;
-    noRefreshMessage: string;
+    /**
+     * The message shown when a refresh token is required but absent. Passing
+     * `null` declares this provider's tokens never expire (Notion), so a missing
+     * refresh token is expected, not a failure.
+     */
+    noRefreshMessage: string | null;
   },
 ): Promise<StoreResult> {
   if (!opts.scopeGranted(tokens.grantedScopes, opts.requiredScopes)) {
@@ -106,10 +111,14 @@ export async function storeProviderTokens(
     return { ok: false, reason: 'scopes_refused' };
   }
 
-  if (!tokens.refreshToken) {
+  if (opts.noRefreshMessage !== null && !tokens.refreshToken) {
     await failConnection(db, ctx, integrationId, opts.noRefreshMessage);
     return { ok: false, reason: 'no_refresh_token' };
   }
+
+  // A provider whose tokens never expire stores no refresh token; one that
+  // refreshes has already been guaranteed to carry one above.
+  const refreshEnc = tokens.refreshToken ? crypto.encrypt(tokens.refreshToken) : null;
 
   await withTenantScope(db, ctx.organizationId, async (tx) => {
     await tx
@@ -121,7 +130,7 @@ export async function storeProviderTokens(
         status: 'connected',
         connectedByUserId: ctx.userId,
         accessTokenEnc: crypto.encrypt(tokens.accessToken),
-        refreshTokenEnc: crypto.encrypt(tokens.refreshToken!),
+        refreshTokenEnc: refreshEnc,
         ...(tokens.expiresAt ? { accessTokenExpiresAt: tokens.expiresAt } : {}),
         grantedScopes: tokens.grantedScopes,
         errorReason: null,
@@ -132,7 +141,7 @@ export async function storeProviderTokens(
           status: 'connected',
           connectedByUserId: ctx.userId,
           accessTokenEnc: crypto.encrypt(tokens.accessToken),
-          refreshTokenEnc: crypto.encrypt(tokens.refreshToken!),
+          refreshTokenEnc: refreshEnc,
           accessTokenExpiresAt: tokens.expiresAt ?? null,
           grantedScopes: tokens.grantedScopes,
           errorReason: null,
@@ -182,6 +191,26 @@ export function storeMicrosoftTokens(
       resourceSuffix.length === 0 || granted.some((s) => s.endsWith(resourceSuffix)),
     noRefreshMessage:
       'Microsoft did not return a refresh token, so the connection would expire within the hour. Reconnect and grant offline access.',
+  });
+}
+
+/**
+ * Notion has no OAuth scopes and no refresh token: access is per-page, granted in
+ * Notion's own UI, and the token never expires. So there is nothing to verify and
+ * nothing to refresh — just store what came back.
+ */
+export function storeNotionTokens(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  integrationId: string,
+  tokens: ProviderTokens,
+): Promise<StoreResult> {
+  return storeProviderTokens(db, crypto, ctx, integrationId, tokens, {
+    requiredScopes: [],
+    scopeGranted: () => true,
+    // null: Notion tokens never expire, so a missing refresh token is expected.
+    noRefreshMessage: null,
   });
 }
 

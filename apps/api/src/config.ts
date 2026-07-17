@@ -86,6 +86,16 @@ const schema = z.object({
     .string()
     .url()
     .default('http://localhost:4000/v1/integrations/microsoft/callback'),
+
+  // Notion OAuth (pages + databases via search). Its tokens never expire, so
+  // there is no refresh secret to rotate — just the client pair. Optional for the
+  // same reason as the others.
+  NOTION_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  NOTION_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  NOTION_OAUTH_REDIRECT_URI: z
+    .string()
+    .url()
+    .default('http://localhost:4000/v1/integrations/notion/callback'),
 });
 
 export type Config = z.infer<typeof schema>;
