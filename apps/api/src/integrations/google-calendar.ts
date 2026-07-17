@@ -5,33 +5,13 @@
  * shaping happens nowhere — raw payloads land in sync_records and the pipeline
  * interprets them later.
  */
+import { googleGet, GoogleTransientError, SyncTokenExpiredError } from './google-http.js';
+
+// Re-exported so existing importers keep working; the definitions moved to the
+// shared Google request path now that Gmail and Drive need the same judgements.
+export { GoogleTransientError, SyncTokenExpiredError };
+
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
-
-/**
- * Google expired our sync token.
- *
- * It answers 410 when a syncToken is too old or the calendar changed in a way it
- * can't express incrementally. The only cure is to forget the cursor and re-read
- * the calendar in full. Treating this as an ordinary error would leave a
- * connection permanently stuck on a token Google will never accept again.
- */
-export class SyncTokenExpiredError extends Error {
-  constructor() {
-    super('Google expired the sync token; a full resync is required.');
-    this.name = 'SyncTokenExpiredError';
-  }
-}
-
-/** Google is rate-limiting or briefly broken. Worth retrying; not worth panicking. */
-export class GoogleTransientError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = 'GoogleTransientError';
-  }
-}
 
 export interface GoogleCalendarSummary {
   id: string;
@@ -50,32 +30,6 @@ interface EventsPage {
   items?: RawGoogleEvent[];
   nextPageToken?: string;
   nextSyncToken?: string;
-}
-
-async function googleGet<T>(
-  url: string,
-  accessToken: string,
-  fetchImpl: typeof fetch,
-): Promise<T> {
-  const response = await fetchImpl(url, {
-    headers: { authorization: `Bearer ${accessToken}` },
-  });
-
-  if (response.status === 410) throw new SyncTokenExpiredError();
-
-  // 429 and 5xx are Google having a moment. A connector that treats them as
-  // fatal disconnects customers over a blip.
-  if (response.status === 429 || response.status >= 500) {
-    throw new GoogleTransientError(`Google returned ${response.status}`, response.status);
-  }
-
-  if (!response.ok) {
-    // 401/403 here mean the grant no longer covers this call — a real problem the
-    // caller must surface, not retry.
-    throw new Error(`Google Calendar request failed with ${response.status}`);
-  }
-
-  return (await response.json()) as T;
 }
 
 /** The calendars this account can read. */
