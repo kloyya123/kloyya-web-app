@@ -1,12 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import {
-  BRIEFING_TIMES,
-  GOALS,
-  NOTIFICATION_LEVELS,
-  TEAM_SIZES,
-  WORK_STYLES,
-} from '@kloyya/core';
+import { GOALS, PROACTIVENESS, SUBSCRIPTION_TIERS } from '@kloyya/core';
 import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { ok } from '../http/envelope.js';
 import { ApiError, API_STATUS, errors } from '../http/errors.js';
@@ -22,14 +16,11 @@ import { composeSession } from '../users/service.js';
  */
 const onboardingSchema = z.object({
   fullName: z.string().trim().min(1).max(120),
-  jobTitle: z.string().trim().min(1).max(120),
-  companyName: z.string().trim().min(1).max(200),
-  industry: z.string().trim().min(1).max(120),
-  teamSize: z.enum(TEAM_SIZES),
+  role: z.string().trim().min(1).max(120),
   goals: z.array(z.enum(GOALS)),
-  workStyle: z.enum(WORK_STYLES),
-  briefingTime: z.enum(BRIEFING_TIMES),
-  notificationLevel: z.enum(NOTIFICATION_LEVELS),
+  priorities: z.array(z.string().trim().min(1).max(120)).max(20),
+  proactiveness: z.enum(PROACTIVENESS),
+  plan: z.enum(SUBSCRIPTION_TIERS),
 });
 
 export async function onboardingRoutes(app: FastifyInstance): Promise<void> {

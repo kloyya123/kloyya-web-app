@@ -2,6 +2,8 @@ import type {
   BriefingTime,
   Goal,
   NotificationLevel,
+  Proactiveness,
+  SubscriptionTier,
   TeamSize,
   WorkStyle,
 } from '@/services/auth/types';
@@ -113,6 +115,92 @@ export const NOTIFICATION_LEVEL_OPTIONS: Option<NotificationLevel>[] = [
   },
 ];
 
+/**
+ * Roles for the onboarding "who are you" step. Presented as a card grid, with an
+ * "Other" free-text escape hatch — role is stored as free-form text, so a title
+ * we didn't list is a first-class answer, not a fallback.
+ */
+export const ROLE_OPTIONS = [
+  'Founder',
+  'Executive',
+  'Manager',
+  'Software Engineering',
+  'Product',
+  'Design',
+  'Marketing',
+  'Sales',
+  'Operations',
+  'Finance',
+  'Consulting',
+  'Student',
+] as const;
+
+export const PROACTIVENESS_OPTIONS: Option<Proactiveness>[] = [
+  {
+    value: 'minimal',
+    label: 'Minimal',
+    description: 'Kloyya waits to be asked. It answers when you come to it.',
+  },
+  {
+    value: 'balanced',
+    label: 'Balanced',
+    description: 'The recommended setting. Kloyya surfaces what matters, quietly.',
+  },
+  {
+    value: 'highly_proactive',
+    label: 'Highly proactive',
+    description: 'Kloyya reaches out with briefings, risks, and suggestions as they arise.',
+  },
+];
+
+/** A subscription tier as shown on the onboarding plan step. */
+export interface PlanOption {
+  value: SubscriptionTier;
+  name: string;
+  tagline: string;
+  /** Monthly list price in USD. 0 for Free. */
+  priceUsd: number;
+  /** A beta discount, as a fraction (0.5 = 50% off). Applied to `priceUsd`. */
+  discount?: number;
+  features: string[];
+  /** The visually emphasised tier. */
+  highlighted?: boolean;
+}
+
+/**
+ * Beta plans: Free and Pro only (no Max yet). Pro carries a 50% private-beta
+ * discount, so $20 shows as $10. Selecting a plan here does not take payment —
+ * billing is out of scope for the beta; this records the intended tier.
+ */
+export const PLAN_OPTIONS: PlanOption[] = [
+  {
+    value: 'free',
+    name: 'Free',
+    tagline: 'Everything you need to try Kloyya.',
+    priceUsd: 0,
+    features: [
+      'Connect your core tools',
+      'Ask Kloyya across your workspace',
+      'Daily briefing and recommendations',
+      'Drafts and document upload',
+    ],
+  },
+  {
+    value: 'pro',
+    name: 'Pro',
+    tagline: 'The full assistant, for people who live in their work.',
+    priceUsd: 20,
+    discount: 0.5,
+    highlighted: true,
+    features: [
+      'Everything in Free',
+      'Higher usage limits',
+      'Priority AI responses',
+      'Early access to new features',
+    ],
+  },
+];
+
 export const INDUSTRY_OPTIONS = [
   'Industrial Automation',
   'Software & Technology',
@@ -126,27 +214,37 @@ export const INDUSTRY_OPTIONS = [
   'Other',
 ] as const;
 
-/** The wizard's steps, in order. The `why` is shown beside each step's fields. */
+/**
+ * The onboarding steps, in order — the fast, guided personalization the beta
+ * spec asks for. One question per screen, each with a `why` that says how the
+ * answer personalizes Kloyya (a build requirement, not decorative copy). The
+ * user's name comes from sign-up, so onboarding never asks for it again.
+ */
 export const STEPS = [
   {
-    id: 'about-you',
-    title: 'Tell Kloyya who you are',
-    why: 'Your role decides what Kloyya puts first. A COO and an engineer see different things on the same project.',
+    id: 'role',
+    title: 'What best describes your role?',
+    why: 'Your role decides what Kloyya puts first. A founder and an engineer see different things on the same project.',
   },
   {
-    id: 'your-company',
-    title: 'And where you work',
-    why: 'Kloyya reads industry and team size to calibrate what counts as a risk worth raising.',
+    id: 'help',
+    title: 'What should Kloyya help with most?',
+    why: 'Kloyya ranks recommendations against what you choose. Pick as many as fit.',
   },
   {
-    id: 'your-goals',
-    title: 'What should Kloyya help with?',
-    why: 'Kloyya ranks recommendations against your goals. Choosing nothing means everything competes equally.',
+    id: 'priorities',
+    title: 'What are your top priorities right now?',
+    why: 'Kloyya keeps these in view and weighs today’s work against them.',
   },
   {
-    id: 'how-you-work',
-    title: 'How do you work?',
-    why: 'This sets when Kloyya speaks up and when it stays quiet.',
+    id: 'proactiveness',
+    title: 'How proactive should Kloyya be?',
+    why: 'This sets when Kloyya speaks up and when it stays quiet. You can change it anytime.',
+  },
+  {
+    id: 'plan',
+    title: 'Choose your plan',
+    why: 'Start free and upgrade whenever you like. No payment is taken during the beta.',
   },
 ] as const;
 

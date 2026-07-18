@@ -67,6 +67,7 @@ export const mockOrganization: Organization = {
   name: 'Northwind Robotics',
   industry: 'Industrial Automation',
   plan: 'enterprise',
+  subscriptionTier: 'pro',
 };
 
 export const mockWorkspace: Workspace = {

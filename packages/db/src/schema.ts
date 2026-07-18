@@ -43,6 +43,20 @@ import {
 
 export const plan = pgEnum('plan', ['starter', 'growth', 'enterprise']);
 
+/**
+ * Beta subscription tier on the (internal) organization. Free and Pro only — no
+ * Max during the private beta. Distinct from the legacy `plan` enum above, which
+ * is the pre-beta billing tier and will be retired in the cleanup phase.
+ */
+export const subscriptionTier = pgEnum('subscription_tier', ['free', 'pro']);
+
+/** How assertive Kloyya should be, chosen at onboarding. */
+export const proactiveness = pgEnum('proactiveness', [
+  'minimal',
+  'balanced',
+  'highly_proactive',
+]);
+
 /** KESM RBAC roles, including the machine principals — an agent is authorized
  *  and audited like any user. */
 export const membershipRole = pgEnum('membership_role', [
@@ -188,6 +202,8 @@ export const organizations = pgTable('organizations', {
   industry: text('industry').notNull(),
   logoUrl: text('logo_url'),
   plan: plan('plan').notNull().default('starter'),
+  /** Beta subscription tier, chosen on the onboarding plan step. Free by default. */
+  subscriptionTier: subscriptionTier('subscription_tier').notNull().default('free'),
   ...audit,
 }).enableRLS();
 
@@ -430,6 +446,16 @@ export const userPreferences = pgTable('user_preferences', {
   userId: uuid('user_id')
     .primaryKey()
     .references(() => users.id, { onDelete: 'cascade' }),
+  /** How the user describes their work (onboarding "role"). Free-form so the
+   *  "Other" option is real; drives what Kloyya puts first. */
+  role: text('role').notNull().default(''),
+  /** The user's own words for what matters right now. Free-form, multiple. */
+  priorities: text('priorities')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  /** How assertive Kloyya should be. */
+  proactiveness: proactiveness('proactiveness').notNull().default('balanced'),
   /** Awkward literal values ('1-10', '06:00') are stored as text and validated
    *  by the app (zod), rather than forced into Postgres enum identifiers. */
   teamSize: text('team_size').notNull().default('51-200'),

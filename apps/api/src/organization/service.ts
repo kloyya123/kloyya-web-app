@@ -57,6 +57,7 @@ export async function getOrgOverview(db: AppDb, authUserId: string): Promise<Org
         industry: organizations.industry,
         logoUrl: organizations.logoUrl,
         plan: organizations.plan,
+        subscriptionTier: organizations.subscriptionTier,
       })
       .from(organizations)
       .where(eq(organizations.id, organizationId))
@@ -143,6 +144,7 @@ export async function getOrgOverview(db: AppDb, authUserId: string): Promise<Org
       industry: scoped.org.industry,
       ...(scoped.org.logoUrl ? { logoUrl: scoped.org.logoUrl } : {}),
       plan: scoped.org.plan,
+      subscriptionTier: scoped.org.subscriptionTier,
     },
     workspace: {
       id: scoped.workspace.id,

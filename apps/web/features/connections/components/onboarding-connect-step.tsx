@@ -64,11 +64,10 @@ export function OnboardingConnectStep() {
     [groups],
   );
 
-  function createWorkspace() {
-    // The workspace-init screen picks up from here: its staged sync ("Connecting
-    // workspace → Building your Knowledge Graph…") is the "setting up your
-    // intelligence" experience, now with real connections behind it.
-    router.replace('/workspace-init');
+  function continueToPersonalize() {
+    // Tools first, then a quick personalization, then the workspace is built.
+    // The connections made here become the context that first sync runs against.
+    router.replace('/onboarding');
   }
 
   return (
@@ -121,13 +120,17 @@ export function OnboardingConnectStep() {
       )}
 
       <footer className="flex flex-col items-center gap-3 pt-2">
-        <Button size="lg" onClick={createWorkspace} trailingIcon={<ArrowRight aria-hidden="true" />}>
-          Create My Workspace
+        <Button
+          size="lg"
+          onClick={continueToPersonalize}
+          trailingIcon={<ArrowRight aria-hidden="true" />}
+        >
+          Continue
         </Button>
         {connectedCount === 0 ? (
           <button
             type="button"
-            onClick={createWorkspace}
+            onClick={continueToPersonalize}
             className="text-caption text-muted-foreground hover:text-foreground rounded-sm"
           >
             Skip and continue — you can connect tools any time

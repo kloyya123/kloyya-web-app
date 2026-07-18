@@ -4,10 +4,9 @@ import type { FastifyInstance } from 'fastify';
 import { createTestApp, signUp } from '../test/app.js';
 
 /**
- * Onboarding, end to end: a signed-up user posts their answers and gets back a
- * session that reflects every one of them — the profile, the renamed
- * organization, and the five personalization answers that onboarding promised
- * would personalize Kloyya.
+ * Onboarding, end to end: a signed-up user posts their beta answers and gets
+ * back a session that reflects every one of them — the personalization (role,
+ * what to help with, priorities, proactiveness) and the plan they chose.
  */
 let app: FastifyInstance;
 let client: PGlite;
@@ -23,14 +22,11 @@ afterAll(async () => {
 
 const validAnswers = {
   fullName: 'Amara Osei',
-  jobTitle: 'Chief of Staff',
-  companyName: 'Northwind',
-  industry: 'Logistics',
-  teamSize: '51-200',
+  role: 'Chief of Staff',
   goals: ['reduce_meeting_load', 'prepare_for_meetings'],
-  workStyle: 'collaborative',
-  briefingTime: '08:00',
-  notificationLevel: 'critical_only',
+  priorities: ['Close the Series A', 'Ship the beta'],
+  proactiveness: 'highly_proactive',
+  plan: 'pro',
 } as const;
 
 describe('POST /v1/onboarding', () => {
@@ -51,35 +47,35 @@ describe('POST /v1/onboarding', () => {
     expect(res.statusCode).toBe(200);
     const { data } = res.json<{
       data: {
-        user: { fullName: string; jobTitle: string; hasCompletedOnboarding: boolean; role: string };
-        organization: { name: string; industry: string; plan: string };
+        user: { fullName: string; hasCompletedOnboarding: boolean; role: string };
+        organization: { subscriptionTier: string };
         workspace: { name: string; trustScore: number };
-        preferences: Record<string, unknown>;
+        preferences: {
+          role: string;
+          goals: string[];
+          priorities: string[];
+          proactiveness: string;
+        };
       };
     }>();
 
-    // Profile answers landed, and the dashboard gate is now open.
+    // Profile answer landed, and the dashboard gate is now open.
     expect(data.user.fullName).toBe('Amara Osei');
-    expect(data.user.jobTitle).toBe('Chief of Staff');
     expect(data.user.hasCompletedOnboarding).toBe(true);
+    // user.role is the workspace membership role, not the personalization role.
     expect(data.user.role).toBe('owner');
 
-    // The owner renamed the placeholder organization.
-    expect(data.organization.name).toBe('Northwind');
-    expect(data.organization.industry).toBe('Logistics');
-    expect(data.organization.plan).toBe('starter');
+    // The owner's plan choice set the (internal) org's subscription tier.
+    expect(data.organization.subscriptionTier).toBe('pro');
 
     expect(data.workspace.name).toBe('General');
     expect(data.workspace.trustScore).toBe(0);
 
-    // The five questions onboarding asked are not thrown away.
-    expect(data.preferences).toEqual({
-      teamSize: '51-200',
-      goals: ['reduce_meeting_load', 'prepare_for_meetings'],
-      workStyle: 'collaborative',
-      briefingTime: '08:00',
-      notificationLevel: 'critical_only',
-    });
+    // The personalization questions are not thrown away.
+    expect(data.preferences.role).toBe('Chief of Staff');
+    expect(data.preferences.goals).toEqual(['reduce_meeting_load', 'prepare_for_meetings']);
+    expect(data.preferences.priorities).toEqual(['Close the Series A', 'Ship the beta']);
+    expect(data.preferences.proactiveness).toBe('highly_proactive');
   });
 
   it('reflects the answers on a subsequent GET /v1/me', async () => {
@@ -93,16 +89,15 @@ describe('POST /v1/onboarding', () => {
       method: 'POST',
       url: '/v1/onboarding',
       headers: { cookie, 'content-type': 'application/json' },
-      payload: { ...validAnswers, fullName: 'After Name', jobTitle: 'Analyst' },
+      payload: { ...validAnswers, fullName: 'After Name' },
     });
 
     const me = await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } });
     expect(me.statusCode).toBe(200);
     const { data } = me.json<{
-      data: { fullName: string; jobTitle: string; hasCompletedOnboarding: boolean };
+      data: { fullName: string; hasCompletedOnboarding: boolean };
     }>();
     expect(data.fullName).toBe('After Name');
-    expect(data.jobTitle).toBe('Analyst');
     expect(data.hasCompletedOnboarding).toBe(true);
   });
 
@@ -117,7 +112,7 @@ describe('POST /v1/onboarding', () => {
       method: 'POST',
       url: '/v1/onboarding',
       headers: { cookie, 'content-type': 'application/json' },
-      payload: { ...validAnswers, workStyle: 'telepathy' },
+      payload: { ...validAnswers, proactiveness: 'telepathy' },
     });
 
     expect(res.statusCode).toBe(422);

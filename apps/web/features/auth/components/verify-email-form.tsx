@@ -42,7 +42,8 @@ export function VerifyEmailForm() {
     setSubmitError(null);
     try {
       await verifyEmail(values.code);
-      router.replace('/onboarding');
+      // Connect tools first, then personalize — the workspace is created last.
+      router.replace('/onboarding/connect-tools');
     } catch (error) {
       setSubmitError(error);
     }

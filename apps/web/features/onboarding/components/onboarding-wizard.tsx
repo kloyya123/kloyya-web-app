@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Info, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -14,32 +14,34 @@ import {
   CardTitle,
   CheckCard,
   ChoiceCard,
-  FormField,
   Input,
   Progress,
   RadioGroup,
-  Select,
 } from '@/components/ui';
+import { cn } from '@/lib/cn';
 import { DURATION, EASE } from '@/lib/motion';
 import { useAuth } from '@/providers/auth-provider';
 import type { Goal } from '@/services/auth/types';
 import { FormError } from '@/features/auth/components/form-error';
 import {
-  BRIEFING_TIME_OPTIONS,
   GOAL_OPTIONS,
-  INDUSTRY_OPTIONS,
-  NOTIFICATION_LEVEL_OPTIONS,
+  PLAN_OPTIONS,
+  PROACTIVENESS_OPTIONS,
+  ROLE_OPTIONS,
   STEPS,
-  TEAM_SIZE_OPTIONS,
-  WORK_STYLE_OPTIONS,
 } from '@/lib/preference-options';
-import {
-  onboardingSchema,
-  STEP_FIELDS,
-  type OnboardingValues,
-} from '../schemas';
+import { onboardingSchema, STEP_FIELDS, type OnboardingValues } from '../schemas';
 import { useOnboardingDraft } from '../use-onboarding-draft';
 
+/**
+ * The private-beta onboarding — fast, guided, one question per screen.
+ *
+ * The user's name arrives from sign-up, so the wizard never asks for it; it only
+ * personalizes (role, what to help with, priorities, proactiveness) and offers a
+ * plan. Each step still explains *why* it asks — that transparency is what makes
+ * this a conversation rather than a form — but the whole thing is meant to take a
+ * minute, not five.
+ */
 export function OnboardingWizard() {
   const router = useRouter();
   const { session, completeOnboarding } = useAuth();
@@ -57,18 +59,15 @@ export function OnboardingWizard() {
     reValidateMode: 'onChange',
     defaultValues: {
       fullName: '',
-      jobTitle: '',
-      companyName: '',
-      industry: '',
-      teamSize: '11-50',
+      role: '',
       goals: [],
-      workStyle: 'deep_focus',
-      briefingTime: '07:00',
-      notificationLevel: 'important_only',
+      priorities: [],
+      proactiveness: 'balanced',
+      plan: 'free',
     },
   });
 
-  const { register, control, trigger, getValues, handleSubmit, reset, formState } = form;
+  const { control, trigger, getValues, handleSubmit, reset, formState } = form;
   const { errors, isSubmitting } = formState;
 
   // Restore a draft, and seed the name we already know from sign-up.
@@ -80,7 +79,7 @@ export function OnboardingWizard() {
     if (Object.keys(seeded).length > 0) {
       reset((current) => ({ ...current, ...seeded }), { keepDefaultValues: true });
     }
-    // Runs once, on mount: re-running would stomp what the user is typing.
+    // Runs once, on mount: re-running would stomp what the user is choosing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -93,14 +92,10 @@ export function OnboardingWizard() {
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
 
   async function goNext() {
-    // Re-read rather than closing over the narrowed `step`: TypeScript will not
-    // carry a narrowing into a hoisted function declaration, since nothing stops
-    // it being called before the guard above runs.
     const current = STEPS[stepIndex];
     if (!current) return;
 
-    // Validate only the fields this step owns. Validating the whole form would
-    // flag questions the user has not been asked yet.
+    // Validate only the fields this step owns.
     const valid = await trigger([...STEP_FIELDS[current.id]], { shouldFocus: true });
     if (!valid) return;
 
@@ -120,9 +115,9 @@ export function OnboardingWizard() {
     try {
       await completeOnboarding(values);
       clearDraft();
-      // Connect-tools takes over from here: the user can wire up their existing
-      // tools (or skip) before workspace initialization runs its first sync.
-      router.replace('/onboarding/connect-tools');
+      // Tools were connected earlier in the flow; personalization is the last
+      // question. Workspace initialization takes over and runs the first sync.
+      router.replace('/workspace-init');
     } catch (error) {
       setSubmitError(error);
     }
@@ -153,10 +148,7 @@ export function OnboardingWizard() {
       </CardHeader>
 
       <CardContent>
-        {/*
-          The "why we ask" panel. Required by the build instructions, and the
-          reason onboarding is a conversation rather than a data-entry form.
-        */}
+        {/* The "why we ask" panel — the reason onboarding is a conversation. */}
         <div className="bg-surface border-border mb-6 flex items-start gap-2.5 rounded-sm border px-3 py-2.5">
           <Info aria-hidden="true" className="text-notice mt-0.5 size-4 shrink-0" />
           <p className="text-caption text-muted-foreground">{step.why}</p>
@@ -165,7 +157,6 @@ export function OnboardingWizard() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            // Enter on an intermediate step should advance, never submit early.
             if (isLastStep) void onSubmit(event);
             else void goNext();
           }}
@@ -180,96 +171,42 @@ export function OnboardingWizard() {
               transition={{ duration: DURATION.normal, ease: EASE.out }}
               className="space-y-5"
             >
-              {step.id === 'about-you' ? (
-                <>
-                  <FormField label="Your name" error={errors.fullName?.message} isRequired>
-                    {(field) => (
-                      <Input
-                        {...field}
-                        {...register('fullName')}
-                        autoComplete="name"
-                        placeholder="Amara Osei"
-                        isInvalid={Boolean(errors.fullName)}
-                      />
-                    )}
-                  </FormField>
-
-                  <FormField
-                    label="Your role"
-                    description="Used to decide what Kloyya shows you first."
-                    error={errors.jobTitle?.message}
-                    isRequired
-                  >
-                    {(field) => (
-                      <Input
-                        {...field}
-                        {...register('jobTitle')}
-                        autoComplete="organization-title"
-                        placeholder="Chief Operating Officer"
-                        isInvalid={Boolean(errors.jobTitle)}
-                      />
-                    )}
-                  </FormField>
-                </>
+              {step.id === 'role' ? (
+                <Controller
+                  control={control}
+                  name="role"
+                  render={({ field }) => {
+                    const isCustom = field.value !== '' && !ROLE_OPTIONS.includes(field.value as never);
+                    return (
+                      <fieldset>
+                        <legend className="sr-only">Your role</legend>
+                        <div className="grid grid-cols-2 gap-2">
+                          {ROLE_OPTIONS.map((role) => (
+                            <SelectButton
+                              key={role}
+                              label={role}
+                              isSelected={field.value === role}
+                              onSelect={() => field.onChange(role)}
+                            />
+                          ))}
+                        </div>
+                        <Input
+                          className="mt-3"
+                          value={isCustom ? field.value : ''}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          placeholder="Or type your own…"
+                          aria-label="Type your own role"
+                        />
+                        <p role="alert" className="text-caption text-critical mt-2">
+                          {errors.role?.message ?? ''}
+                        </p>
+                      </fieldset>
+                    );
+                  }}
+                />
               ) : null}
 
-              {step.id === 'your-company' ? (
-                <>
-                  <FormField
-                    label="Company"
-                    error={errors.companyName?.message}
-                    isRequired
-                  >
-                    {(field) => (
-                      <Input
-                        {...field}
-                        {...register('companyName')}
-                        autoComplete="organization"
-                        placeholder="Northwind Robotics"
-                        isInvalid={Boolean(errors.companyName)}
-                      />
-                    )}
-                  </FormField>
-
-                  <FormField label="Industry" error={errors.industry?.message} isRequired>
-                    {(field) => (
-                      <Select
-                        {...field}
-                        {...register('industry')}
-                        isInvalid={Boolean(errors.industry)}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>
-                          Choose an industry
-                        </option>
-                        {INDUSTRY_OPTIONS.map((industry) => (
-                          <option key={industry} value={industry}>
-                            {industry}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </FormField>
-
-                  <FormField label="Team size" error={errors.teamSize?.message} isRequired>
-                    {(field) => (
-                      <Select
-                        {...field}
-                        {...register('teamSize')}
-                        isInvalid={Boolean(errors.teamSize)}
-                      >
-                        {TEAM_SIZE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </FormField>
-                </>
-              ) : null}
-
-              {step.id === 'your-goals' ? (
+              {step.id === 'help' ? (
                 <Controller
                   control={control}
                   name="goals"
@@ -306,69 +243,59 @@ export function OnboardingWizard() {
                 />
               ) : null}
 
-              {step.id === 'how-you-work' ? (
-                <>
-                  <Controller
-                    control={control}
-                    name="workStyle"
-                    render={({ field }) => (
-                      <fieldset>
-                        <legend className="text-small text-foreground mb-3 font-medium">
-                          Which is closest to your week?
-                        </legend>
-                        <RadioGroup value={field.value} onValueChange={field.onChange}>
-                          {WORK_STYLE_OPTIONS.map((option) => (
-                            <ChoiceCard
-                              key={option.value}
-                              value={option.value}
-                              label={option.label}
-                              description={option.description}
-                              isSelected={field.value === option.value}
-                            />
-                          ))}
-                        </RadioGroup>
-                      </fieldset>
-                    )}
-                  />
+              {step.id === 'priorities' ? (
+                <Controller
+                  control={control}
+                  name="priorities"
+                  render={({ field }) => (
+                    <PrioritiesInput value={field.value} onChange={field.onChange} />
+                  )}
+                />
+              ) : null}
 
-                  <FormField
-                    label="Morning briefing"
-                    description="Kloyya prepares your day before it starts."
-                  >
-                    {(field) => (
-                      <Select {...field} {...register('briefingTime')}>
-                        {BRIEFING_TIME_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
+              {step.id === 'proactiveness' ? (
+                <Controller
+                  control={control}
+                  name="proactiveness"
+                  render={({ field }) => (
+                    <fieldset>
+                      <legend className="sr-only">How proactive should Kloyya be?</legend>
+                      <RadioGroup value={field.value} onValueChange={field.onChange}>
+                        {PROACTIVENESS_OPTIONS.map((option) => (
+                          <ChoiceCard
+                            key={option.value}
+                            value={option.value}
+                            label={option.label}
+                            description={option.description}
+                            isSelected={field.value === option.value}
+                          />
                         ))}
-                      </Select>
-                    )}
-                  </FormField>
+                      </RadioGroup>
+                    </fieldset>
+                  )}
+                />
+              ) : null}
 
-                  <Controller
-                    control={control}
-                    name="notificationLevel"
-                    render={({ field }) => (
-                      <fieldset>
-                        <legend className="text-small text-foreground mb-3 font-medium">
-                          When should Kloyya interrupt you?
-                        </legend>
-                        <RadioGroup value={field.value} onValueChange={field.onChange}>
-                          {NOTIFICATION_LEVEL_OPTIONS.map((option) => (
-                            <ChoiceCard
-                              key={option.value}
-                              value={option.value}
-                              label={option.label}
-                              description={option.description}
-                              isSelected={field.value === option.value}
-                            />
-                          ))}
-                        </RadioGroup>
-                      </fieldset>
-                    )}
-                  />
-                </>
+              {step.id === 'plan' ? (
+                <Controller
+                  control={control}
+                  name="plan"
+                  render={({ field }) => (
+                    <fieldset>
+                      <legend className="sr-only">Choose your plan</legend>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {PLAN_OPTIONS.map((plan) => (
+                          <PlanCard
+                            key={plan.value}
+                            plan={plan}
+                            isSelected={field.value === plan.value}
+                            onSelect={() => field.onChange(plan.value)}
+                          />
+                        ))}
+                      </div>
+                    </fieldset>
+                  )}
+                />
               ) : null}
             </motion.div>
           </AnimatePresence>
@@ -391,11 +318,174 @@ export function OnboardingWizard() {
               loadingLabel="Setting up your workspace"
               trailingIcon={!isLastStep ? <ArrowRight aria-hidden="true" /> : undefined}
             >
-              {isLastStep ? 'Build my workspace' : 'Continue'}
+              {isLastStep ? 'Enter Kloyya' : 'Continue'}
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+/** A single-select pill/card used by the role grid. */
+function SelectButton({
+  label,
+  isSelected,
+  onSelect,
+}: {
+  label: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={isSelected}
+      className={cn(
+        'flex items-center justify-between gap-2 rounded-sm border px-3 py-2.5 text-left',
+        'text-small transition-colors duration-150',
+        isSelected
+          ? 'border-primary bg-primary/10 text-foreground'
+          : 'border-border text-muted-foreground hover:border-muted hover:text-foreground',
+      )}
+    >
+      <span className="truncate">{label}</span>
+      {isSelected ? <Check aria-hidden="true" className="text-primary size-4 shrink-0" /> : null}
+    </button>
+  );
+}
+
+/** A small tag input for the free-form priorities step. */
+function PrioritiesInput({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  function add() {
+    const trimmed = draft.trim();
+    if (!trimmed || value.includes(trimmed) || value.length >= 20) return;
+    onChange([...value, trimmed]);
+    setDraft('');
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              add();
+            }
+          }}
+          placeholder="e.g. Close the Series A"
+          aria-label="Add a priority"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={add}
+          isDisabled={draft.trim().length === 0}
+          leadingIcon={<Plus aria-hidden="true" />}
+        >
+          Add
+        </Button>
+      </div>
+
+      {value.length > 0 ? (
+        <ul className="flex flex-wrap gap-2">
+          {value.map((priority) => (
+            <li key={priority}>
+              <span className="bg-surface border-border text-small text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1">
+                {priority}
+                <button
+                  type="button"
+                  onClick={() => onChange(value.filter((p) => p !== priority))}
+                  className="text-subtle hover:text-foreground -mr-1"
+                  aria-label={`Remove ${priority}`}
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-caption text-subtle">
+          Add a few, or skip — you can tell Kloyya your priorities anytime.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A selectable plan card for the final step. */
+function PlanCard({
+  plan,
+  isSelected,
+  onSelect,
+}: {
+  plan: (typeof PLAN_OPTIONS)[number];
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const discounted = plan.discount ? Math.round(plan.priceUsd * (1 - plan.discount)) : plan.priceUsd;
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={isSelected}
+      className={cn(
+        'flex flex-col gap-3 rounded-md border p-4 text-left transition-colors duration-150',
+        isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-muted',
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-body text-foreground font-semibold">{plan.name}</span>
+        {plan.highlighted ? (
+          <span className="bg-primary/15 text-primary text-caption rounded-full px-2 py-0.5 font-medium">
+            Popular
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex items-baseline gap-2">
+        {plan.priceUsd === 0 ? (
+          <span className="text-h3 text-foreground font-semibold">Free</span>
+        ) : (
+          <>
+            <span className="text-h3 text-foreground font-semibold">${discounted}</span>
+            <span className="text-caption text-subtle">/mo</span>
+            {plan.discount ? (
+              <>
+                <span className="text-caption text-subtle line-through">${plan.priceUsd}</span>
+                <span className="text-notice text-caption font-medium">
+                  {Math.round(plan.discount * 100)}% off
+                </span>
+              </>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <p className="text-caption text-muted-foreground">{plan.tagline}</p>
+
+      <ul className="mt-1 space-y-1.5">
+        {plan.features.map((feature) => (
+          <li key={feature} className="text-caption text-muted-foreground flex items-start gap-1.5">
+            <Check aria-hidden="true" className="text-primary mt-0.5 size-3.5 shrink-0" />
+            {feature}
+          </li>
+        ))}
+      </ul>
+    </button>
   );
 }

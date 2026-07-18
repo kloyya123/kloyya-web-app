@@ -13,6 +13,8 @@ export {
   WORK_STYLES,
   BRIEFING_TIMES,
   NOTIFICATION_LEVELS,
+  PROACTIVENESS,
+  SUBSCRIPTION_TIERS,
 } from '@kloyya/core/preferences';
 export type {
   TeamSize,
@@ -20,6 +22,8 @@ export type {
   WorkStyle,
   BriefingTime,
   NotificationLevel,
+  Proactiveness,
+  SubscriptionTier,
   UserPreferences,
   OnboardingProfile,
   SettingsPatch,

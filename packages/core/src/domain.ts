@@ -15,6 +15,8 @@
  * Where documents conflict, the resolution is annotated at the point of conflict.
  */
 
+import type { SubscriptionTier } from './preferences.js';
+
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
@@ -348,6 +350,9 @@ export interface Organization {
   industry: string;
   logoUrl?: string;
   plan: 'starter' | 'growth' | 'enterprise';
+  /** Beta subscription tier — Free or Pro (no Max during the private beta).
+   *  Chosen on the onboarding plan step; the org concept is internal-only now. */
+  subscriptionTier: SubscriptionTier;
 }
 
 export interface Workspace {

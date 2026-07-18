@@ -24,16 +24,20 @@ afterAll(async () => {
   await client.close();
 });
 
+/**
+ * Beta onboarding no longer collects the org-shaped fields (company, industry)
+ * or a job title — those are Settings' job now. So the seed onboards with the
+ * new personalization answers, then PATCHes the fields these tests exercise into
+ * place. The preference values the tests assert (teamSize, workStyle, briefing,
+ * notification) are the column defaults, so they need no seeding.
+ */
 const onboardingAnswers = {
   fullName: 'Original Name',
-  jobTitle: 'Original Title',
-  companyName: 'Original Co',
-  industry: 'Original Industry',
-  teamSize: '51-200',
+  role: 'Chief of Staff',
   goals: ['reduce_meeting_load'],
-  workStyle: 'deep_focus',
-  briefingTime: '07:00',
-  notificationLevel: 'important_only',
+  priorities: ['Ship the beta'],
+  proactiveness: 'balanced',
+  plan: 'free',
 } as const;
 
 async function onboardedUser(email: string): Promise<string> {
@@ -47,6 +51,17 @@ async function onboardedUser(email: string): Promise<string> {
     url: '/v1/onboarding',
     headers: { cookie, 'content-type': 'application/json' },
     payload: onboardingAnswers,
+  });
+  // Seed the Settings-owned fields the patch tests build on.
+  await app.inject({
+    method: 'PATCH',
+    url: '/v1/settings',
+    headers: { cookie, 'content-type': 'application/json' },
+    payload: {
+      jobTitle: 'Original Title',
+      companyName: 'Original Co',
+      industry: 'Original Industry',
+    },
   });
   return cookie;
 }

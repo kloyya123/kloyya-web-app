@@ -56,20 +56,22 @@ export interface SettingsPatchInput {
 /**
  * Persist the onboarding answers and flip `hasCompletedOnboarding`.
  *
- * The answers span four tables, so this runs in one transaction:
+ * The private-beta onboarding is short and personal, so the answers span three
+ * tables in one transaction:
  *   user             → fullName (identity is Better Auth's)
- *   users            → jobTitle, hasCompletedOnboarding
- *   organizations    → companyName, industry
- *   user_preferences → the five personalization answers
+ *   users            → hasCompletedOnboarding
+ *   organizations    → subscriptionTier (the chosen plan)
+ *   user_preferences → role, goals, priorities, proactiveness
  *
- * Onboarding asks those five questions and explains why each one personalizes
- * Kloyya; dropping the answers would make that explanation a lie.
+ * Onboarding asks these questions and explains why each personalizes Kloyya;
+ * dropping the answers would make that explanation a lie. The org-shaped
+ * questions (company, industry, team size) and the "how you work" preferences
+ * are no longer asked — they keep their defaults and are editable in Settings.
  *
- * The organization is only renamed when the caller actually owns it. The mock
- * renames unconditionally — safe when every user has their own org, but once a
- * user can be invited into an existing organization, letting their onboarding
- * rename the whole company would be a real bug. Non-owners keep their answers;
- * they just don't get to rename someone else's organization.
+ * The plan is only written when the caller actually owns the organization —
+ * billing is org-level, and letting an invited member's onboarding change the
+ * whole org's plan would be a real bug once shared workspaces return. Non-owners
+ * keep their personal answers; they just don't set someone else's plan.
  *
  * Returns false when the user has no profile to onboard.
  */
@@ -90,24 +92,23 @@ export async function completeOnboarding(
 
     await tx
       .update(users)
-      .set({ jobTitle: profile.jobTitle, hasCompletedOnboarding: true })
+      .set({ hasCompletedOnboarding: true })
       .where(eq(users.id, authUserId));
 
     if (await mayUpdateOrganization(tx, authUserId, row.organizationId)) {
       await tx
         .update(organizations)
-        .set({ name: profile.companyName, industry: profile.industry })
+        .set({ subscriptionTier: profile.plan })
         .where(eq(organizations.id, row.organizationId));
     }
 
     await tx
       .update(userPreferences)
       .set({
-        teamSize: profile.teamSize,
+        role: profile.role,
         goals: profile.goals,
-        workStyle: profile.workStyle,
-        briefingTime: profile.briefingTime,
-        notificationLevel: profile.notificationLevel,
+        priorities: profile.priorities,
+        proactiveness: profile.proactiveness,
       })
       .where(eq(userPreferences.userId, authUserId));
 

@@ -47,11 +47,13 @@ describe('OnboardingConnectStep', () => {
     expect(screen.queryByText('Salesforce')).not.toBeInTheDocument();
   });
 
-  it('a fresh user can create the workspace, or skip', async () => {
+  it('a fresh user can continue to personalization, or skip', async () => {
     renderWithProviders(<OnboardingConnectStep />);
     await screen.findByRole('heading', { name: 'Email', level: 2 });
 
-    expect(screen.getByRole('button', { name: 'Create My Workspace' })).toBeInTheDocument();
+    // Connecting tools comes before personalization now, so this step continues
+    // rather than creating the workspace (that happens last).
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Skip and continue/ })).toBeInTheDocument();
   });
 

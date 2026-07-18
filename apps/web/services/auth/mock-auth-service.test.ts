@@ -207,19 +207,16 @@ describe('MockAuthService', () => {
 
       const session = await auth.completeOnboarding({
         fullName: 'Jae Park',
-        jobTitle: 'Chief of Staff',
-        companyName: 'Northwind Robotics',
-        industry: 'Industrial Automation',
-        teamSize: '51-200',
+        role: 'Chief of Staff',
         goals: ['make_faster_decisions'],
-        workStyle: 'deep_focus',
-        briefingTime: '07:00',
-        notificationLevel: 'important_only',
+        priorities: ['Close the Q3 board deck'],
+        proactiveness: 'balanced',
+        plan: 'free',
       });
 
       expect(session.user.hasCompletedOnboarding).toBe(true);
-      expect(session.user.jobTitle).toBe('Chief of Staff');
-      expect(session.organization.name).toBe('Northwind Robotics');
+      expect(session.preferences.role).toBe('Chief of Staff');
+      expect(session.organization.subscriptionTier).toBe('free');
     });
 
     it('keeps the preference answers instead of discarding them', async () => {
@@ -231,25 +228,20 @@ describe('MockAuthService', () => {
 
       const session = await auth.completeOnboarding({
         fullName: 'Rio Silva',
-        jobTitle: 'COO',
-        companyName: 'Northwind Robotics',
-        industry: 'Industrial Automation',
-        teamSize: '201-1000',
+        role: 'COO',
         goals: ['track_project_risk', 'prepare_for_meetings'],
-        workStyle: 'collaborative',
-        briefingTime: '06:00',
-        notificationLevel: 'critical_only',
+        priorities: ['Ship the beta', 'Hire two engineers'],
+        proactiveness: 'highly_proactive',
+        plan: 'pro',
       });
 
       // Onboarding explains why each question personalizes Kloyya; throwing the
       // answers away would make that explanation a lie.
-      expect(session.preferences).toEqual({
-        teamSize: '201-1000',
-        goals: ['track_project_risk', 'prepare_for_meetings'],
-        workStyle: 'collaborative',
-        briefingTime: '06:00',
-        notificationLevel: 'critical_only',
-      });
+      expect(session.preferences.role).toBe('COO');
+      expect(session.preferences.goals).toEqual(['track_project_risk', 'prepare_for_meetings']);
+      expect(session.preferences.priorities).toEqual(['Ship the beta', 'Hire two engineers']);
+      expect(session.preferences.proactiveness).toBe('highly_proactive');
+      expect(session.organization.subscriptionTier).toBe('pro');
     });
   });
 

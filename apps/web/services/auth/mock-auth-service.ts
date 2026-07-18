@@ -226,18 +226,19 @@ export class MockAuthService implements AuthService {
       user: {
         ...current.user,
         fullName: profile.fullName,
-        jobTitle: profile.jobTitle,
         hasCompletedOnboarding: true,
       },
-      organization: { ...current.organization, name: profile.companyName, industry: profile.industry },
-      // Onboarding asks these five questions and explains why each one
-      // personalizes Kloyya. Dropping the answers would make that a lie.
+      // The plan chosen on the final step sets the (internal) org's tier.
+      organization: { ...current.organization, subscriptionTier: profile.plan },
+      // Onboarding asks these questions and explains why each personalizes
+      // Kloyya. Dropping the answers would make that a lie. The "how you work"
+      // preferences keep their current values — they're set in Settings now.
       preferences: {
-        teamSize: profile.teamSize,
+        ...current.preferences,
+        role: profile.role,
         goals: profile.goals,
-        workStyle: profile.workStyle,
-        briefingTime: profile.briefingTime,
-        notificationLevel: profile.notificationLevel,
+        priorities: profile.priorities,
+        proactiveness: profile.proactiveness,
       },
     };
     writeSession(session);

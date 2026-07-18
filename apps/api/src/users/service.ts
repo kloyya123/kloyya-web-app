@@ -101,9 +101,13 @@ export async function composeSession(
       orgIndustry: organizations.industry,
       orgLogoUrl: organizations.logoUrl,
       orgPlan: organizations.plan,
+      orgSubscriptionTier: organizations.subscriptionTier,
       wsId: workspaces.id,
       wsName: workspaces.name,
       wsTrustScore: workspaces.trustScore,
+      role: userPreferences.role,
+      priorities: userPreferences.priorities,
+      proactiveness: userPreferences.proactiveness,
       teamSize: userPreferences.teamSize,
       goals: userPreferences.goals,
       workStyle: userPreferences.workStyle,
@@ -128,6 +132,7 @@ export async function composeSession(
       industry: row.orgIndustry,
       ...(row.orgLogoUrl ? { logoUrl: row.orgLogoUrl } : {}),
       plan: row.orgPlan,
+      subscriptionTier: row.orgSubscriptionTier,
     },
     workspace: {
       id: row.wsId,
@@ -136,10 +141,13 @@ export async function composeSession(
       trustScore: row.wsTrustScore,
     },
     preferences: {
+      role: row.role,
+      goals: row.goals,
+      priorities: row.priorities,
+      proactiveness: row.proactiveness,
       // teamSize/briefingTime are text columns validated by the app (their
       // literal values aren't legal Postgres enum identifiers).
       teamSize: row.teamSize as UserPreferences['teamSize'],
-      goals: row.goals,
       workStyle: row.workStyle,
       briefingTime: row.briefingTime as UserPreferences['briefingTime'],
       notificationLevel: row.notificationLevel,
