@@ -45,7 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/meetings', label: 'Meetings', icon: Users },
   { href: '/inbox', label: 'Inbox', icon: Inbox },
   { href: '/drafts', label: 'Drafts', icon: PenLine },
-  { href: '/documents', label: 'Documents', icon: FileStack, isComingSoon: true },
+  { href: '/documents', label: 'Documents', icon: FileStack },
   { href: '/knowledge', label: 'Knowledge', icon: Library },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/recommendations', label: 'Recommendations', icon: Lightbulb },

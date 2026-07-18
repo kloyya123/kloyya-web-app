@@ -35,6 +35,13 @@ const schema = z.object({
   DIRECT_URL: z.string().url().optional(),
   REDIS_URL: z.string().optional(),
 
+  // Supabase Storage — where uploaded documents' bytes live. Optional so the API
+  // boots without it; document upload degrades to an honest "storage not
+  // configured" rather than failing. The service-role key is server-only.
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  DOCUMENTS_BUCKET: z.string().min(1).default('documents'),
+
   /**
    * Encrypts customers' third-party OAuth tokens at rest (Phase 8).
    *

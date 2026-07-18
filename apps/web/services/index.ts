@@ -9,6 +9,9 @@ import type { AuthService } from './auth/types';
 import { MockBillingService } from './billing/mock-billing-service';
 import { HttpBillingService } from './billing/http-billing-service';
 import type { BillingService } from './billing/types';
+import { MockDocumentService } from './documents/mock-documents-service';
+import { HttpDocumentService } from './documents/http-documents-service';
+import type { DocumentService } from './documents/types';
 import { MockDraftService } from './drafts/mock-drafts-service';
 import { HttpDraftService } from './drafts/http-drafts-service';
 import type { DraftService } from './drafts/types';
@@ -59,6 +62,7 @@ export interface Services {
   ask: AskService;
   billing: BillingService;
   drafts: DraftService;
+  documents: DocumentService;
   intelligence: IntelligenceService;
   tasks: TaskService;
   sources: SourcesService;
@@ -102,6 +106,7 @@ export const services: Services = {
   ask: USE_REAL_API ? new HttpAskService() : new MockAskService(),
   billing: USE_REAL_API ? new HttpBillingService() : new MockBillingService(),
   drafts: USE_REAL_API ? new HttpDraftService() : new MockDraftService(),
+  documents: USE_REAL_API ? new HttpDocumentService() : new MockDocumentService(),
   organization: USE_REAL_API ? new HttpOrganizationService() : new MockOrganizationService(),
   integrations: USE_REAL_API ? new HttpIntegrationsService() : new MockIntegrationsService(),
   // No backend yet — these land with their roadmap phases.
@@ -120,6 +125,7 @@ export const services: Services = {
 export type { AuthService } from './auth/types';
 export type { AskAnswer, AskCitation, AskService } from './ask/types';
 export type { BillingService, CheckoutInput, CheckoutResult } from './billing/types';
+export type { DocumentItem, DocumentList, DocumentService, DocumentUsage } from './documents/types';
 export type { Draft, DraftService, DraftStatus, DraftType } from './drafts/types';
 export { DRAFT_TYPES, DRAFT_STATUSES } from './drafts/types';
 export type {

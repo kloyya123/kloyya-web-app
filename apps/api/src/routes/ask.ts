@@ -1,9 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { entitlementsFor, remaining, withinLimit, type SubscriptionTier } from '@kloyya/core';
-import { withTenantScope } from '@kloyya/db/scope';
-import { organizations } from '@kloyya/db/schema';
+import { entitlementsFor, remaining, withinLimit } from '@kloyya/core';
 import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { requireDb } from '../auth/permission.js';
 import { config } from '../config.js';
@@ -12,22 +9,8 @@ import { ApiError, API_STATUS, errors } from '../http/errors.js';
 import { resolveAiProvider } from '../ai/provider.js';
 import { ask } from '../ask/service.js';
 import { getAskCountToday, incrementAskCount } from '../ask/usage.js';
-import { resolveStartContext, type StartContext } from '../integrations/connect.js';
-
-/** The workspace's plan tier — the value entitlements read. */
-async function readTier(
-  db: NonNullable<FastifyInstance['db']>,
-  ctx: StartContext,
-): Promise<SubscriptionTier> {
-  const [row] = await withTenantScope(db, ctx.organizationId, async (tx) =>
-    tx
-      .select({ tier: organizations.subscriptionTier })
-      .from(organizations)
-      .where(eq(organizations.id, ctx.organizationId))
-      .limit(1),
-  );
-  return row?.tier ?? 'free';
-}
+import { readTier } from '../plan/tier.js';
+import { resolveStartContext } from '../integrations/connect.js';
 
 /**
  * Ask Kloyya.

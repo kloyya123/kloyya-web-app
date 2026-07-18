@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db';
 import { withTenantScope } from '@kloyya/db/scope';
-import { syncRecords } from '@kloyya/db/schema';
+import { documents, syncRecords } from '@kloyya/db/schema';
 import type { StartContext } from '../integrations/connect.js';
 
 /**
@@ -37,8 +37,9 @@ export async function retrieveContext(
   question: string,
   limit = DEFAULT_LIMIT,
 ): Promise<RetrievedRecord[]> {
-  const rows = await withTenantScope(db, ctx.organizationId, async (tx) =>
-    tx
+  return withTenantScope(db, ctx.organizationId, async (tx) => {
+    // Connected-tool data: full-text over the raw provider JSON.
+    const synced = await tx
       .select({
         integrationId: syncRecords.integrationId,
         resourceType: syncRecords.resourceType,
@@ -55,17 +56,50 @@ export async function retrieveContext(
         ),
       )
       .orderBy(desc(syncRecords.fetchedAt))
-      .limit(limit),
-  );
+      .limit(limit);
 
-  return rows.map((row) => ({
-    integrationId: row.integrationId,
-    resourceType: row.resourceType,
-    externalId: row.externalId,
-    payload: row.payload,
-    fetchedAt: row.fetchedAt,
-    label: describe(row.payload, row.resourceType),
-  }));
+    // Uploaded documents: full-text over the extracted text and the filename, so a
+    // PDF searchable only by its name still surfaces. Presented as one more source.
+    const uploaded = await tx
+      .select({
+        id: documents.id,
+        name: documents.name,
+        text: documents.extractedText,
+        createdAt: documents.createdAt,
+      })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.workspaceId, ctx.workspaceId),
+          isNull(documents.deletedAt),
+          sql`to_tsvector('english', ${documents.extractedText} || ' ' || ${documents.name}) @@ plainto_tsquery('english', ${question})`,
+        ),
+      )
+      .orderBy(desc(documents.createdAt))
+      .limit(limit);
+
+    const records: RetrievedRecord[] = [
+      ...synced.map((row) => ({
+        integrationId: row.integrationId,
+        resourceType: row.resourceType,
+        externalId: row.externalId,
+        payload: row.payload,
+        fetchedAt: row.fetchedAt,
+        label: describe(row.payload, row.resourceType),
+      })),
+      ...uploaded.map((row) => ({
+        integrationId: 'uploaded_documents',
+        resourceType: 'document',
+        externalId: row.id,
+        payload: { name: row.name, text: row.text.slice(0, 2000) },
+        fetchedAt: row.createdAt,
+        label: row.name,
+      })),
+    ];
+
+    // Newest first across both sources, capped to what one answer should carry.
+    return records.sort((a, b) => b.fetchedAt.getTime() - a.fetchedAt.getTime()).slice(0, limit);
+  });
 }
 
 /**

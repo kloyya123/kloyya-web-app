@@ -115,9 +115,11 @@ export function OnboardingWizard() {
     try {
       await completeOnboarding(values);
       clearDraft();
-      // Personalization done. A paid plan goes through the paywall first; Free
-      // heads straight to connecting tools, then the workspace is built.
-      router.replace(values.plan === 'pro' ? '/onboarding/paywall' : '/onboarding/connect-tools');
+      // Personalization done → connect tools, then build the workspace.
+      // The paywall is hidden for now (billing not yet activated), so everyone —
+      // including a Pro pick — goes straight to connecting tools. When billing is
+      // switched on, route a Pro pick to '/onboarding/paywall' again.
+      router.replace('/onboarding/connect-tools');
     } catch (error) {
       setSubmitError(error);
     }

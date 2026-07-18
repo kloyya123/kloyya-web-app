@@ -57,6 +57,7 @@ function sourceName(integrationId: string): string {
     outlook_calendar: 'Outlook Calendar',
     google_drive: 'Google Drive',
     notion: 'Notion',
+    uploaded_documents: 'Uploaded Documents',
   };
   return known[integrationId] ?? integrationId.replace(/_/g, ' ');
 }

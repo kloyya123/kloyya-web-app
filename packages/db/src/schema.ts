@@ -71,6 +71,13 @@ export const draftType = pgEnum('draft_type', [
 /** A draft's lifecycle. `archived` is "organized away", not deleted. */
 export const draftStatus = pgEnum('draft_status', ['active', 'archived']);
 
+/**
+ * Where an uploaded document is in its pipeline. `processing` while text is
+ * being extracted, `ready` once it's searchable, `failed` if extraction died
+ * (the file is still stored and can be re-tried).
+ */
+export const documentStatus = pgEnum('document_status', ['processing', 'ready', 'failed']);
+
 /** KESM RBAC roles, including the machine principals — an agent is authorized
  *  and audited like any user. */
 export const membershipRole = pgEnum('membership_role', [
@@ -517,6 +524,49 @@ export const drafts = pgTable(
   (t) => [
     index('drafts_workspace_id_idx').on(t.workspaceId),
     index('drafts_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Uploaded documents.
+ *
+ * A file the user uploaded (or, later, scanned) so Kloyya can search it. The
+ * bytes live in object storage; this row holds the metadata and the extracted
+ * text — `extractedText` is what full-text search and Ask Kloyya read, so a PDF
+ * becomes as searchable as an email. Workspace-scoped and RLS-isolated. Delete is
+ * a soft delete so an accidental removal is recoverable (the stored object is
+ * cleaned up separately).
+ *
+ * The Free plan caps how many a workspace may keep (see @kloyya/core
+ * entitlements); the upload route counts live rows here against that cap.
+ */
+export const documents = pgTable(
+  'documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** The original filename, shown to the user. */
+    name: text('name').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    /** Where the bytes live in object storage. Opaque; not a public URL. */
+    storagePath: text('storage_path').notNull(),
+    /** The searchable text pulled out of the file. Empty until/unless extracted. */
+    extractedText: text('extracted_text').notNull().default(''),
+    status: documentStatus('status').notNull().default('processing'),
+    ...audit,
+  },
+  (t) => [
+    index('documents_workspace_id_idx').on(t.workspaceId),
+    index('documents_organization_id_idx').on(t.organizationId),
   ],
 ).enableRLS();
 

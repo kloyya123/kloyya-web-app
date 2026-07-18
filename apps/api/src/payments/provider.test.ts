@@ -11,7 +11,8 @@ import { PaymentError, resolvePaymentProvider } from './provider.js';
 describe('plan entitlements', () => {
   it('caps Free and lifts the cap for Pro', () => {
     expect(entitlementsFor('free').maxDocuments).toBe(5);
-    expect(entitlementsFor('free').askPerDay).toBe(20);
+    // 30/day is the AI cap that applies while the paywall is hidden.
+    expect(entitlementsFor('free').askPerDay).toBe(30);
     expect(entitlementsFor('pro').maxDocuments).toBeNull();
     expect(entitlementsFor('pro').askPerDay).toBeNull();
   });

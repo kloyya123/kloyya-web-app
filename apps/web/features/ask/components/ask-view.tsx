@@ -126,14 +126,11 @@ export function AskView() {
 
       {phase.kind === 'limit_reached' ? (
         <Card>
-          <CardContent className="space-y-3 py-6 text-center">
+          <CardContent className="space-y-2 py-6 text-center">
             <p className="text-body text-foreground font-medium">
               You’ve used today’s Ask Kloyya questions.
             </p>
             <p className="text-small text-muted-foreground mx-auto max-w-sm">{phase.message}</p>
-            <Button asChild variant="secondary" size="sm">
-              <a href="/settings">Upgrade to Pro</a>
-            </Button>
           </CardContent>
         </Card>
       ) : null}

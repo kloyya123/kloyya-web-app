@@ -152,6 +152,52 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 }
 
 /**
+ * Upload a file as multipart/form-data, unwrapping the KAS envelope.
+ *
+ * A sibling of apiFetch for the one case it can't serve: apiFetch JSON-encodes
+ * its body, but a file upload is multipart. The browser must set the multipart
+ * boundary itself, so no content-type is passed here. Everything else — the
+ * session cookie, the envelope, ApiError on failure — matches apiFetch, so
+ * callers handle one error type and one response shape.
+ */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const url = `${apiOrigin()}${path}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+  } catch (cause) {
+    throw offlineError(cause);
+  }
+
+  const text = await response.text();
+  if (text.length === 0) {
+    if (response.ok) return undefined as T;
+    throw malformedError(response.status, `The server returned ${response.status} with no body.`);
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw malformedError(response.status, 'The server did not return JSON.');
+  }
+
+  if (isErrorEnvelope(body)) throw new ApiError(body.error);
+  if (!response.ok) throw malformedError(response.status, `The server returned ${response.status}.`);
+
+  const envelope = body as ApiResponse<T>;
+  if (typeof envelope !== 'object' || envelope === null || !('data' in envelope)) {
+    throw malformedError(response.status, 'The response was not a KAS envelope.');
+  }
+  return envelope.data;
+}
+
+/**
  * Call Better Auth, which does NOT speak the KAS envelope.
  *
  * It is a library mounted at /api/auth/* with its own response shape, so

@@ -1,5 +1,6 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import sensible from '@fastify/sensible';
 import { fastify, type FastifyInstance } from 'fastify';
 import type { AppDb } from '@kloyya/db';
@@ -12,6 +13,7 @@ import { newCorrelationId } from './http/envelope.js';
 import { loggerOptions } from './logger.js';
 import { askRoutes } from './routes/ask.js';
 import { billingRoutes } from './routes/billing.js';
+import { documentRoutes } from './routes/documents.js';
 import { draftRoutes } from './routes/drafts.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
@@ -71,6 +73,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
   await app.register(sensible);
 
+  // Multipart, for document uploads. 25 MB is generous for the beta's file kinds
+  // and small enough that one upload can't exhaust memory (files are buffered).
+  await app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024, files: 1 } });
+
   registerErrorHandler(app);
 
   await app.register(healthRoutes);
@@ -99,6 +105,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(askRoutes);
     await app.register(billingRoutes);
     await app.register(draftRoutes);
+    await app.register(documentRoutes);
     app.log.info('Better Auth mounted at /api/auth/*');
   } else {
     app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');

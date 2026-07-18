@@ -23,7 +23,9 @@ export interface PlanEntitlements {
 export const PLAN_ENTITLEMENTS: Record<SubscriptionTier, PlanEntitlements> = {
   free: {
     maxDocuments: 5,
-    askPerDay: 20,
+    // The AI cap that applies to everyone while the paywall is hidden — enough for
+    // real use, low enough to stop runaway searching. Raise/uncap once Pro is live.
+    askPerDay: 30,
     allDataSources: true,
   },
   pro: {
