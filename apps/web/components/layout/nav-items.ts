@@ -44,7 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/meetings', label: 'Meetings', icon: Users },
   { href: '/inbox', label: 'Inbox', icon: Inbox },
-  { href: '/drafts', label: 'Drafts', icon: PenLine, isComingSoon: true },
+  { href: '/drafts', label: 'Drafts', icon: PenLine },
   { href: '/documents', label: 'Documents', icon: FileStack, isComingSoon: true },
   { href: '/knowledge', label: 'Knowledge', icon: Library },
   { href: '/projects', label: 'Projects', icon: FolderKanban },

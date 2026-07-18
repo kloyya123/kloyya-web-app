@@ -59,6 +59,18 @@ export const proactiveness = pgEnum('proactiveness', [
   'highly_proactive',
 ]);
 
+/** What a draft is — the kinds the beta supports. */
+export const draftType = pgEnum('draft_type', [
+  'email',
+  'note',
+  'report',
+  'document',
+  'meeting_summary',
+]);
+
+/** A draft's lifecycle. `archived` is "organized away", not deleted. */
+export const draftStatus = pgEnum('draft_status', ['active', 'archived']);
+
 /** KESM RBAC roles, including the machine principals — an agent is authorized
  *  and audited like any user. */
 export const membershipRole = pgEnum('membership_role', [
@@ -472,6 +484,39 @@ export const askUsage = pgTable(
   (t) => [
     primaryKey({ columns: [t.workspaceId, t.day] }),
     index('ask_usage_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Drafts — the things a person is writing but hasn't sent or filed.
+ *
+ * Email replies, notes, reports, documents, meeting summaries. Kloyya can create
+ * one ("draft this"), and the editor auto-saves as you type, so a draft is never
+ * a thing you can lose. Workspace-scoped and RLS-isolated like everything else;
+ * `archived` organizes a draft away without deleting it, and a real delete is a
+ * soft delete (deletedAt) so "I didn't mean to" is recoverable.
+ */
+export const drafts = pgTable(
+  'drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Who created it; kept for the audit trail, survives the author leaving. */
+    authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+    type: draftType('type').notNull().default('note'),
+    title: text('title').notNull().default(''),
+    body: text('body').notNull().default(''),
+    status: draftStatus('status').notNull().default('active'),
+    ...audit,
+  },
+  (t) => [
+    index('drafts_workspace_id_idx').on(t.workspaceId),
+    index('drafts_organization_id_idx').on(t.organizationId),
   ],
 ).enableRLS();
 
