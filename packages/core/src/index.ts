@@ -18,6 +18,7 @@ export * from './entitlements.js';
 export * from './calendar.js';
 export * from './integrations.js';
 export * from './integration-catalogue.js';
+export * from './feedback.js';
 export * from './knowledge.js';
 export * from './search.js';
 export * from './sources.js';

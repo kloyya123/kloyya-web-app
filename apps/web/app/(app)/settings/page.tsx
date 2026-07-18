@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { CommunityFeedback } from '@/features/settings/components/community-feedback';
 import { SettingsView } from '@/features/settings/components/settings-view';
 
 export const metadata: Metadata = {
@@ -8,5 +9,12 @@ export const metadata: Metadata = {
 };
 
 export default function SettingsPage() {
-  return <SettingsView />;
+  return (
+    <div className="space-y-10">
+      <SettingsView />
+      <section aria-label="Community and feedback">
+        <CommunityFeedback />
+      </section>
+    </div>
+  );
 }

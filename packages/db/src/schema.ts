@@ -78,6 +78,24 @@ export const draftStatus = pgEnum('draft_status', ['active', 'archived']);
  */
 export const documentStatus = pgEnum('document_status', ['processing', 'ready', 'failed']);
 
+/** What a piece of beta feedback is. */
+export const feedbackType = pgEnum('feedback_type', ['feature_request', 'bug', 'general']);
+
+/** Which area a feature request or bug is about (from the settings spec). */
+export const feedbackCategory = pgEnum('feedback_category', [
+  'ai',
+  'search',
+  'workspace',
+  'tasks',
+  'projects',
+  'documents',
+  'integrations',
+  'mobile',
+  'performance',
+  'design',
+  'other',
+]);
+
 /** KESM RBAC roles, including the machine principals — an agent is authorized
  *  and audited like any user. */
 export const membershipRole = pgEnum('membership_role', [
@@ -567,6 +585,43 @@ export const documents = pgTable(
   (t) => [
     index('documents_workspace_id_idx').on(t.workspaceId),
     index('documents_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Beta feedback — feature requests, bug reports, and general notes.
+ *
+ * Kloyya is built alongside its users; this is where their ideas and problems
+ * land. One table for all three kinds keeps the "Community & Feedback" screen and
+ * its beta-status counters reading from a single place. `details` holds the
+ * kind-specific extras (a bug's steps/expected/actual, a request's frequency)
+ * rather than a column per rarely-used field. Workspace-scoped and RLS-isolated.
+ */
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    type: feedbackType('type').notNull(),
+    title: text('title').notNull().default(''),
+    body: text('body').notNull().default(''),
+    /** Present for feature requests and bugs; null for general feedback. */
+    category: feedbackCategory('category'),
+    /** A 1–5 star rating, on general feedback. Null otherwise. */
+    rating: integer('rating'),
+    /** Kind-specific extras (steps to reproduce, frequency, …). */
+    details: jsonb('details').notNull().default(sql`'{}'::jsonb`),
+    ...audit,
+  },
+  (t) => [
+    index('feedback_workspace_id_idx').on(t.workspaceId),
+    index('feedback_organization_id_idx').on(t.organizationId),
   ],
 ).enableRLS();
 

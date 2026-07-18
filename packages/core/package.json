@@ -9,6 +9,8 @@
     "./api": "./src/api.ts",
     "./permissions": "./src/permissions.ts",
     "./preferences": "./src/preferences.ts",
+    "./feedback": "./src/feedback.ts",
+    "./entitlements": "./src/entitlements.ts",
     "./calendar": "./src/calendar.ts",
     "./integrations": "./src/integrations.ts",
     "./knowledge": "./src/knowledge.ts",

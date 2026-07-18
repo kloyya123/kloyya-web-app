@@ -106,6 +106,20 @@
       "when": 1784388840000,
       "tag": "0014_documents_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1784406593296,
+      "tag": "0015_sturdy_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784406600000,
+      "tag": "0016_feedback_rls",
+      "breakpoints": true
     }
   ]
 }

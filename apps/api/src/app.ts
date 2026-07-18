@@ -15,6 +15,7 @@ import { askRoutes } from './routes/ask.js';
 import { billingRoutes } from './routes/billing.js';
 import { documentRoutes } from './routes/documents.js';
 import { draftRoutes } from './routes/drafts.js';
+import { feedbackRoutes } from './routes/feedback.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { integrationRoutes } from './routes/integrations.js';
@@ -106,6 +107,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(billingRoutes);
     await app.register(draftRoutes);
     await app.register(documentRoutes);
+    await app.register(feedbackRoutes);
     app.log.info('Better Auth mounted at /api/auth/*');
   } else {
     app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');
