@@ -58,11 +58,19 @@ describe('MockIntegrationsService', () => {
   });
 
   describe('connect', () => {
-    it('moves an available integration to connected and stamps the sync time', async () => {
+    it('lands an available integration in syncing, then settles to connected', async () => {
       const result = await integrations.connect('outlook');
 
-      expect(result.status).toBe('connected');
-      expect(result.lastSyncedAt).not.toBeNull();
+      // Connecting isn't instant — it syncs first (the card shows the animation),
+      // then an internal timer flips it to connected.
+      expect(result.status).toBe('syncing');
+
+      await new Promise((resolve) => setTimeout(resolve, 2800));
+      const settled = (await integrations.listConnections()).find(
+        (c) => c.definition.id === 'outlook',
+      );
+      expect(settled?.status).toBe('connected');
+      expect(settled?.lastSyncedAt).not.toBeNull();
     });
 
     it('rejects connecting something already connected', async () => {

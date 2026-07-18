@@ -83,7 +83,18 @@ export class MockIntegrationsService implements IntegrationsService {
         'Disconnect it first if you want to reconnect.',
       );
     }
-    return this.transition(id, { status: 'connected', lastSyncedAt: now() });
+    // Connecting isn't instant — it lands in `syncing` and pulls the first data in
+    // the background, exactly as the real OAuth-then-sync flow does. The card shows
+    // the syncing animation until this internal timer flips it to `connected`.
+    const result = this.transition(id, { status: 'syncing', lastSyncedAt: null });
+    setTimeout(() => {
+      const current = this.connections.get(id);
+      // Only advance if it's still syncing — a disconnect mid-sync must win.
+      if (current?.status === 'syncing') {
+        this.connections.set(id, { ...current, status: 'connected', lastSyncedAt: now() });
+      }
+    }, 2600);
+    return result;
   }
 
   async disconnect(id: string): Promise<IntegrationConnection> {

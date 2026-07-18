@@ -19,6 +19,13 @@ export function useConnections(category?: IntegrationCategory) {
     queryKey: [...CONNECTIONS_KEY, category ?? 'all'],
     queryFn: () => services.integrations.listConnections(category),
     staleTime: 60_000,
+    // While anything is mid-connect or syncing, poll so the card advances from
+    // "Syncing…" to "Connected" on its own — the moment the sync finishes, not on
+    // the next manual refresh. Idle otherwise, so a settled list makes no requests.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((c) => c.status === 'connecting' || c.status === 'syncing')
+        ? 1200
+        : false,
   });
 }
 

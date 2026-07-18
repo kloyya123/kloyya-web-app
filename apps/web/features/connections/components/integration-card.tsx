@@ -1,7 +1,7 @@
 'use client';
 
 import { MoreVertical, Pause, Play, Plug, RefreshCw, RotateCw, Unplug } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Button,
@@ -17,7 +17,7 @@ import { toErrorPresentation } from '@/lib/error-presentation';
 import { formatRelativeTime } from '@/lib/format';
 import { useConnectionAction, type ConnectionAction } from '@/hooks/use-integrations';
 import type { IntegrationConnection } from '@/types/integrations';
-import { CONNECTION_STATUS_META, integrationIcon } from '../integration-meta';
+import { CONNECTION_STATUS_META, integrationIcon, SYNC_STAGES } from '../integration-meta';
 import { ConnectDialog } from './connect-dialog';
 
 /**
@@ -66,6 +66,8 @@ export function IntegrationCard({ connection }: { connection: IntegrationConnect
         </div>
       </div>
 
+      {status === 'syncing' || status === 'connecting' ? <SyncingIndicator /> : null}
+
       {status === 'error' && connection.errorReason ? (
         <p className="text-caption text-critical border-danger/30 bg-danger/10 rounded-sm border px-2.5 py-1.5">
           {connection.errorReason}
@@ -102,6 +104,37 @@ export function IntegrationCard({ connection }: { connection: IntegrationConnect
         onOpenChange={setIsConnectOpen}
       />
     </Card>
+  );
+}
+
+/**
+ * The syncing animation shown while a tool connects and pulls its first data.
+ *
+ * A spinning icon, an animated progress shimmer, and the current sync stage
+ * cycling through — so "Syncing" is something a user watches happen, not a static
+ * label. Reduced motion stills the spin and shimmer (motion-reduce), leaving the
+ * stage text, which still tells the truth about what's happening.
+ */
+function SyncingIndicator() {
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStage((s) => (s + 1) % SYNC_STAGES.length);
+    }, 700);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="space-y-1.5" role="status" aria-live="polite">
+      <p className="text-caption text-info flex items-center gap-1.5">
+        <RefreshCw aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />
+        {SYNC_STAGES[stage]}…
+      </p>
+      <div className="bg-hover h-1 overflow-hidden rounded-full">
+        <div className="bg-info/70 h-full w-1/3 animate-pulse rounded-full motion-reduce:animate-none" />
+      </div>
+    </div>
   );
 }
 
