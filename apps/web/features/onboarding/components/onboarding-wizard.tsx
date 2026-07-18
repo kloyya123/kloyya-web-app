@@ -115,9 +115,9 @@ export function OnboardingWizard() {
     try {
       await completeOnboarding(values);
       clearDraft();
-      // Tools were connected earlier in the flow; personalization is the last
-      // question. Workspace initialization takes over and runs the first sync.
-      router.replace('/workspace-init');
+      // Personalization done. A paid plan goes through the paywall first; Free
+      // heads straight to connecting tools, then the workspace is built.
+      router.replace(values.plan === 'pro' ? '/onboarding/paywall' : '/onboarding/connect-tools');
     } catch (error) {
       setSubmitError(error);
     }

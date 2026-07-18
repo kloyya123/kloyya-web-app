@@ -25,6 +25,7 @@ type Phase =
   | { kind: 'loading' }
   | { kind: 'answered'; answer: AskAnswer }
   | { kind: 'unconfigured' }
+  | { kind: 'limit_reached'; message: string }
   | { kind: 'error'; message: string };
 
 export function AskView() {
@@ -44,6 +45,10 @@ export function AskView() {
     } catch (error) {
       if (isApiError(error) && error.errorCode === 'ai_unconfigured') {
         setPhase({ kind: 'unconfigured' });
+        return;
+      }
+      if (isApiError(error) && error.errorCode === 'ask_limit_reached') {
+        setPhase({ kind: 'limit_reached', message: error.description ?? error.message });
         return;
       }
       const message = isApiError(error)
@@ -119,6 +124,20 @@ export function AskView() {
         </Card>
       ) : null}
 
+      {phase.kind === 'limit_reached' ? (
+        <Card>
+          <CardContent className="space-y-3 py-6 text-center">
+            <p className="text-body text-foreground font-medium">
+              You’ve used today’s Ask Kloyya questions.
+            </p>
+            <p className="text-small text-muted-foreground mx-auto max-w-sm">{phase.message}</p>
+            <Button asChild variant="secondary" size="sm">
+              <a href="/settings">Upgrade to Pro</a>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {phase.kind === 'error' ? (
         <Card>
           <CardContent className="py-6">
@@ -169,7 +188,12 @@ function AnswerCard({ answer }: { answer: AskAnswer }) {
           </p>
         )}
 
-        <p className="text-caption text-subtle">Answered by {answer.model}</p>
+        <p className="text-caption text-subtle flex items-center justify-between gap-2">
+          <span>Answered by {answer.model}</span>
+          {answer.usage && answer.usage.remaining !== null ? (
+            <span>{answer.usage.remaining} questions left today</span>
+          ) : null}
+        </p>
       </CardContent>
     </Card>
   );

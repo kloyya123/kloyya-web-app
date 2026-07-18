@@ -64,10 +64,10 @@ export function OnboardingConnectStep() {
     [groups],
   );
 
-  function continueToPersonalize() {
-    // Tools first, then a quick personalization, then the workspace is built.
-    // The connections made here become the context that first sync runs against.
-    router.replace('/onboarding');
+  function continueToWorkspace() {
+    // Tools are the last step before the workspace is built. The connections made
+    // here become the context that the first sync runs against.
+    router.replace('/workspace-init');
   }
 
   return (
@@ -122,7 +122,7 @@ export function OnboardingConnectStep() {
       <footer className="flex flex-col items-center gap-3 pt-2">
         <Button
           size="lg"
-          onClick={continueToPersonalize}
+          onClick={continueToWorkspace}
           trailingIcon={<ArrowRight aria-hidden="true" />}
         >
           Continue
@@ -130,7 +130,7 @@ export function OnboardingConnectStep() {
         {connectedCount === 0 ? (
           <button
             type="button"
-            onClick={continueToPersonalize}
+            onClick={continueToWorkspace}
             className="text-caption text-muted-foreground hover:text-foreground rounded-sm"
           >
             Skip and continue — you can connect tools any time

@@ -1,5 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { entitlementsFor, remaining, withinLimit, type SubscriptionTier } from '@kloyya/core';
+import { withTenantScope } from '@kloyya/db/scope';
+import { organizations } from '@kloyya/db/schema';
 import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
 import { requireDb } from '../auth/permission.js';
 import { config } from '../config.js';
@@ -7,7 +11,23 @@ import { ok } from '../http/envelope.js';
 import { ApiError, API_STATUS, errors } from '../http/errors.js';
 import { resolveAiProvider } from '../ai/provider.js';
 import { ask } from '../ask/service.js';
-import { resolveStartContext } from '../integrations/connect.js';
+import { getAskCountToday, incrementAskCount } from '../ask/usage.js';
+import { resolveStartContext, type StartContext } from '../integrations/connect.js';
+
+/** The workspace's plan tier — the value entitlements read. */
+async function readTier(
+  db: NonNullable<FastifyInstance['db']>,
+  ctx: StartContext,
+): Promise<SubscriptionTier> {
+  const [row] = await withTenantScope(db, ctx.organizationId, async (tx) =>
+    tx
+      .select({ tier: organizations.subscriptionTier })
+      .from(organizations)
+      .where(eq(organizations.id, ctx.organizationId))
+      .limit(1),
+  );
+  return row?.tier ?? 'free';
+}
 
 /**
  * Ask Kloyya.
@@ -36,6 +56,20 @@ export async function askRoutes(app: FastifyInstance): Promise<void> {
       const db = requireDb(request);
       const start = await resolveStartContext(db, ctx.user.id);
       if (!start) throw errors.notFound('User profile');
+
+      // Entitlement gate: the Free plan caps questions per day. Enforced here,
+      // not only in the UI, because a client-side limit is a suggestion.
+      const limit = entitlementsFor(await readTier(db, start)).askPerDay;
+      const used = await getAskCountToday(db, start);
+      if (!withinLimit(used, limit)) {
+        throw new ApiError({
+          httpStatus: API_STATUS.RateLimited,
+          errorCode: 'ask_limit_reached',
+          message: 'You’ve reached today’s Ask Kloyya limit.',
+          description: `Your plan allows ${limit} questions a day. It resets at midnight UTC.`,
+          suggestedResolution: 'Upgrade to Pro for unlimited questions, or try again tomorrow.',
+        });
+      }
 
       const provider = resolveAiProvider({
         provider: config.AI_PROVIDER,
@@ -66,7 +100,16 @@ export async function askRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      return ok(outcome.result, request.correlationId);
+      // Only a real, answered question counts against the daily allowance.
+      await incrementAskCount(db, start);
+
+      return ok(
+        {
+          ...outcome.result,
+          usage: { used: used + 1, limit, remaining: remaining(used + 1, limit) },
+        },
+        request.correlationId,
+      );
     },
   );
 }

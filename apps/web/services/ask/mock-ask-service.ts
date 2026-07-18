@@ -35,6 +35,7 @@ export class MockAskService implements AskService {
         },
       ],
       model: 'mock',
+      usage: { used: 1, limit: 20, remaining: 19 },
     };
     // Rides the shared mock transport, so failure injection and latency apply.
     return (await mockRespond(answer)).data;

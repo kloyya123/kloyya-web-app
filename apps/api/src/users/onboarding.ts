@@ -95,12 +95,11 @@ export async function completeOnboarding(
       .set({ hasCompletedOnboarding: true })
       .where(eq(users.id, authUserId));
 
-    if (await mayUpdateOrganization(tx, authUserId, row.organizationId)) {
-      await tx
-        .update(organizations)
-        .set({ subscriptionTier: profile.plan })
-        .where(eq(organizations.id, row.organizationId));
-    }
+    // The chosen plan does NOT grant a tier here — onboarding leaves everyone on
+    // the org's default (free). Pro is granted only after the paywall's billing
+    // checkout succeeds, so a user who picks Pro but never pays stays free rather
+    // than getting Pro for nothing. `profile.plan` drives the client's routing to
+    // the paywall, not the entitlement.
 
     await tx
       .update(userPreferences)

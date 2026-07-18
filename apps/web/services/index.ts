@@ -6,6 +6,9 @@ import type { AskService } from './ask/types';
 import { MockAuthService } from './auth/mock-auth-service';
 import { HttpAuthService } from './auth/http-auth-service';
 import type { AuthService } from './auth/types';
+import { MockBillingService } from './billing/mock-billing-service';
+import { HttpBillingService } from './billing/http-billing-service';
+import type { BillingService } from './billing/types';
 import { MockCalendarService } from './calendar/mock-calendar-service';
 import type { CalendarService } from './calendar/types';
 import { MockInboxService } from './inbox/mock-inbox-service';
@@ -51,6 +54,7 @@ import type { TaskService } from './tasks/types';
 export interface Services {
   auth: AuthService;
   ask: AskService;
+  billing: BillingService;
   intelligence: IntelligenceService;
   tasks: TaskService;
   sources: SourcesService;
@@ -92,6 +96,7 @@ if (!USE_REAL_API) {
 export const services: Services = {
   auth: USE_REAL_API ? new HttpAuthService() : new MockAuthService(),
   ask: USE_REAL_API ? new HttpAskService() : new MockAskService(),
+  billing: USE_REAL_API ? new HttpBillingService() : new MockBillingService(),
   organization: USE_REAL_API ? new HttpOrganizationService() : new MockOrganizationService(),
   integrations: USE_REAL_API ? new HttpIntegrationsService() : new MockIntegrationsService(),
   // No backend yet — these land with their roadmap phases.
@@ -109,6 +114,7 @@ export const services: Services = {
 
 export type { AuthService } from './auth/types';
 export type { AskAnswer, AskCitation, AskService } from './ask/types';
+export type { BillingService, CheckoutInput, CheckoutResult } from './billing/types';
 export type {
   DashboardData,
   DashboardMetrics,

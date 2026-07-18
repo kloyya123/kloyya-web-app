@@ -42,8 +42,9 @@ export function VerifyEmailForm() {
     setSubmitError(null);
     try {
       await verifyEmail(values.code);
-      // Connect tools first, then personalize — the workspace is created last.
-      router.replace('/onboarding/connect-tools');
+      // Personalize first (role, goals, plan), then the paywall or tools, then
+      // the workspace is created last.
+      router.replace('/onboarding');
     } catch (error) {
       setSubmitError(error);
     }

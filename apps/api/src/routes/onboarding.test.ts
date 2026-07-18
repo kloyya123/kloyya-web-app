@@ -65,8 +65,9 @@ describe('POST /v1/onboarding', () => {
     // user.role is the workspace membership role, not the personalization role.
     expect(data.user.role).toBe('owner');
 
-    // The owner's plan choice set the (internal) org's subscription tier.
-    expect(data.organization.subscriptionTier).toBe('pro');
+    // Picking Pro does NOT grant it — onboarding leaves everyone on free until
+    // the paywall's billing checkout runs. The tier grant is billing's job.
+    expect(data.organization.subscriptionTier).toBe('free');
 
     expect(data.workspace.name).toBe('General');
     expect(data.workspace.trustScore).toBe(0);

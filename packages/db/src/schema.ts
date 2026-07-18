@@ -1,11 +1,13 @@
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -439,6 +441,37 @@ export const syncRecords = pgTable(
     ),
     index('sync_records_workspace_resource_idx').on(t.workspaceId, t.resourceType),
     index('sync_records_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Ask Kloyya usage, one row per workspace per day.
+ *
+ * The Free plan caps questions per day (see @kloyya/core entitlements); this is
+ * the counter that cap reads and increments. Keyed by (workspace, day) so a
+ * day rolls over on its own — no cleanup job, just a new row. Kept tiny on
+ * purpose: it counts, it does not log what was asked.
+ */
+export const askUsage = pgTable(
+  'ask_usage',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** The UTC calendar day this count is for. */
+    day: date('day').notNull(),
+    count: integer('count').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.day] }),
+    index('ask_usage_organization_id_idx').on(t.organizationId),
   ],
 ).enableRLS();
 

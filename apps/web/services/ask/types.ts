@@ -14,11 +14,21 @@ export interface AskCitation {
   freshness: string;
 }
 
+/** Where the workspace stands against its daily Ask allowance. */
+export interface AskUsage {
+  used: number;
+  /** `null` = unlimited (Pro). */
+  limit: number | null;
+  remaining: number | null;
+}
+
 export interface AskAnswer {
   answer: string;
   citations: AskCitation[];
   /** Which model answered, surfaced for transparency. */
   model: string;
+  /** Present from the real API; the daily-limit counter for Free plans. */
+  usage?: AskUsage;
 }
 
 export interface AskService {
