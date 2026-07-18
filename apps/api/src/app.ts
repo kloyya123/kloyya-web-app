@@ -10,6 +10,7 @@ import type { EmailSender } from './email/sender.js';
 import { registerErrorHandler } from './http/errors.js';
 import { newCorrelationId } from './http/envelope.js';
 import { loggerOptions } from './logger.js';
+import { askRoutes } from './routes/ask.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { integrationRoutes } from './routes/integrations.js';
@@ -93,6 +94,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(invitationRoutes);
     await app.register(memberRoutes);
     await app.register(integrationRoutes);
+    await app.register(askRoutes);
     app.log.info('Better Auth mounted at /api/auth/*');
   } else {
     app.log.warn('Auth not mounted — set DATABASE_URL and BETTER_AUTH_SECRET to enable it.');

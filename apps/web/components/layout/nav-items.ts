@@ -39,7 +39,7 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/ask', label: 'Ask Kloyya', icon: Sparkles, isComingSoon: true },
+  { href: '/ask', label: 'Ask Kloyya', icon: Sparkles },
   { href: '/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/meetings', label: 'Meetings', icon: Users },

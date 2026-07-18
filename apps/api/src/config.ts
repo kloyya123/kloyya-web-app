@@ -96,6 +96,16 @@ const schema = z.object({
     .string()
     .url()
     .default('http://localhost:4000/v1/integrations/notion/callback'),
+
+  // AI (Ask Kloyya). Provider-neutral: AI_PROVIDER picks the default, and the
+  // selected provider's key powers it. Both keys are server-only and optional —
+  // absent, Ask Kloyya degrades to an honest "not configured" state rather than
+  // failing. OpenAI is the beta default; Claude is kept available.
+  AI_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-4-8'),
 });
 
 export type Config = z.infer<typeof schema>;

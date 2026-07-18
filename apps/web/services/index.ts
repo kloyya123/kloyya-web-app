@@ -1,5 +1,8 @@
 import { setClock } from '@/lib/clock';
 import { MOCK_NOW } from '@/mock/organization';
+import { MockAskService } from './ask/mock-ask-service';
+import { HttpAskService } from './ask/http-ask-service';
+import type { AskService } from './ask/types';
 import { MockAuthService } from './auth/mock-auth-service';
 import { HttpAuthService } from './auth/http-auth-service';
 import type { AuthService } from './auth/types';
@@ -47,6 +50,7 @@ import type { TaskService } from './tasks/types';
 
 export interface Services {
   auth: AuthService;
+  ask: AskService;
   intelligence: IntelligenceService;
   tasks: TaskService;
   sources: SourcesService;
@@ -87,6 +91,7 @@ if (!USE_REAL_API) {
 
 export const services: Services = {
   auth: USE_REAL_API ? new HttpAuthService() : new MockAuthService(),
+  ask: USE_REAL_API ? new HttpAskService() : new MockAskService(),
   organization: USE_REAL_API ? new HttpOrganizationService() : new MockOrganizationService(),
   integrations: USE_REAL_API ? new HttpIntegrationsService() : new MockIntegrationsService(),
   // No backend yet — these land with their roadmap phases.
@@ -103,6 +108,7 @@ export const services: Services = {
 };
 
 export type { AuthService } from './auth/types';
+export type { AskAnswer, AskCitation, AskService } from './ask/types';
 export type {
   DashboardData,
   DashboardMetrics,
