@@ -106,6 +106,11 @@ const schema = z.object({
   OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-4-8'),
+
+  // Payments. Provider-neutral: 'none' is the beta scaffold (records the chosen
+  // plan, takes no money). A real processor (Stripe, …) joins this enum when it
+  // is wired; raw card data never touches this server either way.
+  PAYMENT_PROVIDER: z.enum(['none']).default('none'),
 });
 
 export type Config = z.infer<typeof schema>;

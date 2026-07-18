@@ -14,6 +14,7 @@ export * from './domain.js';
 export * from './api.js';
 export * from './permissions.js';
 export * from './preferences.js';
+export * from './entitlements.js';
 export * from './calendar.js';
 export * from './integrations.js';
 export * from './integration-catalogue.js';
