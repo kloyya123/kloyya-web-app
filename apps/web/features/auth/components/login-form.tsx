@@ -136,9 +136,12 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
 
 /**
  * The mock backend has one seeded account, and a demo nobody can sign into is
- * not a demo. This block is scoped to the mock service and disappears with it.
+ * not a demo. This block is scoped to the mock service and disappears with it —
+ * and it renders ONLY on the mock backend, so the real product never shows a
+ * "demo account" to a person signing in for real.
  */
 function DemoCredentials() {
+  if (process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true') return null;
   return (
     <div className="border-border mt-6 rounded-sm border border-dashed px-3 py-2.5">
       <p className="text-caption text-muted-foreground">

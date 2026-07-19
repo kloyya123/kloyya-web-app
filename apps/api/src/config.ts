@@ -123,7 +123,13 @@ const schema = z.object({
 export type Config = z.infer<typeof schema>;
 
 function load(): Config {
-  const parsed = schema.safeParse(process.env);
+  // Most hosts (Render, Railway, Fly, Heroku) inject the listen port as PORT and
+  // expect the app to use it; we name ours API_PORT. Honor an explicit API_PORT
+  // first, fall back to the platform's PORT, then the local default.
+  const parsed = schema.safeParse({
+    ...process.env,
+    API_PORT: process.env['API_PORT'] ?? process.env['PORT'],
+  });
   if (!parsed.success) {
     // Flatten to a readable list rather than Zod's nested object.
     const issues = parsed.error.issues

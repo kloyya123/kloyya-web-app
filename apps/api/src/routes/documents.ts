@@ -31,7 +31,7 @@ const idParams = z.object({ id: z.string().uuid() });
 
 /** Keep a storage path predictable and safe from a hostile filename. */
 function safeName(filename: string): string {
-  return filename.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'file';
+  return filename.replace(/[^\w.-]+/g, '_').slice(0, 120) || 'file';
 }
 
 function storage() {

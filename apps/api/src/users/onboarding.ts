@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db';
 import type { Tx } from '@kloyya/db/scope';
 import { memberships, organizations, user, userPreferences, users } from '@kloyya/db/schema';
-import { can, type OnboardingProfile, type SettingsPatch, type UserPreferences } from '@kloyya/core';
+import { can, type OnboardingProfile, type UserPreferences } from '@kloyya/core';
 
 /**
  * Whether this caller may rename the organization they belong to.

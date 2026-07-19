@@ -126,12 +126,16 @@ export function VerifyEmailForm() {
           </Button>
         </div>
 
-        <div className="border-border mt-6 rounded-sm border border-dashed px-3 py-2.5">
-          <p className="text-caption text-muted-foreground">
-            <span className="text-foreground font-medium">Demo.</span> The code is{' '}
-            <span className="font-mono">{DEMO_VERIFICATION_CODE}</span>.
-          </p>
-        </div>
+        {/* Mock-only affordance: the real product emails a real code, so this
+            fixed-code hint must never reach a person verifying for real. */}
+        {process.env['NEXT_PUBLIC_USE_REAL_API'] !== 'true' && (
+          <div className="border-border mt-6 rounded-sm border border-dashed px-3 py-2.5">
+            <p className="text-caption text-muted-foreground">
+              <span className="text-foreground font-medium">Demo.</span> The code is{' '}
+              <span className="font-mono">{DEMO_VERIFICATION_CODE}</span>.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

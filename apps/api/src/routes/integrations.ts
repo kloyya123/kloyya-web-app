@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { INTEGRATION_CATEGORIES } from '@kloyya/core';
 import { requireSession, requireVerifiedEmail } from '../auth/guard.js';
@@ -126,14 +126,14 @@ function syncFailureToApiError(outcome: SyncOutcome, id: string): ApiError {
  * may not survive the cross-site redirect — the signature IS the authorization.
  */
 async function runOAuthCallback(
-  request: import('fastify').FastifyRequest,
-  reply: import('fastify').FastifyReply,
+  request: FastifyRequest,
+  reply: FastifyReply,
   provider: {
     label: string;
     configured: boolean;
     exchange: (code: string) => Promise<ProviderTokens>;
     store: (
-      db: NonNullable<import('fastify').FastifyInstance['db']>,
+      db: NonNullable<FastifyInstance['db']>,
       crypto: TokenCrypto,
       ctx: StartContext,
       integrationId: string,
