@@ -127,6 +127,13 @@
       "when": 1784755372768,
       "tag": "0017_brainy_sister_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784755372800,
+      "tag": "0018_app_tenant_set_privilege",
+      "breakpoints": true
     }
   ]
 }
