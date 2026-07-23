@@ -34,6 +34,11 @@ export function initAnalytics(): void {
     capture_pageview: false,
     // No cross-site tracking; this is first-party product analytics only.
     persistence: 'localStorage+cookie',
+    // Error monitoring: PostHog already captures uncaught browser exceptions
+    // (with a stack trace and the session that hit them) once a project key is
+    // configured — a dedicated Sentry project is a later, separate decision,
+    // not a gap to fill before launch.
+    capture_exceptions: true,
   });
   ready = true;
 }

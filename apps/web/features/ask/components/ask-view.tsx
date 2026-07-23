@@ -1,10 +1,12 @@
 'use client';
 
-import { ArrowUp, ExternalLink, Sparkles } from 'lucide-react';
+import { ArrowUp, ExternalLink, Mic, Sparkles, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button, Card, CardContent, Textarea } from '@/components/ui';
 import { trackEvent } from '@/lib/analytics';
 import { formatRelativeTime } from '@/lib/format';
+import { canSpeak, speak } from '@/lib/speech';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { services, isApiError, type AskAnswer } from '@/services';
 
 /**
@@ -39,6 +41,12 @@ export function AskView({ initialQuestion }: AskViewProps = {}) {
 
   const trimmed = question.trim();
   const isLoading = phase.kind === 'loading';
+
+  // Voice input: dictate into the same box, review, then send — not an
+  // auto-send-on-speech assistant. Silently absent where the browser has no
+  // SpeechRecognition (Firefox, notably).
+  const { isSupported: canDictate, isListening, start: startDictation, stop: stopDictation } =
+    useSpeechToText((transcript) => setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript)));
 
   async function submit(text: string) {
     const value = text.trim();
@@ -109,7 +117,22 @@ export function AskView({ initialQuestion }: AskViewProps = {}) {
             aria-label="Ask Kloyya a question"
             className="border-0 bg-transparent focus-visible:ring-0"
           />
-          <div className="flex justify-end px-1 pt-1">
+          <div className="flex justify-end gap-2 px-1 pt-1">
+            {canDictate ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-pressed={isListening}
+                onClick={() => (isListening ? stopDictation() : startDictation())}
+                className={isListening ? 'text-critical animate-pulse' : undefined}
+              >
+                <Mic aria-hidden="true" />
+                <span className="sr-only">
+                  {isListening ? 'Stop dictating' : 'Ask by voice'}
+                </span>
+              </Button>
+            ) : null}
             <Button
               type="submit"
               size="icon"
@@ -168,7 +191,21 @@ function AnswerCard({ answer }: { answer: AskAnswer }) {
   return (
     <Card>
       <CardContent className="space-y-5 py-6">
-        <p className="text-body text-foreground whitespace-pre-wrap">{answer.answer}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-body text-foreground whitespace-pre-wrap">{answer.answer}</p>
+          {canSpeak() ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => speak(answer.answer)}
+            >
+              <Volume2 aria-hidden="true" className="size-4" />
+              <span className="sr-only">Read answer aloud</span>
+            </Button>
+          ) : null}
+        </div>
 
         {answer.citations.length > 0 ? (
           <section aria-labelledby="ask-sources" className="border-border border-t pt-4">

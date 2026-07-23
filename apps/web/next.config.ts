@@ -83,7 +83,7 @@ const nextConfig: NextConfig = {
   // Heavy/native server dependencies stay out of the webpack bundle and are
   // required at runtime instead. postgres is the DB driver; mammoth extracts
   // docx text; pino is transitively referenced by ported server code.
-  serverExternalPackages: ['postgres', 'mammoth', 'pino', 'resend'],
+  serverExternalPackages: ['postgres', 'mammoth', 'pino', 'resend', 'unpdf', 'xlsx'],
 
   // @kloyya/core and @kloyya/db are consumed as raw TypeScript, and — being
   // written for Node's ESM loader — their own internal relative imports use

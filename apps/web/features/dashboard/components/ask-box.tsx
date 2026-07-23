@@ -74,7 +74,7 @@ export function AskBox() {
         <Input
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask anything about your work..."
+          placeholder="Ask about your work…"
           aria-label="Ask Kloyya a question"
           className="min-w-0 flex-1 border-0 bg-transparent focus-visible:ring-0"
         />
