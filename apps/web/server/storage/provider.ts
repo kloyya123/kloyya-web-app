@@ -9,11 +9,26 @@ import { createClient } from '@supabase/supabase-js';
  * configured, so the API boots and document upload degrades to an honest "not
  * configured" instead of crashing.
  */
+export interface SignedUpload {
+  /** The object path the client must upload to. */
+  path: string;
+  /** The one-time token that authorizes the client's direct upload to `path`. */
+  token: string;
+}
+
 export interface StorageProvider {
   /** False when no backing store is configured — callers surface this, not a 500. */
   readonly configured: boolean;
   upload(params: { path: string; bytes: Buffer; contentType: string }): Promise<void>;
   remove(path: string): Promise<void>;
+  /**
+   * Mint a one-time signed upload URL so the BROWSER can PUT the bytes straight
+   * to storage, bypassing the serverless function's request-body limit. The
+   * server then reads them back with `download` to extract text.
+   */
+  createSignedUpload(path: string): Promise<SignedUpload>;
+  /** Read an object's bytes back (server-side text extraction after a direct upload). */
+  download(path: string): Promise<Buffer>;
 }
 
 /** Storage isn't set up on this server. A clear 503, never a stack trace. */
@@ -47,6 +62,12 @@ const nullStorage: StorageProvider = {
   async remove() {
     // Nothing was stored, so nothing to remove — a no-op, not an error.
   },
+  async createSignedUpload() {
+    throw new StorageUnconfiguredError();
+  },
+  async download() {
+    throw new StorageUnconfiguredError();
+  },
 };
 
 function supabaseStorage(url: string, key: string, bucket: string): StorageProvider {
@@ -63,6 +84,16 @@ function supabaseStorage(url: string, key: string, bucket: string): StorageProvi
     async remove(path) {
       const { error } = await store.remove([path]);
       if (error) throw new StorageError(`Remove failed: ${error.message}`);
+    },
+    async createSignedUpload(path) {
+      const { data, error } = await store.createSignedUploadUrl(path);
+      if (error || !data) throw new StorageError(`Could not sign upload: ${error?.message}`);
+      return { path: data.path, token: data.token };
+    },
+    async download(path) {
+      const { data, error } = await store.download(path);
+      if (error || !data) throw new StorageError(`Download failed: ${error?.message}`);
+      return Buffer.from(await data.arrayBuffer());
     },
   };
 }
