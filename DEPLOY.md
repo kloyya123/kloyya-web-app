@@ -84,9 +84,11 @@ https://<your-app>/api/v1/integrations/oauth/<provider>/callback
 
 ## Notes & limits
 
-- **Upload size on Vercel**: Vercel caps request bodies at ~4.5MB. The multipart
-  upload path handles files up to that limit today; a direct-to-storage
-  **signed-URL flow** (to restore the full 25MB) is the tracked follow-up.
+- **Upload size**: files ≤4MB stream through the API (multipart); larger files
+  (up to 25MB) upload **directly to Supabase Storage via a signed URL**, so
+  Vercel's ~4.5MB function-body cap doesn't apply. This needs the browser to
+  reach Supabase — the `documents` bucket must exist and `NEXT_PUBLIC_SUPABASE_URL`
+  must be set (it is, for auth).
 - **Function duration**: `ask`, `documents`, and integration `sync` routes set
   `maxDuration = 60`. A very large first sync may need Vercel Pro (up to 300s).
 - **Rollback**: redeploy the previous Vercel build. Migrations are forward-only;
