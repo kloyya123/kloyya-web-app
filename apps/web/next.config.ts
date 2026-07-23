@@ -32,14 +32,22 @@ const supabaseOrigin = (() => {
   return isDev ? 'https:' : '';
 })();
 
+// PostHog (product analytics) loads its script and sends events to its own
+// hosts, so they must be allowed when a PostHog key is configured. Empty
+// otherwise, keeping the policy tight for deployments that don't use it.
+const posthogHosts = process.env.NEXT_PUBLIC_POSTHOG_KEY
+  ? 'https://us.i.posthog.com https://us-assets.i.posthog.com'
+  : '';
+
 const contentSecurityPolicy = [
   `default-src 'self'`,
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} ${posthogHosts}`.trim(),
   `style-src 'self' 'unsafe-inline'`,
   `img-src 'self' blob: data:`,
   `font-src 'self' data:`,
-  // 'self' covers the same-origin /api routes; Supabase covers auth + storage.
-  `connect-src 'self' ${supabaseOrigin}`.trim(),
+  // 'self' covers the same-origin /api routes; Supabase covers auth + storage;
+  // PostHog covers analytics ingestion when enabled.
+  `connect-src 'self' ${supabaseOrigin} ${posthogHosts}`.trim(),
   `frame-ancestors 'none'`,
   `form-action 'self'`,
   `base-uri 'self'`,

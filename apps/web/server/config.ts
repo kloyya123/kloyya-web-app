@@ -100,7 +100,13 @@ const schema = z.object({
 export type Config = z.infer<typeof schema>;
 
 function load(): Config {
-  const parsed = schema.safeParse(process.env);
+  // An empty-string env var (KEY="" in .env, or a blank Vercel variable) is the
+  // same as unset — treat it that way so optional fields don't reject "" and
+  // defaults still apply. Without this, one blank optional var breaks boot.
+  const cleaned = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== ''),
+  );
+  const parsed = schema.safeParse(cleaned);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
