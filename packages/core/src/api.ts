@@ -62,6 +62,7 @@ export const API_STATUS = {
   Forbidden: 403,
   NotFound: 404,
   Conflict: 409,
+  PayloadTooLarge: 413,
   ValidationFailed: 422,
   RateLimited: 429,
   InternalError: 500,

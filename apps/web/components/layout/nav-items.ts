@@ -1,17 +1,14 @@
 import {
+  BarChart3,
   Calendar,
   CheckSquare,
-  FileStack,
   FolderKanban,
+  House,
   Inbox,
-  LayoutDashboard,
   Library,
-  Lightbulb,
-  PenLine,
-  Plug,
   ShieldCheck,
   Sparkles,
-  Users,
+  Waypoints,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -26,31 +23,23 @@ export interface NavItem {
 }
 
 /**
- * The primary navigation, in the order the beta builds it.
+ * The primary navigation — matched to the reference dashboard.
  *
- * Routes not yet implemented are marked rather than hidden. Hiding them would
- * make the product look smaller than it is; linking them would send the user to
- * a 404. A disabled item with a "Soon" badge tells the truth — and each flips to
- * live as its rebuild phase lands.
- *
- * Organizations are removed from the product surface for the private beta
- * (everything operates around a single Workspace); the org tenancy still exists
- * internally, it just has no navigation.
+ * Home, Ask Kloyya, Inbox, Tasks, Calendar, Knowledge, Projects, Connections,
+ * Trust Centre, Analytics. Settings and Help & Support live in the sidebar
+ * footer, not this list. Organizations are removed from the product surface for
+ * the private beta (everything operates around a single Workspace); the org
+ * tenancy still exists internally, it just has no navigation.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Home', icon: House },
   { href: '/ask', label: 'Ask Kloyya', icon: Sparkles },
+  { href: '/inbox', label: 'Inbox', icon: Inbox },
   { href: '/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
-  { href: '/meetings', label: 'Meetings', icon: Users },
-  { href: '/inbox', label: 'Inbox', icon: Inbox },
-  { href: '/drafts', label: 'Drafts', icon: PenLine },
-  { href: '/documents', label: 'Documents', icon: FileStack },
   { href: '/knowledge', label: 'Knowledge', icon: Library },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/recommendations', label: 'Recommendations', icon: Lightbulb },
-  // These surfaces sit in their own group — they are about Kloyya itself, not a
-  // place work lives.
-  { href: '/connections', label: 'Connect tools', icon: Plug, startsGroup: true },
-  { href: '/trust', label: 'Trust Center', icon: ShieldCheck },
+  { href: '/connections', label: 'Connections', icon: Waypoints },
+  { href: '/trust', label: 'Trust Centre', icon: ShieldCheck },
+  { href: '/recommendations', label: 'Analytics', icon: BarChart3 },
 ];

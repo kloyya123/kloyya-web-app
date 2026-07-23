@@ -4,7 +4,7 @@ import { MockAskService } from './ask/mock-ask-service';
 import { HttpAskService } from './ask/http-ask-service';
 import type { AskService } from './ask/types';
 import { MockAuthService } from './auth/mock-auth-service';
-import { HttpAuthService } from './auth/http-auth-service';
+import { SupabaseAuthService } from './auth/supabase-auth-service';
 import type { AuthService } from './auth/types';
 import { MockBillingService } from './billing/mock-billing-service';
 import { HttpBillingService } from './billing/http-billing-service';
@@ -106,7 +106,7 @@ if (!USE_REAL_API) {
 }
 
 export const services: Services = {
-  auth: USE_REAL_API ? new HttpAuthService() : new MockAuthService(),
+  auth: USE_REAL_API ? new SupabaseAuthService() : new MockAuthService(),
   ask: USE_REAL_API ? new HttpAskService() : new MockAskService(),
   billing: USE_REAL_API ? new HttpBillingService() : new MockBillingService(),
   drafts: USE_REAL_API ? new HttpDraftService() : new MockDraftService(),

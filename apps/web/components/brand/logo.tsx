@@ -27,10 +27,15 @@ export interface LogoMarkProps {
    * screen reader reading the brand twice.
    */
   decorative?: boolean;
+  /**
+   * Slowly rotate the aperture — the lens quietly "thinking". Used beside Ask
+   * Kloyya. Stilled for anyone who prefers reduced motion.
+   */
+  animated?: boolean;
   className?: string;
 }
 
-export function LogoMark({ decorative = false, className }: LogoMarkProps) {
+export function LogoMark({ decorative = false, animated = false, className }: LogoMarkProps) {
   const labelling = decorative
     ? ({ 'aria-hidden': true } as const)
     : ({ role: 'img', 'aria-label': 'Kloyya' } as const);
@@ -47,16 +52,21 @@ export function LogoMark({ decorative = false, className }: LogoMarkProps) {
         </linearGradient>
       </defs>
 
-      {ANGLES.map((angle) => (
-        <path
-          key={angle}
-          d={BLADE}
-          fill="url(#kloyya-aperture)"
-          transform={`rotate(${angle} 24 24)`}
-          // Alternating opacity gives the blades depth without a drop shadow.
-          opacity={angle % 120 === 0 ? 1 : 0.72}
-        />
-      ))}
+      <g
+        className={cn(animated && 'motion-safe:animate-[spin_9s_linear_infinite]')}
+        style={animated ? { transformOrigin: '24px 24px' } : undefined}
+      >
+        {ANGLES.map((angle) => (
+          <path
+            key={angle}
+            d={BLADE}
+            fill="url(#kloyya-aperture)"
+            transform={`rotate(${angle} 24 24)`}
+            // Alternating opacity gives the blades depth without a drop shadow.
+            opacity={angle % 120 === 0 ? 1 : 0.72}
+          />
+        ))}
+      </g>
     </svg>
   );
 }

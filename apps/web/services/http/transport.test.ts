@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch, authFetch } from './transport';
+import { apiFetch, apiOrigin } from './transport';
 import { type ApiError, isApiError } from './errors';
 
 /**
@@ -128,38 +128,17 @@ describe('apiFetch', () => {
   });
 });
 
-describe('authFetch', () => {
-  it('calls Better Auth outside the /v1 prefix', async () => {
-    const spy = mockFetch({ status: 200, body: { user: { id: 'u1' } } });
-
-    await authFetch('/sign-in/email', { body: { email: 'a@b.test', password: 'x' } });
-
-    // Better Auth lives at /api/auth/*, not under /v1 — appending it there would
-    // call routes that don't exist.
-    const url = String(spy.mock.calls[0]![0]);
-    expect(url).toContain('/api/auth/sign-in/email');
-    expect(url).not.toContain('/v1/api/auth');
+describe('apiOrigin', () => {
+  it('is the same-origin /api prefix — the backend lives in this app now', async () => {
+    // No NEXT_PUBLIC_API_BASE_URL, no cross-origin base: one deployment.
+    expect(apiOrigin()).toBe('/api');
   });
 
-  it('returns Better Auth’s own shape — it does not speak the KAS envelope', async () => {
-    mockFetch({ status: 200, body: { token: 't', user: { id: 'u1', email: 'a@b.test' } } });
+  it('prepends /api so a service path /v1/… resolves to /api/v1/…', async () => {
+    const spy = mockFetch({ status: 200, body: { data: null, version: 'v1', correlationId: 'c' } });
 
-    // Pretending otherwise would mean a translation layer for a contract we
-    // don't own.
-    await expect(authFetch('/sign-in/email', { body: {} })).resolves.toMatchObject({
-      user: { id: 'u1' },
-    });
-  });
+    await apiFetch('/v1/session');
 
-  it('normalizes a Better Auth failure into ApiError', async () => {
-    mockFetch({ status: 401, body: { message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' } });
-
-    const error = await authFetch('/sign-in/email', { body: {} }).catch((e) => e);
-
-    expect(isApiError(error)).toBe(true);
-    expect((error as ApiError).httpStatus).toBe(401);
-    expect((error as ApiError).errorCode).toBe('invalid_credentials');
-    // Better Auth's message is already user-facing; keep it rather than inventing one.
-    expect((error as ApiError).message).toBe('Invalid email or password');
+    expect(String(spy.mock.calls[0]![0])).toBe('/api/v1/session');
   });
 });

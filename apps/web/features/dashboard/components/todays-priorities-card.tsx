@@ -1,32 +1,45 @@
 'use client';
 
-import { CheckSquare } from 'lucide-react';
-import { Badge, EmptyState, type BadgeTone } from '@/components/ui';
+import { ArrowRight, CheckSquare, Circle } from 'lucide-react';
+import Link from 'next/link';
+import { EmptyState } from '@/components/ui';
+import { cn } from '@/lib/cn';
 import { formatRelativeTime } from '@/lib/format';
 import type { PriorityLevel, Task } from '@/types/domain';
 import { SidebarCard } from './dashboard';
 
-const PRIORITY_TONE: Record<PriorityLevel, BadgeTone> = {
-  Critical: 'danger',
-  High: 'warning',
-  Medium: 'info',
-  Low: 'neutral',
-  Background: 'neutral',
-};
+/** High/Critical read as an alert; everything else is quiet. */
+function labelTone(priority: PriorityLevel): string {
+  return priority === 'Critical' || priority === 'High'
+    ? 'text-critical'
+    : 'text-muted-foreground';
+}
 
 /**
- * Ranked by AI priority score, not by due date.
+ * Today's tasks, ranked by AI priority score, not by due date.
  *
  * KDA models `aiPriorityScore` separately from the human-set `priority`, and the
  * distinction matters: a task due in a week can outrank one due tomorrow when a
- * customer renewal depends on it. The badge shows the human priority; the order
- * shows Kloyya's.
+ * customer renewal depends on it. The order shows Kloyya's ranking; the
+ * right-hand label shows the human priority (or, for a routine task, when it is
+ * due) so the row explains its own placement.
  */
 export function TodaysPrioritiesCard({ tasks }: { tasks: Task[] }) {
-  const open = tasks.filter((task) => task.status !== 'done').slice(0, 4);
+  const open = tasks.filter((task) => task.status !== 'done').slice(0, 5);
 
   return (
-    <SidebarCard title="Today's priorities">
+    <SidebarCard
+      title="Tasks"
+      action={
+        <Link
+          href="/tasks"
+          className="text-caption text-link inline-flex items-center gap-1 rounded-sm hover:underline"
+        >
+          View all
+          <ArrowRight aria-hidden="true" className="size-3" />
+        </Link>
+      }
+    >
       {open.length === 0 ? (
         <EmptyState
           icon={CheckSquare}
@@ -35,21 +48,20 @@ export function TodaysPrioritiesCard({ tasks }: { tasks: Task[] }) {
         />
       ) : (
         <ul className="space-y-3">
-          {open.map((task) => (
-            <li key={task.id} className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-small text-foreground">{task.title}</p>
-                {task.dueAt ? (
-                  <p className="text-caption text-subtle mt-0.5">
-                    Due <time dateTime={task.dueAt}>{formatRelativeTime(task.dueAt)}</time>
-                  </p>
-                ) : null}
-              </div>
-              <Badge tone={PRIORITY_TONE[task.priority]} className="shrink-0">
-                {task.priority}
-              </Badge>
-            </li>
-          ))}
+          {open.map((task) => {
+            const isPriority = task.priority === 'Critical' || task.priority === 'High';
+            return (
+              <li key={task.id} className="flex items-center gap-2.5">
+                <Circle aria-hidden="true" className="text-subtle size-4 shrink-0" />
+                <span className="text-small text-foreground min-w-0 flex-1 truncate">
+                  {task.title}
+                </span>
+                <span className={cn('text-caption shrink-0 font-medium', labelTone(task.priority))}>
+                  {isPriority ? task.priority : task.dueAt ? formatRelativeTime(task.dueAt) : '—'}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </SidebarCard>

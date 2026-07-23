@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AskPage() {
-  return <AskView />;
+export default async function AskPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  return <AskView initialQuestion={q} />;
 }

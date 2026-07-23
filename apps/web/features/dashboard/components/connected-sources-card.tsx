@@ -1,10 +1,12 @@
 'use client';
 
-import { ArrowRight, Check, Plug, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Plug } from 'lucide-react';
 import Link from 'next/link';
-import { Badge, EmptyState, Skeleton } from '@/components/ui';
+import { EmptyState, Skeleton } from '@/components/ui';
+import { cn } from '@/lib/cn';
+import { hasBrandLogo, IntegrationBrandLogo } from '@/components/brand/integration-logos';
 import { useConnectionSummary } from '@/hooks/use-integrations';
-import { integrationIcon } from '@/features/connections/integration-meta';
+import { integrationIcon, CONNECTION_STATUS_META } from '@/features/connections/integration-meta';
 import { SidebarCard } from './dashboard';
 
 /**
@@ -20,7 +22,7 @@ export function ConnectedSourcesCard() {
 
   return (
     <SidebarCard
-      title="Connected sources"
+      title="Connected tools"
       action={
         <Link
           href="/connections"
@@ -53,33 +55,33 @@ export function ConnectedSourcesCard() {
         />
       ) : (
         <div className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <p className="text-small text-foreground">
-              <span className="font-semibold tabular-nums">{data.connected}</span> of{' '}
-              <span className="tabular-nums">{data.total}</span> connected
-            </p>
-            {data.needsAttention > 0 ? (
-              <Badge tone="warning">
-                <TriangleAlert aria-hidden="true" className="size-3" />
-                {data.needsAttention} need attention
-              </Badge>
-            ) : null}
-          </div>
-
-          <ul className="space-y-1.5">
+          <ul className="space-y-3">
             {data.preview.map((connection) => {
-              const Icon = integrationIcon(
-                connection.definition.id,
-                connection.definition.category,
-              );
+              const { id, category, name } = connection.definition;
+              const Icon = integrationIcon(id, category);
+              const meta = CONNECTION_STATUS_META[connection.status];
               return (
-                <li
-                  key={connection.definition.id}
-                  className="text-small text-muted-foreground flex items-center gap-2"
-                >
-                  <Icon aria-hidden="true" className="text-subtle size-3.5 shrink-0" />
-                  <span className="flex-1 truncate">{connection.definition.name}</span>
-                  <Check aria-hidden="true" className="text-positive size-3.5 shrink-0" />
+                <li key={id} className="flex items-center gap-2.5">
+                  {hasBrandLogo(id) ? (
+                    <IntegrationBrandLogo id={id} className="size-4 shrink-0" />
+                  ) : (
+                    <Icon aria-hidden="true" className="text-subtle size-4 shrink-0" />
+                  )}
+                  <span className="text-small text-foreground min-w-0 flex-1 truncate">
+                    {name}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-caption shrink-0 font-medium',
+                      connection.status === 'error'
+                        ? 'text-critical'
+                        : connection.status === 'paused'
+                          ? 'text-muted-foreground'
+                          : 'text-positive',
+                    )}
+                  >
+                    {meta.label}
+                  </span>
                 </li>
               );
             })}
@@ -88,9 +90,9 @@ export function ConnectedSourcesCard() {
           {data.connected > data.preview.length ? (
             <Link
               href="/connections"
-              className="text-caption text-link inline-block rounded-sm hover:underline"
+              className="text-caption text-subtle hover:text-foreground block text-center"
             >
-              +{data.connected - data.preview.length} more
+              +{data.connected - data.preview.length} more tools
             </Link>
           ) : null}
         </div>

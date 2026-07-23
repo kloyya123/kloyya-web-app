@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowUp, ExternalLink, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card, CardContent, Textarea } from '@/components/ui';
 import { trackEvent } from '@/lib/analytics';
 import { formatRelativeTime } from '@/lib/format';
@@ -28,19 +28,25 @@ type Phase =
   | { kind: 'limit_reached'; message: string }
   | { kind: 'error'; message: string };
 
-export function AskView() {
-  const [question, setQuestion] = useState('');
+export interface AskViewProps {
+  /** A question arriving from elsewhere (the dashboard's Ask box) — asked automatically. */
+  initialQuestion?: string | undefined;
+}
+
+export function AskView({ initialQuestion }: AskViewProps = {}) {
+  const [question, setQuestion] = useState(initialQuestion ?? '');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
 
   const trimmed = question.trim();
   const isLoading = phase.kind === 'loading';
 
-  async function submit() {
-    if (trimmed.length === 0 || isLoading) return;
+  async function submit(text: string) {
+    const value = text.trim();
+    if (value.length === 0 || isLoading) return;
     setPhase({ kind: 'loading' });
-    trackEvent('ask_submitted', { length: trimmed.length });
+    trackEvent('ask_submitted', { length: value.length });
     try {
-      const answer = await services.ask.ask(trimmed);
+      const answer = await services.ask.ask(value);
       setPhase({ kind: 'answered', answer });
     } catch (error) {
       if (isApiError(error) && error.errorCode === 'ai_unconfigured') {
@@ -58,6 +64,16 @@ export function AskView() {
     }
   }
 
+  // A question handed off from elsewhere (e.g. the dashboard's Ask box) is
+  // asked immediately — the user already committed to it there.
+  useEffect(() => {
+    if (initialQuestion && initialQuestion.trim().length > 0) {
+      void submit(initialQuestion);
+    }
+    // Only ever fires from the value the page mounted with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2 text-center">
@@ -74,7 +90,7 @@ export function AskView() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          void submit(question);
         }}
       >
         <div className="border-border bg-surface focus-within:border-muted rounded-lg border p-2 transition-colors">
@@ -85,7 +101,7 @@ export function AskView() {
               // Enter sends; Shift+Enter is a newline.
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
-                void submit();
+                void submit(question);
               }
             }}
             placeholder="What did we decide about the Q3 roadmap?"

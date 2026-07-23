@@ -47,6 +47,12 @@ const hoursAhead = (h: number) => new Date(NOW.getTime() + h * 3_600_000).toISOS
 const daysAgo = (d: number) => hoursAgo(d * 24);
 const daysAhead = (d: number) => hoursAhead(d * 24);
 
+// Inbox timestamps track the REAL wall clock so the demo always reads as live
+// ("2m ago"), instead of freezing to the narrative date and looking abandoned.
+const liveMinutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+const liveHoursAgo = (h: number) => liveMinutesAgo(h * 60);
+const liveDaysAhead = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString();
+
 const base = (id: string, createdBy = 'user_amara') => ({
   id,
   organizationId: ORG_ID,
@@ -269,7 +275,7 @@ export const mockEmails: EmailThread[] = [
     subject: 'Re: Contract renewal — decision needed by 17 July',
     senderName: 'Marcus Webb',
     senderEmail: 'm.webb@acmelogistics.example',
-    receivedAt: hoursAgo(19),
+    receivedAt: liveMinutesAgo(2),
     aiSummary:
       'Acme will not renew unless a revised Atlas delivery date is confirmed before 17 July.',
     isUnread: true,
@@ -283,7 +289,7 @@ export const mockEmails: EmailThread[] = [
     subject: 'Actuator housings — 3 week lead time increase',
     senderName: 'Sofia Marchetti',
     senderEmail: 'sofia@precision-parts.example',
-    receivedAt: daysAgo(2),
+    receivedAt: liveHoursAgo(1),
     aiSummary:
       'Supplier confirms actuator housing lead time moves from 4 to 7 weeks, effective immediately.',
     isUnread: false,
@@ -297,7 +303,7 @@ export const mockEmails: EmailThread[] = [
     subject: 'SOC 2 evidence request — 3 items outstanding',
     senderName: 'Auditor (Vance & Co)',
     senderEmail: 'audit@vanceco.example',
-    receivedAt: daysAgo(1),
+    receivedAt: liveHoursAgo(3),
     aiSummary: 'Three evidence artifacts remain outstanding ahead of the 22 July deadline.',
     isUnread: true,
     importanceScore: 71,
@@ -309,7 +315,7 @@ export const mockEmails: EmailThread[] = [
     subject: 'Q3 all-hands — agenda & recording',
     senderName: 'People Team',
     senderEmail: 'people@northwind.example',
-    receivedAt: daysAgo(3),
+    receivedAt: liveHoursAgo(5),
     aiSummary: 'Recap and recording of the Q3 all-hands; no action requested of you.',
     isUnread: false,
     importanceScore: 28,
@@ -379,7 +385,7 @@ export const mockTasks: Task[] = [
     priority: 'Critical',
     ownerId: 'user_amara',
     projectId: 'proj_atlas',
-    dueAt: daysAhead(2),
+    dueAt: liveDaysAhead(0),
     aiPriorityScore: 96,
   },
   {
@@ -388,7 +394,7 @@ export const mockTasks: Task[] = [
     status: 'in_progress',
     priority: 'High',
     ownerId: 'user_lena',
-    dueAt: daysAhead(4),
+    dueAt: liveDaysAhead(0),
     aiPriorityScore: 81,
   },
   {
@@ -398,7 +404,7 @@ export const mockTasks: Task[] = [
     priority: 'High',
     ownerId: 'user_lena',
     projectId: 'proj_harbor',
-    dueAt: daysAhead(9),
+    dueAt: liveDaysAhead(1),
     aiPriorityScore: 77,
   },
   {
@@ -408,7 +414,7 @@ export const mockTasks: Task[] = [
     priority: 'Medium',
     ownerId: 'user_daniel',
     projectId: 'proj_atlas',
-    dueAt: daysAhead(7),
+    dueAt: liveDaysAhead(1),
     aiPriorityScore: 58,
   },
 ];

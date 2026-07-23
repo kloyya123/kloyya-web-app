@@ -1,85 +1,95 @@
 # Deploying Kloyya (private beta)
 
-Two pieces deploy separately:
+Kloyya is **one Next.js app** deployed to **Vercel**, backed by **Supabase**
+(Postgres + Auth + Storage). There is no separate API server.
 
-- **API** (`apps/api`) — Fastify + Better Auth, containerized via [`Dockerfile`](./Dockerfile). Runs from TypeScript source with `tsx`.
-- **Web** (`apps/web`) — Next.js, deployed to **Vercel**.
-
-Both talk to the **same Supabase project** for Postgres + Storage. Keep the database and storage on one project (see the note at the bottom).
+```
+Users → Vercel (Next.js: pages + /api/v1 Route Handlers + middleware) → Supabase
+                                                              (Postgres · Auth · Storage)
+```
 
 ---
 
-## 1. Database — run migrations once (before first traffic)
+## 1. Supabase project (one-time)
 
-Migrations use `DIRECT_URL` (the Supabase **direct** connection on port 5432, not the pooler). From your machine, with the beta `.env` in place:
+In the Supabase dashboard for your project:
+
+1. **Auth → Providers → Email**: enabled, "Confirm email" ON.
+2. **Auth → Email Templates**:
+   - **Confirm signup** → body uses `{{ .Token }}` (a 6-digit code, not a link).
+   - **Reset password** → body uses `{{ .Token }}`.
+3. **Auth → SMTP**: custom SMTP = Resend (`smtp.resend.com:465`, user `resend`,
+   password = your `RESEND_API_KEY`, sender = your verified `EMAIL_FROM`). This is
+   what actually delivers the codes.
+4. **Auth → URL Configuration**: Site URL = your production Vercel URL; add
+   `http://localhost:3000/**` for local dev.
+5. **Auth → keep enumeration protection ON** (the sign-up flow expects it).
+6. **Storage**: create a **private** bucket named `documents`.
+7. **Database**: after migrations (step 2) confirm the `app_tenant` role and the
+   per-table RLS policies exist (`select * from pg_policies;`).
+
+## 2. Database migrations
+
+Run once, before real traffic, from your machine (uses `DIRECT_URL`, port 5432):
 
 ```bash
 pnpm --filter @kloyya/db migrate
 ```
 
-Also create the Storage bucket the uploader writes to: in Supabase → **Storage → New bucket → `documents`** (private).
+This includes **0017**, which drops the retired Better Auth tables and moves
+identity to Supabase Auth. Destructive and intended (pre-beta, zero users).
 
-## 2. API — deploy to Render (or any Docker/Node host)
+## 3. Vercel
 
-The repo ships a Render Blueprint ([`render.yaml`](./render.yaml)).
+1. Push the repo to GitHub → Vercel → **New Project** → import it.
+2. **Root Directory = `apps/web`** (Vercel autodetects the pnpm workspace).
+3. Set environment variables (Production + Preview) — see the table below.
+4. Deploy. The API is just `apps/web/app/api/v1/**`, so it ships with the app.
 
-1. Push the repo to GitHub.
-2. Render → **New → Blueprint** → pick the repo. It reads `render.yaml` and creates the `kloyya-api` web service.
-3. Fill in the env vars it prompts for (everything marked `sync: false`). The must-haves:
+### Environment variables (Vercel)
 
-   | Var | Value |
-   |-----|-------|
-   | `DATABASE_URL` | Supabase **pooler** URL (app runtime) |
-   | `DIRECT_URL` | Supabase **direct** URL (migrations) |
-   | `BETTER_AUTH_SECRET` | a stable 32+ char secret |
-   | `BETTER_AUTH_URL` | `https://<this-api-host>` |
-   | `WEB_APP_URL` / `CORS_ALLOWED_ORIGINS` | `https://<your-web-host>` |
-   | `RESEND_API_KEY` | required — the API refuses to boot in production without it |
-   | `EMAIL_FROM` | `Kloyya <noreply@yourdomain.com>` |
-   | `TOKEN_ENCRYPTION_KEY` | the connector-token encryption key |
-   | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | base origin + **service_role** key |
-   | `OPENAI_API_KEY` | for Ask Kloyya |
+| Var | Notes |
+|-----|-------|
+| `NEXT_PUBLIC_USE_REAL_API` | `true` — without it the site runs on mock data |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable key (`sb_publishable_…`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret** — storage + admin ops |
+| `DATABASE_URL` | Supabase **pooler** (6543) |
+| `DIRECT_URL` | Supabase **direct** (5432) — for migrations |
+| `TOKEN_ENCRYPTION_KEY` | 32-byte base64url — connector tokens |
+| `RESEND_API_KEY`, `EMAIL_FROM` | invitation email |
+| `OPENAI_API_KEY` (+ `AI_PROVIDER`) | Ask Kloyya |
+| `APP_URL` | your production URL (OAuth redirects, invites) |
+| OAuth `*_CLIENT_ID/SECRET/REDIRECT_URI` | per connector you enable |
 
-4. Deploy. Render injects `PORT`; the app reads it. Health check is `GET /health`.
+## 4. OAuth connectors (optional)
 
-> **Any other host** (Railway, Fly, a VPS): build the `Dockerfile` (context = repo root) and run it. It listens on `$PORT` (or `4000`). No `render.yaml` needed.
+For each provider you enable (Google / Microsoft / Notion), set the redirect URI
+in **both** the provider console and the matching `*_REDIRECT_URI` env var to:
 
-## 3. Web — deploy to Vercel
+```
+https://<your-app>/api/v1/integrations/oauth/<provider>/callback
+```
 
-1. Vercel → **New Project** → import the repo → set **Root Directory = `apps/web`**.
-2. Set environment variables (Production):
+## 5. Smoke test (on the deployed app)
 
-   | Var | Value |
-   |-----|-------|
-   | `NEXT_PUBLIC_USE_REAL_API` | `true` |
-   | `NEXT_PUBLIC_API_BASE_URL` | `https://<this-api-host>/v1` |
-   | `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | optional analytics |
+- `GET /api/v1/health` → `{"status":"ok"}`.
+- Sign up → a **6-digit code arrives by email** (Resend) → verify → onboarding →
+  dashboard.
+- Sign out / sign in; wrong code → clear error.
+- Settings shows your real name/role; Ask Kloyya answers (or says "not configured"
+  if no `OPENAI_API_KEY`).
+- Upload a document → it appears in the list and Ask Kloyya can cite it.
+- 31st Ask on the free tier → 429; 6th document → cap error.
 
-   Without `NEXT_PUBLIC_USE_REAL_API=true` the site runs on **mock data** — no real
-   sign-up, verification, or profiles.
+## Notes & limits
 
-3. Deploy.
-
-## 4. Wire the three URLs together
-
-After both hosts have URLs, confirm they agree — otherwise auth/CORS fail:
-
-| Var | Where | Value |
-|-----|-------|-------|
-| `NEXT_PUBLIC_API_BASE_URL` | Vercel (web) | `https://<api-host>/v1` |
-| `BETTER_AUTH_URL` | API | `https://<api-host>` (no `/v1`) |
-| `CORS_ALLOWED_ORIGINS` | API | `https://<web-host>` |
-
-And point each OAuth connector's redirect URI (Google/Microsoft/Notion consoles **and** the matching `*_REDIRECT_URI` env var) at `https://<api-host>/v1/integrations/<provider>/callback`.
-
-## 5. Smoke test
-
-- `GET https://<api-host>/health` → `{"status":"ok"}`
-- Open the web app → sign up → the verification code arrives by **email** (Resend), not on-screen.
-- Sign in → Settings shows your real name/role → Ask Kloyya answers (or says "not configured" if `OPENAI_API_KEY` is unset).
-
----
-
-### One-project rule (important)
-
-The Postgres database (`DATABASE_URL`/`DIRECT_URL`) and Storage (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`) **must be the same Supabase project**. If they diverge, a document's row lands in one project while its bytes land in another — it appears to work until the other project is paused and files vanish. Decode any `service_role` key's middle segment and confirm its `ref` matches the project in `DATABASE_URL`.
+- **Upload size on Vercel**: Vercel caps request bodies at ~4.5MB. The multipart
+  upload path handles files up to that limit today; a direct-to-storage
+  **signed-URL flow** (to restore the full 25MB) is the tracked follow-up.
+- **Function duration**: `ask`, `documents`, and integration `sync` routes set
+  `maxDuration = 60`. A very large first sync may need Vercel Pro (up to 300s).
+- **Rollback**: redeploy the previous Vercel build. Migrations are forward-only;
+  0017 is destructive, so restore from a Supabase backup if you must revert it.
+- **Local real-backend dev**: put the env vars in `apps/web/.env.local` (Next
+  reads that, not the repo-root `.env`), then `pnpm --filter @kloyya/web dev`.

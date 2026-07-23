@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./client": "./src/client.ts",
     "./schema": "./src/schema.ts",
     "./scope": "./src/scope.ts"
   },

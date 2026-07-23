@@ -10,29 +10,22 @@ import { ApiError } from './errors';
  * swaps from mock to HTTP. That was the whole point of building the frontend
  * first.
  *
- * `credentials: 'include'` is what makes auth work at all: the session lives in
- * an httpOnly cookie the browser holds and JavaScript cannot read. There is no
- * token to attach here, and that absence is the security property — a token this
+ * `credentials: 'include'` keeps the Supabase session cookie attached. It is an
+ * httpOnly cookie the browser holds and JavaScript cannot read — there is no
+ * token to attach here, and that absence is the security property: a token this
  * code could read is a token an XSS could steal.
  */
-const DEFAULT_BASE_URL = 'http://localhost:4000';
-
-/** Trailing slashes make `${base}${path}` produce `//v1/me`. */
-function normalizeBaseUrl(raw: string): string {
-  return raw.replace(/\/+$/, '');
-}
 
 /**
- * The API's origin, without the version prefix.
+ * The API's origin prefix. The backend is now Next.js Route Handlers in this
+ * same app under `/api/v1/**`, so every call is same-origin and relative — the
+ * service files still name paths as `/v1/...`, and this prepends `/api`.
  *
- * NEXT_PUBLIC_API_BASE_URL points at `/v1` for convenience, but Better Auth lives
- * at `/api/auth/*` — outside it. Paths here are absolute from the origin so both
- * are reachable, rather than quietly appending auth routes under /v1 where they
- * don't exist.
+ * (When the API was a separate Fastify server this read NEXT_PUBLIC_API_BASE_URL;
+ * with one deployment there is no cross-origin base URL to configure.)
  */
 export function apiOrigin(): string {
-  const configured = process.env['NEXT_PUBLIC_API_BASE_URL'] ?? DEFAULT_BASE_URL;
-  return normalizeBaseUrl(configured.replace(/\/v\d+$/, ''));
+  return '/api';
 }
 
 /**
@@ -195,57 +188,4 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     throw malformedError(response.status, 'The response was not a KAS envelope.');
   }
   return envelope.data;
-}
-
-/**
- * Call Better Auth, which does NOT speak the KAS envelope.
- *
- * It is a library mounted at /api/auth/* with its own response shape, so
- * pretending otherwise would mean writing a translation layer for a contract we
- * don't own. Its errors are normalized into ApiError here so callers still have
- * exactly one error type.
- */
-export async function authFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const url = `${apiOrigin()}/api/auth${path}`;
-
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: options.method ?? 'POST',
-      credentials: 'include',
-      ...(options.body !== undefined
-        ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(options.body) }
-        : {}),
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-  } catch (cause) {
-    throw offlineError(cause);
-  }
-
-  const text = await response.text();
-  const body: unknown = text.length > 0 ? safeParse(text) : undefined;
-
-  if (!response.ok) {
-    const detail = body as { message?: string; code?: string } | undefined;
-    throw new ApiError({
-      errorCode: detail?.code?.toLowerCase() ?? 'authentication_failed',
-      httpStatus: toApiStatus(response.status >= 400 ? response.status : 400),
-      // Better Auth's message is already user-facing and specific.
-      message: detail?.message ?? 'That did not work.',
-      description: detail?.message ?? `The request failed with ${response.status}.`,
-      suggestedResolution: 'Check the details and try again.',
-      correlationId: 'auth',
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  return body as T;
-}
-
-function safeParse(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
 }

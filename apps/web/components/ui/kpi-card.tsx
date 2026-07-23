@@ -27,8 +27,15 @@ export interface KpiCardProps {
    * which is exactly the cognitive load Kloyya exists to remove.
    */
   explanation: string;
+  /**
+   * Draws the explanation in the critical color, for a sub-label that is itself
+   * the alert — e.g. "3 high priority". Default is the muted treatment.
+   */
+  explanationTone?: 'default' | 'critical';
   icon?: LucideIcon;
   trend?: KpiTrend;
+  /** An optional slot beneath the explanation, e.g. a progress bar. */
+  footer?: React.ReactNode;
   className?: string;
 }
 
@@ -48,8 +55,10 @@ export function KpiCard({
   label,
   value,
   explanation,
+  explanationTone = 'default',
   icon: Icon,
   trend,
+  footer,
   className,
 }: KpiCardProps) {
   return (
@@ -69,9 +78,16 @@ export function KpiCard({
         {trend ? <TrendIndicator trend={trend} /> : null}
       </div>
 
-      <p className="text-caption text-muted-foreground mt-2 text-balance">
+      <p
+        className={cn(
+          'text-caption mt-2 text-balance',
+          explanationTone === 'critical' ? 'text-critical' : 'text-muted-foreground',
+        )}
+      >
         {explanation}
       </p>
+
+      {footer ? <div className="mt-2">{footer}</div> : null}
     </Card>
   );
 }
