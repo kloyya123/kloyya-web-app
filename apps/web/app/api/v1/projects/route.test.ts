@@ -4,6 +4,8 @@ import type { PGlite } from '@electric-sql/pglite';
 import type { AppDb } from '@kloyya/db/client';
 import { actAs, createTestDb, createTestIdentity, resetDeps } from '@server/test/harness';
 import { GET, POST } from './route';
+import { GET as GET_ONE } from './[id]/route';
+import { GET as GET_HEALTH } from './[id]/health/route';
 
 let client: PGlite;
 let db: AppDb;
@@ -63,5 +65,44 @@ describe('GET/POST /api/v1/projects', () => {
     expect(res.status).toBe(401);
     const json = (await res.json()) as { error: { errorCode: string } };
     expect(json.error.errorCode).toBe('unauthorized');
+  });
+});
+
+/** Proves the dynamic [id] segment is wired through kasRoute's params promise. */
+function params(id: string) {
+  return { params: Promise.resolve({ id }) };
+}
+
+describe('/api/v1/projects/[id]', () => {
+  it('reads a project detail and its derived health by id', async () => {
+    const identity = await createTestIdentity(db, { email: 'projects-byid@kloyya.test' });
+    switchActor(identity);
+
+    const created = await create({ name: 'Atlas' });
+    const { data: project } = (await created.json()) as { data: { id: string } };
+
+    const detail = await GET_ONE(new NextRequest(`http://test.local/api/v1/projects/${project.id}`), params(project.id));
+    expect(detail.status).toBe(200);
+    const detailJson = (await detail.json()) as { data: { ownerName: string; tasks: unknown[] } };
+    expect(detailJson.data).toHaveProperty('ownerName');
+    expect(Array.isArray(detailJson.data.tasks)).toBe(true);
+
+    const health = await GET_HEALTH(
+      new NextRequest(`http://test.local/api/v1/projects/${project.id}/health`),
+      params(project.id),
+    );
+    expect(health.status).toBe(200);
+    const healthJson = (await health.json()) as { data: { headline: string; drivers: unknown[] } };
+    expect(typeof healthJson.data.headline).toBe('string');
+    expect(healthJson.data.drivers.length).toBeGreaterThan(0);
+  });
+
+  it('404s an unknown id', async () => {
+    const identity = await createTestIdentity(db, { email: 'projects-missing@kloyya.test' });
+    switchActor(identity);
+
+    const id = '00000000-0000-0000-0000-000000000000';
+    const res = await GET_ONE(new NextRequest(`http://test.local/api/v1/projects/${id}`), params(id));
+    expect(res.status).toBe(404);
   });
 });

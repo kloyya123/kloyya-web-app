@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { AppDb } from '@kloyya/db/client';
 import type { Identity } from '../auth/identity';
+import { config } from '../config';
 import { getDeps } from '../deps';
 import { newCorrelationId } from './envelope';
 import { API_STATUS, ApiError, errors, toErrorPayload } from './errors';
+import { checkRateLimit } from './rate-limit';
 
 /**
  * The one wrapper every KAS route handler goes through.
@@ -53,6 +55,34 @@ export function kasRoute(
             'This action needs a confirmed address, and yours has not been confirmed yet.',
           suggestedResolution: 'Enter the six-digit code we emailed you, or request a new one.',
         });
+      }
+
+      // Per-user abuse guard on every authenticated request. Keyed by the caller,
+      // not the route, so a runaway client is throttled across all endpoints. It
+      // fails open internally, so it can never be the reason a request 500s.
+      const rate = await checkRateLimit(deps.db, `user:${identity.id}`, config.RATE_LIMIT_PER_MINUTE);
+      if (!rate.allowed) {
+        return NextResponse.json(
+          {
+            error: toErrorPayload(
+              new ApiError({
+                httpStatus: API_STATUS.RateLimited,
+                errorCode: 'rate_limited',
+                message: 'Too many requests.',
+                description: `You’ve made more than ${rate.limit} requests in a minute. Slow down and try again shortly.`,
+                suggestedResolution: 'Wait a few seconds before retrying.',
+              }),
+              correlationId,
+            ),
+          },
+          {
+            status: API_STATUS.RateLimited,
+            headers: {
+              'x-correlation-id': correlationId,
+              'retry-after': String(rate.retryAfterSeconds),
+            },
+          },
+        );
       }
 
       const params = route ? await route.params : {};

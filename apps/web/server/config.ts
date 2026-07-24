@@ -95,6 +95,11 @@ const schema = z.object({
   // Payments. Provider-neutral: 'none' is the beta scaffold (records the chosen
   // plan, takes no money). Raw card data never touches this server either way.
   PAYMENT_PROVIDER: z.enum(['none']).default('none'),
+
+  // General API rate limit — requests per authenticated user per minute, a
+  // blunt abuse guard on every guarded route (the Ask per-day cap is a separate
+  // entitlement limit). `0` disables it. Coerced because env vars are strings.
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(120),
 });
 
 export type Config = z.infer<typeof schema>;

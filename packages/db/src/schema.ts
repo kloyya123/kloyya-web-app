@@ -456,6 +456,27 @@ export const askUsage = pgTable(
 ).enableRLS();
 
 /**
+ * API rate-limit buckets — a blunt abuse guard, not tenant data.
+ *
+ * A fixed-window counter: one row per (subject, window-start), incremented on
+ * every guarded request. `subject` is `user:<id>` (never PII), `windowStart` is
+ * the epoch-second the minute began. The server reads/writes this as the owner
+ * role, outside `withTenantScope` — it isn't scoped to any organization, so it
+ * has no org/workspace columns and no tenant policy, just RLS enabled to deny
+ * every other role by default. Rows for elapsed windows are cleaned up on write.
+ */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    subject: text('subject').notNull(),
+    /** Epoch seconds at the start of the fixed window this row counts. */
+    windowStart: integer('window_start').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.subject, t.windowStart] })],
+).enableRLS();
+
+/**
  * Drafts — the things a person is writing but hasn't sent or filed.
  *
  * Email replies, notes, reports, documents, meeting summaries. Kloyya can create
