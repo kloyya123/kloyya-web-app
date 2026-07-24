@@ -37,7 +37,28 @@ pnpm --filter @kloyya/db migrate
 ```
 
 This includes **0017**, which drops the retired Better Auth tables and moves
-identity to Supabase Auth. Destructive and intended (pre-beta, zero users).
+identity to Supabase Auth (destructive and intended — pre-beta, zero users), and
+**0018–0022**, which grant `app_tenant` the `SET` privilege tenant scoping needs
+on Postgres 16+ (**without this, every tenant-scoped query fails**), add the
+`tasks` and `projects` tables + their RLS, the `ai_drafting_enabled` preference,
+and the `rate_limits` table. All of 0018–0022 are additive.
+
+> On an unstable network the pooler can drop long DDL connections mid-migration.
+> `pnpm --filter @kloyya/db exec tsx scripts/apply-migrations.ts` retries with
+> backoff and is safe to re-run — drizzle records each migration as it lands, so
+> reruns resume where the last drop left off. Verify with `scripts/probe-remote.ts`
+> (prints the applied count and which tables exist).
+
+> **Known trap — migration 0018 on Supabase.** Its `GRANT app_tenant TO
+> CURRENT_USER WITH SET TRUE` *succeeds*, but granting a role to the session's own
+> user makes Supabase terminate that backend connection immediately after. The
+> migrator therefore never gets to record 0018 and retries forever, and the same
+> statement kills the dashboard SQL Editor mid-batch. It is effectively
+> self-applying: run it once, ignore the dropped connection, then confirm with
+> `scripts/preflight-check.ts` (`app_tenant WITH SET: ALREADY GRANTED`) and skip it
+> on subsequent runs. `scripts/apply-pending-ddl.ts` applies 0019–0022 in one
+> atomic transaction with 0018 deliberately excluded, which is how this database
+> was brought up to 0022.
 
 ## 3. Vercel
 
