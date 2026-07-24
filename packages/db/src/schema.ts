@@ -76,6 +76,27 @@ export const draftStatus = pgEnum('draft_status', ['active', 'archived']);
  */
 export const documentStatus = pgEnum('document_status', ['processing', 'ready', 'failed']);
 
+/** A task's lifecycle. */
+export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'blocked', 'done']);
+
+/** KDSE priority bands — human-set, distinct from the AI priority score. */
+export const priorityLevel = pgEnum('priority_level', [
+  'Critical',
+  'High',
+  'Medium',
+  'Low',
+  'Background',
+]);
+
+/** A project's lifecycle. */
+export const projectStatus = pgEnum('project_status', [
+  'planning',
+  'active',
+  'at_risk',
+  'paused',
+  'complete',
+]);
+
 /** What a piece of beta feedback is. */
 export const feedbackType = pgEnum('feedback_type', ['feature_request', 'bug', 'general']);
 
@@ -507,6 +528,77 @@ export const documents = pgTable(
   (t) => [
     index('documents_workspace_id_idx').on(t.workspaceId),
     index('documents_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Projects — the unit of work Kloyya tracks health for.
+ *
+ * `healthScore`/`riskScore` are read here as plain columns; the reasoning behind
+ * them (ProjectHealth) is generated on demand, not stored, so it can never go
+ * stale next to a number nobody re-explained. Workspace-scoped and RLS-isolated.
+ * Soft delete, like everything else.
+ */
+export const projects = pgTable(
+  'projects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    status: projectStatus('status').notNull().default('planning'),
+    ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
+    progress: integer('progress').notNull().default(0),
+    riskScore: integer('risk_score').notNull().default(0),
+    healthScore: integer('health_score').notNull().default(100),
+    deadline: timestamp('deadline', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    ...audit,
+  },
+  (t) => [
+    index('projects_workspace_id_idx').on(t.workspaceId),
+    index('projects_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * Tasks — the unit of work itself.
+ *
+ * `priority` is human-set (KDSE bands); `aiPriorityScore` is a separate,
+ * AI-derived 0-100 ranking — the two are never conflated. `projectId` is
+ * nullable: a task need not belong to a project. Workspace-scoped and
+ * RLS-isolated. Soft delete, like everything else.
+ */
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    status: taskStatus('status').notNull().default('todo'),
+    priority: priorityLevel('priority').notNull().default('Medium'),
+    ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    aiPriorityScore: integer('ai_priority_score').notNull().default(0),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    ...audit,
+  },
+  (t) => [
+    index('tasks_workspace_id_idx').on(t.workspaceId),
+    index('tasks_organization_id_idx').on(t.organizationId),
+    index('tasks_project_id_idx').on(t.projectId),
   ],
 ).enableRLS();
 

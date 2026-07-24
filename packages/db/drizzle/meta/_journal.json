@@ -134,6 +134,20 @@
       "when": 1784755372800,
       "tag": "0018_app_tenant_set_privilege",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784882041889,
+      "tag": "0019_real_retro_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784882050000,
+      "tag": "0020_tasks_projects_rls",
+      "breakpoints": true
     }
   ]
 }

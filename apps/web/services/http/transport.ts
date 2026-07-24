@@ -95,7 +95,8 @@ function isErrorEnvelope(body: unknown): body is { error: ApiErrorPayload } {
  * ApiError the mock threw — including the correlationId, which is the thread
  * from a user's screenshot to the request in the logs.
  */
-export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+/** Shared by apiFetch and apiFetchEnvelope — one request/parse path, two unwrap depths. */
+async function fetchEnvelope<T>(path: string, options: RequestOptions): Promise<ApiResponse<T> | null> {
   const method = options.method ?? 'GET';
   const url = `${apiOrigin()}${path}`;
 
@@ -115,12 +116,12 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   // 204 and friends: nothing to unwrap, nothing to fail on.
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return null;
 
   let body: unknown;
   const text = await response.text();
   if (text.length === 0) {
-    if (response.ok) return undefined as T;
+    if (response.ok) return null;
     throw malformedError(response.status, `The server returned ${response.status} with no body.`);
   }
   try {
@@ -141,7 +142,22 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     throw malformedError(response.status, 'The response was not a KAS envelope.');
   }
 
-  return envelope.data;
+  return envelope;
+}
+
+export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const envelope = await fetchEnvelope<T>(path, options);
+  return envelope ? envelope.data : (undefined as T);
+}
+
+/** Like apiFetch, but keeps the envelope's `pagination` — for cursor-paginated collections. */
+export async function apiFetchEnvelope<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ApiResponse<T>> {
+  const envelope = await fetchEnvelope<T>(path, options);
+  if (!envelope) throw malformedError(204, 'Expected a collection envelope, got an empty response.');
+  return envelope;
 }
 
 /**

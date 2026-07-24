@@ -25,6 +25,7 @@ import type { InboxService } from './inbox/types';
 import { MockKnowledgeService } from './knowledge/mock-knowledge-service';
 import type { KnowledgeService } from './knowledge/types';
 import { MockProjectService } from './projects/mock-project-service';
+import { HttpProjectService } from './projects/http-project-service';
 import type { ProjectService } from './projects/types';
 import { MockSearchService } from './search/mock-search-service';
 import type { SearchService } from './search/types';
@@ -43,6 +44,7 @@ import type { OrganizationService } from './organization/types';
 import { MockSourcesService } from './sources/mock-sources-service';
 import type { SourcesService } from './sources/types';
 import { MockTaskService } from './tasks/mock-task-service';
+import { HttpTaskService } from './tasks/http-task-service';
 import type { TaskService } from './tasks/types';
 
 /**
@@ -88,10 +90,10 @@ export interface Services {
  * so the demo, the test suite, and anyone without a running API keep the mock
  * layer — the 527 tests stay green because they never touch this branch.
  *
- * Only the services with a real backend are switched; the rest (tasks, calendar,
- * meetings, inbox, knowledge, projects, search, notifications, intelligence,
- * sources) have no API yet and stay on the mock until their phases land. Mixing
- * is fine on purpose: a page reading real auth and mock tasks is exactly the
+ * Only the services with a real backend are switched; the rest (calendar,
+ * meetings, inbox, knowledge, search, notifications, intelligence, sources)
+ * have no API yet and stay on the mock until their phases land. Mixing is fine
+ * on purpose: a page reading real auth and mock inbox is exactly the
  * incremental cut-over the frontend-first architecture was built to allow.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
@@ -114,15 +116,15 @@ export const services: Services = {
   feedback: USE_REAL_API ? new HttpFeedbackService() : new MockFeedbackService(),
   organization: USE_REAL_API ? new HttpOrganizationService() : new MockOrganizationService(),
   integrations: USE_REAL_API ? new HttpIntegrationsService() : new MockIntegrationsService(),
+  tasks: USE_REAL_API ? new HttpTaskService() : new MockTaskService(),
+  projects: USE_REAL_API ? new HttpProjectService() : new MockProjectService(),
   // No backend yet — these land with their roadmap phases.
   intelligence: new MockIntelligenceService(),
-  tasks: new MockTaskService(),
   sources: new MockSourcesService(),
   calendar: new MockCalendarService(),
   meetings: new MockMeetingService(),
   inbox: new MockInboxService(),
   knowledge: new MockKnowledgeService(),
-  projects: new MockProjectService(),
   search: new MockSearchService(),
   notifications: new MockNotificationService(),
 };
