@@ -3,7 +3,7 @@
 import { CircleHelp, Settings, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Logo } from '@/components/brand/logo';
+import { Logo, LogoMark } from '@/components/brand/logo';
 import { Badge } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useInboxList } from '@/hooks/use-inbox';
@@ -87,10 +87,17 @@ function SidebarLink({
   badge?: number | undefined;
 }) {
   const Icon = item.icon;
+  // Ask Kloyya carries our own mark, not a generic sparkle — the same brand
+  // treatment as the Ask surfaces themselves.
+  const isAskKloyya = item.href === '/ask';
 
   const content = (
     <>
-      <Icon aria-hidden="true" className="size-4 shrink-0" />
+      {isAskKloyya ? (
+        <LogoMark decorative className="size-4 shrink-0" />
+      ) : (
+        <Icon aria-hidden="true" className="size-4 shrink-0" />
+      )}
       <span className="flex-1 truncate">{item.label}</span>
       {badge && badge > 0 ? (
         <span className="bg-primary/15 text-primary rounded-full px-1.5 text-caption font-semibold tabular-nums">

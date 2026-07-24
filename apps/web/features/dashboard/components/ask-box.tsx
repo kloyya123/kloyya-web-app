@@ -1,12 +1,25 @@
 'use client';
 
-import { ArrowUp, Calendar, FileStack, FolderKanban, Layers, Mail, Plus } from 'lucide-react';
+import {
+  ArrowUp,
+  Calendar,
+  FileStack,
+  FolderKanban,
+  Layers,
+  Mail,
+  Mic,
+  Paperclip,
+  Plus,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
-import { Button, Card, Input } from '@/components/ui';
+import { useRef, useState, type ReactNode } from 'react';
+import { Button, Card, Input, toast } from '@/components/ui';
 import { LogoMark } from '@/components/brand/logo';
 import { cn } from '@/lib/cn';
+import { toErrorPresentation } from '@/lib/error-presentation';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { services } from '@/services';
 
 type Scope = 'all' | 'email' | 'calendar' | 'documents' | 'projects';
 
@@ -40,11 +53,19 @@ const SCOPES: { id: Scope; label: string; icon: ReactNode; phrase?: string }[] =
  * calendar: …") rather than silently filtering — Ask Kloyya has no source
  * filter of its own, so the honest version of "scoping" is asking a more
  * specific question, not pretending to configure a search.
+ *
+ * Voice input and file upload mirror the dedicated /ask tab, so this mini box
+ * isn't a stripped-down version of it — just a shortcut into the same thing.
  */
 export function AskBox() {
   const router = useRouter();
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<Scope>('all');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { isSupported: canDictate, isListening, start: startDictation, stop: stopDictation } =
+    useSpeechToText((transcript) => setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript)));
 
   function submit() {
     const trimmed = question.trim();
@@ -52,6 +73,26 @@ export function AskBox() {
     const phrase = SCOPES.find((s) => s.id === scope)?.phrase;
     const finalQuestion = phrase ? `Regarding ${phrase}: ${trimmed}` : trimmed;
     router.push(`/ask?q=${encodeURIComponent(finalQuestion)}`);
+  }
+
+  // Upload, then carry the user straight to the next thing they'd want: asking
+  // about what they just added — not stranding them on the dashboard with a
+  // toast and nothing to do next.
+  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const doc = await services.documents.upload(file);
+      toast.success(`Uploaded "${doc.name}".`);
+      router.push(`/ask?q=${encodeURIComponent(`What can you tell me about ${doc.name}?`)}`);
+    } catch (error) {
+      toast.error(toErrorPresentation(error).title);
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   return (
@@ -69,19 +110,52 @@ export function AskBox() {
           event.preventDefault();
           submit();
         }}
-        className="border-border focus-within:border-muted flex items-center gap-2 rounded-lg border py-2 pr-2 pl-3"
+        className="border-border focus-within:border-muted flex items-center gap-1 rounded-lg border py-2 pr-2 pl-3"
       >
         <Input
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask about your work…"
+          placeholder="Ask Kloyya…"
           aria-label="Ask Kloyya a question"
           className="min-w-0 flex-1 border-0 bg-transparent focus-visible:ring-0"
         />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={(event) => void handleFile(event)}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          isLoading={isUploading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Paperclip aria-hidden="true" />
+          <span className="sr-only">Upload a document</span>
+        </Button>
+
+        {canDictate ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn('shrink-0', isListening && 'text-critical animate-pulse')}
+            aria-pressed={isListening}
+            onClick={() => (isListening ? stopDictation() : startDictation())}
+          >
+            <Mic aria-hidden="true" />
+            <span className="sr-only">{isListening ? 'Stop dictating' : 'Ask by voice'}</span>
+          </Button>
+        ) : null}
+
         <Button
           type="submit"
           size="icon"
-          className="ml-auto shrink-0 rounded-full"
+          className="shrink-0 rounded-full"
           isDisabled={question.trim().length === 0}
         >
           <ArrowUp aria-hidden="true" />

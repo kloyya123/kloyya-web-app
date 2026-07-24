@@ -1,10 +1,12 @@
 'use client';
 
-import { ArrowUp, ExternalLink, Mic, Sparkles, Volume2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Button, Card, CardContent, Textarea } from '@/components/ui';
+import { ArrowUp, ExternalLink, Mic, Paperclip, Volume2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Button, Card, CardContent, Textarea, toast } from '@/components/ui';
+import { LogoMark } from '@/components/brand/logo';
 import { trackEvent } from '@/lib/analytics';
 import { formatRelativeTime } from '@/lib/format';
+import { toErrorPresentation } from '@/lib/error-presentation';
 import { canSpeak, speak } from '@/lib/speech';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { services, isApiError, type AskAnswer } from '@/services';
@@ -41,12 +43,33 @@ export function AskView({ initialQuestion }: AskViewProps = {}) {
 
   const trimmed = question.trim();
   const isLoading = phase.kind === 'loading';
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice input: dictate into the same box, review, then send — not an
   // auto-send-on-speech assistant. Silently absent where the browser has no
   // SpeechRecognition (Firefox, notably).
   const { isSupported: canDictate, isListening, start: startDictation, stop: stopDictation } =
     useSpeechToText((transcript) => setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript)));
+
+  // Upload, then move the user straight into asking about what they added —
+  // the natural next step, not a toast that leads nowhere.
+  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const doc = await services.documents.upload(file);
+      toast.success(`Uploaded "${doc.name}".`);
+      void submit(`What can you tell me about ${doc.name}?`);
+    } catch (error) {
+      toast.error(toErrorPresentation(error).title);
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   async function submit(text: string) {
     const value = text.trim();
@@ -85,8 +108,8 @@ export function AskView({ initialQuestion }: AskViewProps = {}) {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2 text-center">
-        <span className="bg-primary/10 text-primary inline-flex size-11 items-center justify-center rounded-full">
-          <Sparkles aria-hidden="true" className="size-5" />
+        <span className="bg-primary/10 inline-flex size-11 items-center justify-center rounded-full">
+          <LogoMark decorative animated className="size-6" />
         </span>
         <h1 className="text-heading-m text-foreground font-semibold">Ask Kloyya</h1>
         <p className="text-small text-muted-foreground mx-auto max-w-md">
@@ -118,6 +141,23 @@ export function AskView({ initialQuestion }: AskViewProps = {}) {
             className="border-0 bg-transparent focus-visible:ring-0"
           />
           <div className="flex justify-end gap-2 px-1 pt-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(event) => void handleFile(event)}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              isLoading={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip aria-hidden="true" />
+              <span className="sr-only">Upload a document</span>
+            </Button>
+
             {canDictate ? (
               <Button
                 type="button"
