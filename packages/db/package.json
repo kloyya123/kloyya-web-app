@@ -12,6 +12,7 @@
   "scripts": {
     "generate": "drizzle-kit generate",
     "migrate": "dotenv -e ../../.env -- drizzle-kit migrate",
+    "migrate:resilient": "dotenv -e ../../.env -- tsx scripts/apply-migrations.ts",
     "push": "dotenv -e ../../.env -- drizzle-kit push",
     "studio": "dotenv -e ../../.env -- drizzle-kit studio",
     "check": "drizzle-kit check",
