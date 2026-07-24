@@ -1,6 +1,8 @@
 'use client';
 
-import { ArrowUp, ExternalLink, Mic, Paperclip, Volume2 } from 'lucide-react';
+import { ArrowUp, ArrowRight, ExternalLink, Mic, Paperclip, Volume2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Card, CardContent, Textarea, toast } from '@/components/ui';
 import { LogoMark } from '@/components/brand/logo';
@@ -40,6 +42,7 @@ export interface AskViewProps {
 export function AskView({ initialQuestion }: AskViewProps = {}) {
   const [question, setQuestion] = useState(initialQuestion ?? '');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
+  const queryClient = useQueryClient();
 
   const trimmed = question.trim();
   const isLoading = phase.kind === 'loading';
@@ -79,6 +82,13 @@ export function AskView({ initialQuestion }: AskViewProps = {}) {
     try {
       const answer = await services.ask.ask(value);
       setPhase({ kind: 'answered', answer });
+      // A command created something real — the tasks/projects lists elsewhere
+      // in the app need to know, not just this screen.
+      if (answer.action?.type === 'task_created') {
+        void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      } else if (answer.action?.type === 'project_created') {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }
     } catch (error) {
       if (isApiError(error) && error.errorCode === 'ai_unconfigured') {
         setPhase({ kind: 'unconfigured' });
@@ -246,6 +256,16 @@ function AnswerCard({ answer }: { answer: AskAnswer }) {
             </Button>
           ) : null}
         </div>
+
+        {answer.action ? (
+          <Link
+            href={answer.action.href}
+            className="text-small text-link inline-flex items-center gap-1.5 font-medium"
+          >
+            {answer.action.type === 'task_created' ? 'View task' : 'View project'}
+            <ArrowRight aria-hidden="true" className="size-3.5" />
+          </Link>
+        ) : null}
 
         {answer.citations.length > 0 ? (
           <section aria-labelledby="ask-sources" className="border-border border-t pt-4">

@@ -127,6 +127,28 @@ describe('ask', () => {
     expect(outcome).toMatchObject({ ok: false, reason: 'unavailable' });
   });
 
+  it('creates a task from a command, without needing a provider at all', async () => {
+    const ctx = await workspaceWithRecord('ask-task-intent@kloyya.test', { id: 'm-1', subject: 'x' });
+
+    const outcome = await ask(db, ctx, 'create a task to review the Q3 budget', null);
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.action).toMatchObject({ type: 'task_created', href: '/tasks' });
+    expect(outcome.result.answer).toContain('review the Q3 budget');
+  });
+
+  it('creates a project from a command', async () => {
+    const ctx = await workspaceWithRecord('ask-project-intent@kloyya.test', { id: 'm-1', subject: 'x' });
+
+    const outcome = await ask(db, ctx, 'start a new project: Atlas Launch', null);
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.action?.type).toBe('project_created');
+    expect(outcome.result.action?.href).toBe(`/projects/${outcome.result.action?.id}`);
+  });
+
   it('does not cross workspaces — one user cannot see another’s records', async () => {
     await workspaceWithRecord('ask-tenant-a@kloyya.test', {
       id: 'm-1',

@@ -1,6 +1,9 @@
 import type { AppDb } from '@kloyya/db/client';
 import type { StartContext } from '../integrations/connect';
 import { AiError, type AiProvider } from '../ai/provider';
+import { createProject } from '../projects/service';
+import { createTask } from '../tasks/service';
+import { detectIntent } from './intent';
 import { retrieveContext, type RetrievedRecord } from './retrieval';
 
 /**
@@ -23,11 +26,20 @@ export interface Citation {
   freshness: string;
 }
 
+/** What Kloyya did, when the question was a command rather than a question. */
+export interface AskAction {
+  type: 'task_created' | 'project_created';
+  id: string;
+  title: string;
+  href: string;
+}
+
 export interface AskResult {
   answer: string;
   citations: Citation[];
   /** "openai:gpt-4o-mini" — which model answered, for the trust surface. */
   model: string;
+  action?: AskAction;
 }
 
 export type AskOutcome =
@@ -97,6 +109,34 @@ function buildUserMessage(question: string, records: RetrievedRecord[]): string 
   );
 }
 
+/**
+ * A command ("create a task to…", "new project called…") is carried out
+ * directly — no model call needed, so it works even with no AI provider
+ * configured, and it's exact rather than a guess.
+ */
+async function actOnIntent(db: AppDb, ctx: StartContext, question: string): Promise<AskResult | null> {
+  const intent = detectIntent(question);
+  if (!intent) return null;
+
+  if (intent.type === 'create_task') {
+    const task = await createTask(db, ctx, { title: intent.title });
+    return {
+      answer: `Created the task “${task.title}”.`,
+      citations: [],
+      model: 'kloyya:intent',
+      action: { type: 'task_created', id: task.id, title: task.title, href: '/tasks' },
+    };
+  }
+
+  const project = await createProject(db, ctx, { name: intent.title });
+  return {
+    answer: `Created the project “${project.name}”.`,
+    citations: [],
+    model: 'kloyya:intent',
+    action: { type: 'project_created', id: project.id, title: project.name, href: `/projects/${project.id}` },
+  };
+}
+
 export async function ask(
   db: AppDb,
   ctx: StartContext,
@@ -104,6 +144,9 @@ export async function ask(
   provider: AiProvider | null,
   fetchImpl?: typeof fetch,
 ): Promise<AskOutcome> {
+  const acted = await actOnIntent(db, ctx, question);
+  if (acted) return { ok: true, result: acted };
+
   // No key for the selected provider: the honest "not set up" answer.
   if (!provider) return { ok: false, reason: 'not_configured' };
 

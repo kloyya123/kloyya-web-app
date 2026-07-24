@@ -22,6 +22,18 @@ export interface AskUsage {
   remaining: number | null;
 }
 
+/**
+ * Present when the question was actually a command Kloyya carried out —
+ * "create a task to…", "new project called…" — rather than a question to
+ * answer. The UI surfaces a link to the thing it made instead of prose only.
+ */
+export interface AskAction {
+  type: 'task_created' | 'project_created';
+  id: string;
+  title: string;
+  href: string;
+}
+
 export interface AskAnswer {
   answer: string;
   citations: AskCitation[];
@@ -29,6 +41,7 @@ export interface AskAnswer {
   model: string;
   /** Present from the real API; the daily-limit counter for Free plans. */
   usage?: AskUsage;
+  action?: AskAction;
 }
 
 export interface AskService {
