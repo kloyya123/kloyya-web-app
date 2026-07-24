@@ -5,6 +5,7 @@ import type {
   CreateDraftInput,
   Draft,
   DraftService,
+  GenerateDraftInput,
   ListDraftsQuery,
   UpdateDraftInput,
 } from './types';
@@ -81,5 +82,22 @@ export class MockDraftService implements DraftService {
       return mockError(API_STATUS.NotFound, 'not_found', 'Draft not found.', 'It may already be gone.', 'Refresh the list.');
     }
     await mockRespond(undefined);
+  }
+
+  /** No real model here — a plausible-looking first pass from the idea, so the
+   *  demo shows the idea → generate → edit flow without a network or API key. */
+  async generate(input: GenerateDraftInput): Promise<Draft> {
+    const ts = now().toISOString();
+    const draft: Draft = {
+      id: `draft-${crypto.randomUUID()}`,
+      type: input.type,
+      title: input.idea.length > 60 ? `${input.idea.slice(0, 57)}...` : input.idea,
+      body: `${input.idea}\n\n(A demo draft — connect a real AI provider to have Kloyya actually write this.)`,
+      status: 'active',
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(draft.id, draft);
+    return (await mockRespond(draft)).data;
   }
 }

@@ -108,6 +108,7 @@ export async function composeSession(
       workStyle: userPreferences.workStyle,
       briefingTime: userPreferences.briefingTime,
       notificationLevel: userPreferences.notificationLevel,
+      aiDraftingEnabled: userPreferences.aiDraftingEnabled,
     })
     .from(users)
     .innerJoin(organizations, eq(organizations.id, users.organizationId))
@@ -146,6 +147,7 @@ export async function composeSession(
       workStyle: row.workStyle,
       briefingTime: row.briefingTime as UserPreferences['briefingTime'],
       notificationLevel: row.notificationLevel,
+      aiDraftingEnabled: row.aiDraftingEnabled,
     },
   };
 }

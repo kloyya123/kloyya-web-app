@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "ai_drafting_enabled" boolean DEFAULT true NOT NULL;

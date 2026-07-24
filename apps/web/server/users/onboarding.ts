@@ -49,6 +49,7 @@ export interface SettingsPatchInput {
         workStyle?: UserPreferences['workStyle'] | undefined;
         briefingTime?: UserPreferences['briefingTime'] | undefined;
         notificationLevel?: UserPreferences['notificationLevel'] | undefined;
+        aiDraftingEnabled?: UserPreferences['aiDraftingEnabled'] | undefined;
       }
     | undefined;
 }
@@ -164,6 +165,9 @@ export async function updateSettings(
         ...(prefs.briefingTime !== undefined ? { briefingTime: prefs.briefingTime } : {}),
         ...(prefs.notificationLevel !== undefined
           ? { notificationLevel: prefs.notificationLevel }
+          : {}),
+        ...(prefs.aiDraftingEnabled !== undefined
+          ? { aiDraftingEnabled: prefs.aiDraftingEnabled }
           : {}),
       };
       // Drizzle rejects an empty SET; `preferences: {}` is a no-op, not an error.

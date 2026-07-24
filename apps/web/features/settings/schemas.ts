@@ -31,6 +31,7 @@ export const settingsSchema = z.object({
   workStyle: z.enum(WORK_STYLES),
   briefingTime: z.enum(BRIEFING_TIMES),
   notificationLevel: z.enum(NOTIFICATION_LEVELS),
+  aiDraftingEnabled: z.boolean(),
 });
 
 export type SettingsValues = z.infer<typeof settingsSchema>;

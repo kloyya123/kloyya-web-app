@@ -65,6 +65,9 @@ export interface UserPreferences {
   workStyle: WorkStyle;
   briefingTime: BriefingTime;
   notificationLevel: NotificationLevel;
+  /** Whether Kloyya may draft from an idea in the Drafts editor. On by default;
+   *  the core version is a single switch — no per-field or style controls yet. */
+  aiDraftingEnabled: boolean;
 }
 
 /**
@@ -83,6 +86,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   workStyle: 'deep_focus',
   briefingTime: '07:00',
   notificationLevel: 'important_only',
+  aiDraftingEnabled: true,
 };
 
 /**

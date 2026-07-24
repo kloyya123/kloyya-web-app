@@ -19,6 +19,7 @@ import {
   RadioGroup,
   Select,
   Skeleton,
+  Switch,
   toast,
 } from '@/components/ui';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
@@ -68,6 +69,7 @@ export function SettingsView() {
       workStyle: session?.preferences.workStyle ?? 'deep_focus',
       briefingTime: session?.preferences.briefingTime ?? '07:00',
       notificationLevel: session?.preferences.notificationLevel ?? 'important_only',
+      aiDraftingEnabled: session?.preferences.aiDraftingEnabled ?? true,
     },
   });
 
@@ -84,6 +86,7 @@ export function SettingsView() {
           workStyle: values.workStyle,
           briefingTime: values.briefingTime,
           notificationLevel: values.notificationLevel,
+          aiDraftingEnabled: values.aiDraftingEnabled,
         },
       });
       // Re-baseline the form, so isDirty is false again after a successful save.
@@ -259,6 +262,29 @@ export function SettingsView() {
             </FormField>
           </div>
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle as="h2">AI-assisted drafting</CardTitle>
+            <CardDescription>
+              Let Kloyya write a first pass in Drafts from an idea you give it. You always review
+              and edit before it&rsquo;s yours.
+            </CardDescription>
+          </div>
+          <Controller
+            control={control}
+            name="aiDraftingEnabled"
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                aria-label="AI-assisted drafting"
+              />
+            )}
+          />
+        </CardHeader>
       </Card>
 
       <ConnectedToolsCard />

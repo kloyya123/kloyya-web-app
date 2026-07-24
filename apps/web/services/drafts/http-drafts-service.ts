@@ -3,6 +3,7 @@ import type {
   CreateDraftInput,
   Draft,
   DraftService,
+  GenerateDraftInput,
   ListDraftsQuery,
   UpdateDraftInput,
 } from './types';
@@ -31,5 +32,9 @@ export class HttpDraftService implements DraftService {
 
   async remove(id: string): Promise<void> {
     await apiFetch<void>(`/v1/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  async generate(input: GenerateDraftInput): Promise<Draft> {
+    return apiFetch<Draft>('/v1/drafts/generate', { method: 'POST', body: input });
   }
 }

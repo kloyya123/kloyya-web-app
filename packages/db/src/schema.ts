@@ -663,6 +663,9 @@ export const userPreferences = pgTable('user_preferences', {
     .default(sql`'{}'::goal[]`),
   workStyle: workStyle('work_style').notNull().default('deep_focus'),
   notificationLevel: notificationLevel('notification_level').notNull().default('important_only'),
+  /** Whether Kloyya may draft from an idea in the Drafts editor. On by default;
+   *  the core version is a single switch — no per-field or style controls yet. */
+  aiDraftingEnabled: boolean('ai_drafting_enabled').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

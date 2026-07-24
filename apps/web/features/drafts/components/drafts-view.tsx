@@ -1,11 +1,12 @@
 'use client';
 
-import { Check, FileText, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Check, FileText, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, EmptyState, Input, Textarea } from '@/components/ui';
+import { Button, EmptyState, Input, Textarea, toast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatRelativeTime } from '@/lib/format';
 import { toErrorPresentation } from '@/lib/error-presentation';
+import { useAuth } from '@/providers/auth-provider';
 import { services, type Draft, type DraftType } from '@/services';
 
 /**
@@ -30,6 +31,7 @@ type SaveState = 'idle' | 'saving' | 'saved';
 const AUTOSAVE_MS = 800;
 
 export function DraftsView() {
+  const { session } = useAuth();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -39,6 +41,9 @@ export function DraftsView() {
   const [body, setBody] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [idea, setIdea] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const select = useCallback((draft: Draft) => {
     setSelectedId(draft.id);
@@ -96,6 +101,26 @@ export function DraftsView() {
     select(created);
   }
 
+  const aiDraftingEnabled = session?.preferences.aiDraftingEnabled ?? false;
+
+  // Give Kloyya an idea, watch it draft, then edit — the created draft is
+  // selected so the user lands straight in the editor, not on a toast.
+  async function generate() {
+    const value = idea.trim();
+    if (value.length === 0 || isGenerating) return;
+    setIsGenerating(true);
+    try {
+      const created = await services.drafts.generate({ type: 'note', idea: value });
+      setDrafts((prev) => [created, ...prev]);
+      select(created);
+      setIdea('');
+    } catch (error) {
+      toast.error(toErrorPresentation(error).title);
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   async function remove(id: string) {
     await services.drafts.remove(id);
     setDrafts((prev) => {
@@ -127,6 +152,34 @@ export function DraftsView() {
           New draft
         </Button>
       </header>
+
+      {aiDraftingEnabled ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void generate();
+          }}
+          className="border-border bg-surface focus-within:border-muted flex items-center gap-2 rounded-lg border p-2"
+        >
+          <Sparkles aria-hidden="true" className="text-primary ml-1 size-4 shrink-0" />
+          <Input
+            value={idea}
+            onChange={(event) => setIdea(event.target.value)}
+            placeholder="Give Kloyya an idea to draft — “a follow-up email to the Acme team about the Q3 timeline”"
+            aria-label="Draft from an idea"
+            className="min-w-0 flex-1 border-0 bg-transparent focus-visible:ring-0"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            isLoading={isGenerating}
+            loadingLabel="Drafting"
+            isDisabled={idea.trim().length === 0}
+          >
+            Draft it
+          </Button>
+        </form>
+      ) : null}
 
       {loading ? (
         <p className="text-small text-subtle">Loading your drafts…</p>

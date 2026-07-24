@@ -36,6 +36,7 @@ const settingsSchema = z.object({
       workStyle: z.enum(WORK_STYLES).optional(),
       briefingTime: z.enum(BRIEFING_TIMES).optional(),
       notificationLevel: z.enum(NOTIFICATION_LEVELS).optional(),
+      aiDraftingEnabled: z.boolean().optional(),
     })
     .optional(),
 });

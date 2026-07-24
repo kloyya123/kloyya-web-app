@@ -39,6 +39,12 @@ export interface UpdateDraftInput {
   status?: DraftStatus;
 }
 
+export interface GenerateDraftInput {
+  type: DraftType;
+  /** The one-line idea Kloyya writes a first pass from. */
+  idea: string;
+}
+
 export interface DraftService {
   list(query?: ListDraftsQuery): Promise<Draft[]>;
   create(input: CreateDraftInput): Promise<Draft>;
@@ -46,4 +52,6 @@ export interface DraftService {
   /** Autosave — a patch. Throws ApiError 404 if the draft is gone. */
   update(id: string, patch: UpdateDraftInput): Promise<Draft>;
   remove(id: string): Promise<void>;
+  /** Throws ApiError — `ai_drafting_disabled` (403) or `ai_unconfigured`/`ai_unavailable` (503). */
+  generate(input: GenerateDraftInput): Promise<Draft>;
 }
