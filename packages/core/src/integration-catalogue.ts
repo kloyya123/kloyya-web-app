@@ -116,6 +116,8 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
   // Documents & knowledge.
   define('google_drive', 'Google Drive', 'documents', 'Indexes the documents your decisions depend on.', 25),
   define('notion', 'Notion', 'documents', 'Turns your workspace pages into organizational memory.', 15),
+  // Team communication.
+  define('slack', 'Slack', 'communication', 'Reads your conversations, threads, and shared documents.', 10),
 ];
 
 

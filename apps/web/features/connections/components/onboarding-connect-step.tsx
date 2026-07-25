@@ -33,13 +33,10 @@ import { IntegrationCard } from './integration-card';
  * starts smarter with them.
  */
 
-/** The spec's groups, mapped onto the catalogue's ids. Order is display order. */
+/** The onboarding tools: 5 real, connectable integrations. Order is display order. */
 const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> = [
-  // The private-beta catalogue, grouped the way the spec presents it. Development
-  // and Business groups are gone with the tools that filled them — an empty
-  // heading is worse than no heading.
-  { label: 'Email', ids: ['gmail', 'outlook'] },
-  { label: 'Calendar', ids: ['google_calendar', 'outlook_calendar'] },
+  { label: 'Communication', ids: ['gmail', 'slack'] },
+  { label: 'Calendar', ids: ['google_calendar'] },
   { label: 'Documents', ids: ['google_drive', 'notion'] },
 ];
 
