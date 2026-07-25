@@ -30,6 +30,7 @@ import {
   PROACTIVENESS_OPTIONS,
   ROLE_OPTIONS,
   STEPS,
+  STUDENT_GOAL_OPTIONS,
 } from '@/lib/preference-options';
 import { onboardingSchema, STEP_FIELDS, type OnboardingValues } from '../schemas';
 import { useOnboardingDraft } from '../use-onboarding-draft';
@@ -309,36 +310,40 @@ export function OnboardingWizard() {
                 <Controller
                   control={control}
                   name="goals"
-                  render={({ field }) => (
-                    <fieldset>
-                      <legend className="text-small text-foreground mb-3 font-medium">
-                        Choose everything that applies.
-                      </legend>
-                      <div className="grid gap-2">
-                        {GOAL_OPTIONS.map((option) => {
-                          const isSelected = field.value.includes(option.value);
-                          return (
-                            <CheckCard
-                              key={option.value}
-                              label={option.label}
-                              description={option.description}
-                              isSelected={isSelected}
-                              onToggle={() =>
-                                field.onChange(
-                                  isSelected
-                                    ? field.value.filter((g: Goal) => g !== option.value)
-                                    : [...field.value, option.value],
-                                )
-                              }
-                            />
-                          );
-                        })}
-                      </div>
-                      <p role="alert" className="text-caption text-critical mt-2">
-                        {errors.goals?.message ?? ''}
-                      </p>
-                    </fieldset>
-                  )}
+                  render={({ field }) => {
+                    const isStudent = form.watch('industry') === 'Student / School';
+                    const goalOptions = isStudent ? STUDENT_GOAL_OPTIONS : GOAL_OPTIONS;
+                    return (
+                      <fieldset>
+                        <legend className="text-small text-foreground mb-3 font-medium">
+                          Choose everything that applies.
+                        </legend>
+                        <div className="grid gap-2">
+                          {goalOptions.map((option) => {
+                            const isSelected = field.value.includes(option.value);
+                            return (
+                              <CheckCard
+                                key={option.value}
+                                label={option.label}
+                                description={option.description}
+                                isSelected={isSelected}
+                                onToggle={() =>
+                                  field.onChange(
+                                    isSelected
+                                      ? field.value.filter((g: Goal) => g !== option.value)
+                                      : [...field.value, option.value],
+                                  )
+                                }
+                              />
+                            );
+                          })}
+                        </div>
+                        <p role="alert" className="text-caption text-critical mt-2">
+                          {errors.goals?.message ?? ''}
+                        </p>
+                      </fieldset>
+                    );
+                  }}
                 />
               ) : null}
 
@@ -346,9 +351,12 @@ export function OnboardingWizard() {
                 <Controller
                   control={control}
                   name="priorities"
-                  render={({ field }) => (
-                    <PrioritiesInput value={field.value} onChange={field.onChange} />
-                  )}
+                  render={({ field }) => {
+                    const isStudent = form.watch('industry') === 'Student / School';
+                    return (
+                      <PrioritiesInput value={field.value} onChange={field.onChange} isStudent={isStudent} />
+                    );
+                  }}
                 />
               ) : null}
 
@@ -483,9 +491,11 @@ function SelectButton({
 function PrioritiesInput({
   value,
   onChange,
+  isStudent = false,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  isStudent?: boolean;
 }) {
   const [draft, setDraft] = useState('');
 
@@ -495,6 +505,11 @@ function PrioritiesInput({
     onChange([...value, trimmed]);
     setDraft('');
   }
+
+  const placeholder = isStudent ? 'e.g. Finish thesis by May' : 'e.g. Close the Series A';
+  const skipMessage = isStudent
+    ? 'Add a few, or skip — you can update your study goals anytime.'
+    : 'Add a few, or skip — you can tell Kloyya your priorities anytime.';
 
   return (
     <div className="space-y-3">
@@ -508,7 +523,7 @@ function PrioritiesInput({
               add();
             }
           }}
-          placeholder="e.g. Close the Series A"
+          placeholder={placeholder}
           aria-label="Add a priority"
         />
         <Button
@@ -542,7 +557,7 @@ function PrioritiesInput({
         </ul>
       ) : (
         <p className="text-caption text-subtle">
-          Add a few, or skip — you can tell Kloyya your priorities anytime.
+          {skipMessage}
         </p>
       )}
     </div>

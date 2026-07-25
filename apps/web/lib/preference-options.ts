@@ -236,6 +236,43 @@ export const FIELD_OF_STUDY_OPTIONS = [
 ] as const;
 
 /**
+ * Goal options customized for students — emphasize learning, research, and
+ * academic organization over business outcomes.
+ */
+export const STUDENT_GOAL_OPTIONS: Option<Goal>[] = [
+  {
+    value: 'organize_knowledge',
+    label: 'Organize what I’m learning',
+    description: 'Turn scattered notes and readings into organized study material.',
+  },
+  {
+    value: 'make_faster_decisions',
+    label: 'Make research decisions faster',
+    description: 'Find and evaluate information quickly for projects and papers.',
+  },
+  {
+    value: 'prepare_for_meetings',
+    label: 'Prepare for class & discussions',
+    description: 'Briefings before class, drawn from your readings and notes.',
+  },
+  {
+    value: 'track_project_risk',
+    label: 'Stay on top of deadlines',
+    description: 'Track assignment due dates and project milestones.',
+  },
+  {
+    value: 'stay_on_top_of_email',
+    label: 'Manage coursework emails',
+    description: 'Separate important coursework messages from the noise.',
+  },
+  {
+    value: 'reduce_meeting_load',
+    label: 'Focus on deep work',
+    description: 'Block time for studying and reduce meeting interruptions.',
+  },
+];
+
+/**
  * The onboarding steps, in order. One question per screen, each with a `why`
  * that says how the answer personalizes Kloyya (a build requirement, not
  * decorative copy).
