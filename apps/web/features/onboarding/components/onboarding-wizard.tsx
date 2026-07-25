@@ -390,22 +390,10 @@ export function OnboardingWizard() {
                   render={({ field }) => (
                     <fieldset className="space-y-4">
                       <legend className="sr-only">Privacy acknowledgement</legend>
-                      <div className="space-y-3 text-small text-muted-foreground">
+                      <div className="text-small text-muted-foreground">
                         <div className="flex gap-2">
                           <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
-                          <p>Your data is encrypted and stored securely on Supabase.</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
-                          <p>We never sell or share your personal information.</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
-                          <p>You can delete your account and data anytime from Settings.</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
-                          <p>Read our full privacy policy on our website.</p>
+                          <p>Your data is securely stored.</p>
                         </div>
                       </div>
                       <label className="flex items-start gap-3 cursor-pointer">
