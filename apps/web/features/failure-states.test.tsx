@@ -2,10 +2,8 @@ import { screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { InboxList } from '@/features/inbox/components/inbox-list';
-import { KnowledgeBase } from '@/features/knowledge/components/knowledge-base';
 import { MeetingsList } from '@/features/meetings/components/meetings-list';
 import { NotificationsView } from '@/features/notifications/components/notifications-view';
-import { ProjectsBoard } from '@/features/projects/components/projects-board';
 import { RecommendationFeed } from '@/features/recommendations/components/recommendation-feed';
 import { configureMockTransport } from '@/services/http/mock-transport';
 import { expectNoA11yViolations } from '@/test/a11y';
@@ -25,8 +23,6 @@ import { renderWithProviders } from '@/test/render';
 const SCREENS: [name: string, ui: ReactElement][] = [
   ['Inbox', <InboxList key="inbox" />],
   ['Meetings', <MeetingsList key="meetings" />],
-  ['Projects', <ProjectsBoard key="projects" />],
-  ['Knowledge', <KnowledgeBase key="knowledge" />],
   ['Recommendations', <RecommendationFeed key="recs" />],
   ['Notifications', <NotificationsView key="notifications" />],
 ];

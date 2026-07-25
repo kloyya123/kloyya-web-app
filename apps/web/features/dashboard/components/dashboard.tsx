@@ -80,9 +80,6 @@ export function Dashboard() {
               <Link href="/drafts">New draft</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/projects">New project</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
               <Link href="/meetings">New meeting</Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
