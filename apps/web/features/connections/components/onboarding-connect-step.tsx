@@ -33,9 +33,9 @@ import { IntegrationCard } from './integration-card';
  * starts smarter with them.
  */
 
-/** The onboarding tools: 5 real, connectable integrations. Order is display order. */
+/** The onboarding tools: 4 real, connectable integrations. Order is display order. */
 const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> = [
-  { label: 'Communication', ids: ['gmail', 'slack'] },
+  { label: 'Email', ids: ['gmail'] },
   { label: 'Calendar', ids: ['google_calendar'] },
   { label: 'Documents', ids: ['google_drive', 'notion'] },
 ];
