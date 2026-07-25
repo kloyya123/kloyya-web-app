@@ -96,7 +96,7 @@ export function AskBox() {
   }
 
   return (
-    <Card className="space-y-4 p-6">
+    <Card className="space-y-4 p-6" data-tour="ask-box">
       <div className="flex items-center gap-2.5">
         <LogoMark decorative animated className="size-6" />
         <h2 className="text-title text-foreground font-semibold">Ask Kloyya anything</h2>

@@ -24,8 +24,11 @@ import { toErrorPresentation } from '@/lib/error-presentation';
 import { useDashboard } from '@/hooks/use-intelligence';
 import { useAuth } from '@/providers/auth-provider';
 import { services } from '@/services';
+import { useDashboardIntroState } from '../hooks/use-dashboard-intro-state';
 import { AskBox } from './ask-box';
 import { ConnectedSourcesCard } from './connected-sources-card';
+import { DashboardIntro } from './dashboard-intro';
+import { DashboardTour } from './dashboard-tour';
 import { KloyyaTipCard, productivityTip } from './kloyya-tip-card';
 import { RecentActivityCard } from './recent-activity-card';
 import { RecentMessagesCard } from './recent-messages-card';
@@ -46,9 +49,13 @@ const WORKDAY_HOURS = 8;
 export function Dashboard() {
   const { session } = useAuth();
   const firstName = session?.user.fullName.split(' ').at(0) ?? 'there';
+  const { hasSeenIntro, hasSeenTour, dismissIntro, completeTour } = useDashboardIntroState();
 
   return (
-    <div className="space-y-6">
+    <>
+      <DashboardIntro onDismiss={dismissIntro} />
+      <DashboardTour isVisible={hasSeenIntro && !hasSeenTour} onComplete={completeTour} />
+      <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-heading-m text-foreground font-semibold">
@@ -93,7 +100,8 @@ export function Dashboard() {
           Trust Centre
         </Link>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
