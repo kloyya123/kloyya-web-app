@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, BarChart3, Calendar, CheckSquare, MessageSquare, Search } from 'lucide-react';
+import { ArrowRight, Calendar, CheckSquare, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui';
@@ -26,22 +26,10 @@ const QUICK_LINKS: QuickLink[] = [
     icon: <Calendar className="size-5" />,
   },
   {
-    href: '/projects',
-    label: 'Projects',
-    description: 'What you are working on',
-    icon: <BarChart3 className="size-5" />,
-  },
-  {
     href: '/tasks',
     label: 'Tasks',
     description: 'Your priorities and deadlines',
     icon: <CheckSquare className="size-5" />,
-  },
-  {
-    href: '/knowledge',
-    label: 'Knowledge',
-    description: 'What Kloyya has learned',
-    icon: <Search className="size-5" />,
   },
   {
     href: '/ask',
