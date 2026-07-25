@@ -75,14 +75,14 @@ export function SignUpForm() {
             )}
           </FormField>
 
-          <FormField label="Work email" error={errors.email?.message} isRequired>
+          <FormField label="Email" error={errors.email?.message} isRequired>
             {(field) => (
               <Input
                 {...field}
                 {...register('email')}
                 type="email"
                 autoComplete="username"
-                placeholder="you@company.com"
+                placeholder="you@example.com"
                 leadingIcon={<Mail />}
                 isInvalid={Boolean(errors.email)}
               />

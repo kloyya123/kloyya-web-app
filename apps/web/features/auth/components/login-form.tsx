@@ -73,14 +73,14 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           <FormError error={submitError} />
 
-          <FormField label="Work email" error={errors.email?.message} isRequired>
+          <FormField label="Email" error={errors.email?.message} isRequired>
             {(field) => (
               <Input
                 {...field}
                 {...register('email')}
                 type="email"
                 autoComplete="username"
-                placeholder="you@company.com"
+                placeholder="you@example.com"
                 leadingIcon={<Mail />}
                 isInvalid={Boolean(errors.email)}
               />

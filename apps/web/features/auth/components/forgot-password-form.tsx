@@ -54,7 +54,7 @@ export function ForgotPasswordForm() {
       <CardHeader className="flex-col items-start gap-1">
         <CardTitle as="h1">Reset your password</CardTitle>
         <CardDescription>
-          Enter your work email and we&rsquo;ll send you a link to set a new password.
+          Enter your email and we&rsquo;ll send you a link to set a new password.
         </CardDescription>
       </CardHeader>
 
@@ -62,14 +62,14 @@ export function ForgotPasswordForm() {
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           <FormError error={submitError} />
 
-          <FormField label="Work email" error={errors.email?.message} isRequired>
+          <FormField label="Email" error={errors.email?.message} isRequired>
             {(field) => (
               <Input
                 {...field}
                 {...register('email')}
                 type="email"
                 autoComplete="username"
-                placeholder="you@company.com"
+                placeholder="you@example.com"
                 leadingIcon={<Mail />}
                 isInvalid={Boolean(errors.email)}
               />
