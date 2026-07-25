@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Info, Plus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Info, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -24,7 +24,9 @@ import { useAuth } from '@/providers/auth-provider';
 import type { Goal } from '@/services/auth/types';
 import { FormError } from '@/features/auth/components/form-error';
 import {
+  FIELD_OF_STUDY_OPTIONS,
   GOAL_OPTIONS,
+  INDUSTRY_OPTIONS,
   PROACTIVENESS_OPTIONS,
   ROLE_OPTIONS,
   STEPS,
@@ -33,16 +35,15 @@ import { onboardingSchema, STEP_FIELDS, type OnboardingValues } from '../schemas
 import { useOnboardingDraft } from '../use-onboarding-draft';
 
 /**
- * The private-beta onboarding — fast, guided, one question per screen.
+ * The private-beta onboarding — comprehensive personalization in 8 steps.
  *
- * The user's name arrives from sign-up, so the wizard never asks for it; it only
- * personalizes (role, what to help with, priorities, proactiveness). Each step
- * still explains *why* it asks — that transparency is what makes this a
- * conversation rather than a form — but the whole thing is meant to take a
- * minute, not five.
+ * Covers welcome, name confirmation, role, industry (with student field-of-study
+ * branch), goals, priorities, proactiveness, and privacy acknowledgement. Each
+ * step explains *why* it asks — that transparency is what makes this a
+ * conversation rather than a form.
  *
- * There is no plan step: nothing is for sale until a processor that accepts
- * Zambian cards is in place, so `plan` is submitted as 'free' for everyone.
+ * Students get customized priority options and tool suggestions. The plan step
+ * is hidden until billing exists — everyone is provisioned on 'free' for now.
  */
 export function OnboardingWizard() {
   const router = useRouter();
@@ -62,9 +63,12 @@ export function OnboardingWizard() {
     defaultValues: {
       fullName: '',
       role: '',
+      industry: '',
+      fieldOfStudy: undefined,
       goals: [],
       priorities: [],
       proactiveness: 'balanced',
+      privacyAcknowledged: false,
       plan: 'free',
     },
   });
@@ -175,6 +179,36 @@ export function OnboardingWizard() {
               transition={{ duration: DURATION.normal, ease: EASE.out }}
               className="space-y-5"
             >
+              {step.id === 'welcome' ? (
+                <div className="text-center py-8">
+                  <p className="text-lg text-foreground mb-4">
+                    Let&apos;s personalize your AI Chief of Staff in under 5 minutes.
+                  </p>
+                </div>
+              ) : null}
+
+              {step.id === 'name' ? (
+                <Controller
+                  control={control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <fieldset>
+                      <legend className="sr-only">Your name</legend>
+                      <Input
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="e.g. Alex Chen"
+                        aria-label="Enter your name"
+                        autoFocus
+                      />
+                      <p role="alert" className="text-caption text-critical mt-2">
+                        {errors.fullName?.message ?? ''}
+                      </p>
+                    </fieldset>
+                  )}
+                />
+              ) : null}
+
               {step.id === 'role' ? (
                 <Controller
                   control={control}
@@ -204,6 +238,67 @@ export function OnboardingWizard() {
                         <p role="alert" className="text-caption text-critical mt-2">
                           {errors.role?.message ?? ''}
                         </p>
+                      </fieldset>
+                    );
+                  }}
+                />
+              ) : null}
+
+              {step.id === 'industry' ? (
+                <Controller
+                  control={control}
+                  name="industry"
+                  render={({ field }) => {
+                    const isCustom = field.value !== '' && !(INDUSTRY_OPTIONS as readonly string[]).includes(field.value);
+                    return (
+                      <fieldset>
+                        <legend className="sr-only">Your industry</legend>
+                        <div className="grid grid-cols-2 gap-2">
+                          {INDUSTRY_OPTIONS.map((option) => (
+                            <SelectButton
+                              key={option}
+                              label={option}
+                              isSelected={field.value === option}
+                              onSelect={() => {
+                                field.onChange(option);
+                                if (option !== 'Student / School') {
+                                  form.setValue('fieldOfStudy', undefined);
+                                }
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <Input
+                          className="mt-3"
+                          value={isCustom ? field.value : ''}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          placeholder="Or type your own…"
+                          aria-label="Type your own industry"
+                        />
+                        <p role="alert" className="text-caption text-critical mt-2">
+                          {errors.industry?.message ?? ''}
+                        </p>
+
+                        {field.value === 'Student / School' && (
+                          <fieldset className="mt-6 pt-6 border-t border-border">
+                            <legend className="text-small text-foreground mb-3 font-medium">
+                              What are you studying?
+                            </legend>
+                            <div className="grid grid-cols-2 gap-2">
+                              {FIELD_OF_STUDY_OPTIONS.map((option) => (
+                                <SelectButton
+                                  key={option}
+                                  label={option}
+                                  isSelected={form.watch('fieldOfStudy') === option}
+                                  onSelect={() => form.setValue('fieldOfStudy', option)}
+                                />
+                              ))}
+                            </div>
+                            <p role="alert" className="text-caption text-critical mt-2">
+                              {errors.fieldOfStudy?.message ?? ''}
+                            </p>
+                          </fieldset>
+                        )}
                       </fieldset>
                     );
                   }}
@@ -275,6 +370,51 @@ export function OnboardingWizard() {
                           />
                         ))}
                       </RadioGroup>
+                    </fieldset>
+                  )}
+                />
+              ) : null}
+
+              {step.id === 'privacy' ? (
+                <Controller
+                  control={control}
+                  name="privacyAcknowledged"
+                  render={({ field }) => (
+                    <fieldset className="space-y-4">
+                      <legend className="sr-only">Privacy acknowledgement</legend>
+                      <div className="space-y-3 text-small text-muted-foreground">
+                        <div className="flex gap-2">
+                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
+                          <p>Your data is encrypted and stored securely on Supabase.</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
+                          <p>We never sell or share your personal information.</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
+                          <p>You can delete your account and data anytime from Settings.</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <CheckCircle2 className="text-notice size-5 shrink-0 mt-0.5" />
+                          <p>Read our full privacy policy on our website.</p>
+                        </div>
+                      </div>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="mt-1"
+                          aria-label="I understand and acknowledge our privacy practices"
+                        />
+                        <span className="text-small text-foreground">
+                          I understand and acknowledge Kloyya&apos;s privacy practices
+                        </span>
+                      </label>
+                      <p role="alert" className="text-caption text-critical">
+                        {errors.privacyAcknowledged?.message ?? ''}
+                      </p>
                     </fieldset>
                   )}
                 />

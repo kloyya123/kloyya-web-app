@@ -89,7 +89,16 @@ export async function exchangeNotionCode(params: {
     }),
   });
 
-  const body = (await response.json()) as NotionTokenResponse;
+  let body: NotionTokenResponse;
+  try {
+    body = (await response.json()) as NotionTokenResponse;
+  } catch {
+    const text = await response.text();
+    throw new Error(
+      `Notion token exchange failed (${response.status}): ${text.slice(0, 200)}`,
+    );
+  }
+
   if (body.error || !body.access_token) {
     // Never echo the body — it carries the code, and the header carried the secret.
     throw new Error(`Notion refused the token exchange: ${body.error ?? 'no access_token'}`);

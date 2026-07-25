@@ -20,8 +20,8 @@ import type {
  * optional copy — it is the requirement. Keeping it beside each option means a
  * new question cannot be added without answering "why are we asking?"
  *
- * Design Manifesto tone: advisory, never commanding. "Kloyya uses this to…",
- * not "We need this to…".
+ * Design Manifesto tone: advisory, never commanding. "Kloyya uses this to...",
+ * not "We need this to...".
  */
 
 export interface Option<T extends string> {
@@ -49,7 +49,7 @@ export const GOAL_OPTIONS: Option<Goal>[] = [
   {
     value: 'stay_on_top_of_email',
     label: 'Stay on top of email',
-    description: 'The threads that need you, separated from the ones that don’t.',
+    description: 'The threads that need you, separated from the ones that do not.',
   },
   {
     value: 'reduce_meeting_load',
@@ -64,10 +64,10 @@ export const GOAL_OPTIONS: Option<Goal>[] = [
 ];
 
 export const TEAM_SIZE_OPTIONS: Option<TeamSize>[] = [
-  { value: '1-10', label: '1–10 people' },
-  { value: '11-50', label: '11–50 people' },
-  { value: '51-200', label: '51–200 people' },
-  { value: '201-1000', label: '201–1,000 people' },
+  { value: '1-10', label: '1-10 people' },
+  { value: '11-50', label: '11-50 people' },
+  { value: '51-200', label: '51-200 people' },
+  { value: '201-1000', label: '201-1,000 people' },
   { value: '1000+', label: 'More than 1,000 people' },
 ];
 
@@ -118,21 +118,18 @@ export const NOTIFICATION_LEVEL_OPTIONS: Option<NotificationLevel>[] = [
 /**
  * Roles for the onboarding "who are you" step. Presented as a card grid, with an
  * "Other" free-text escape hatch — role is stored as free-form text, so a title
- * we didn't list is a first-class answer, not a fallback.
+ * we did not list is a first-class answer, not a fallback.
  */
 export const ROLE_OPTIONS = [
-  'Founder',
-  'Executive',
-  'Manager',
-  'Software Engineering',
-  'Product',
-  'Design',
-  'Marketing',
-  'Sales',
-  'Operations',
-  'Finance',
-  'Consulting',
   'Student',
+  'Founder',
+  'Business Owner',
+  'Professional',
+  'Freelancer',
+  'Researcher',
+  'Educator',
+  'Executive',
+  'Consultant',
 ] as const;
 
 export const PROACTIVENESS_OPTIONS: Option<Proactiveness>[] = [
@@ -202,29 +199,67 @@ export const PLAN_OPTIONS: PlanOption[] = [
 ];
 
 export const INDUSTRY_OPTIONS = [
-  'Industrial Automation',
-  'Software & Technology',
-  'Financial Services',
+  'Technology',
+  'Education',
+  'Finance',
   'Healthcare',
-  'Professional Services',
+  'Marketing & Advertising',
+  'Sales',
   'Manufacturing',
-  'Retail & Consumer',
-  'Energy & Utilities',
-  'Public Sector',
+  'Retail & E-commerce',
+  'Government',
+  'Legal',
+  'Media & Entertainment',
+  'Engineering',
+  'Science & Research',
+  'Nonprofit',
+  'Hospitality & Tourism',
+  'Real Estate',
+  'Agriculture',
+  'Construction',
+  'Student / School',
+  'Other',
+] as const;
+
+export const FIELD_OF_STUDY_OPTIONS = [
+  'Business',
+  'Computer Science',
+  'Engineering',
+  'Medicine',
+  'Law',
+  'Arts & Design',
+  'Education',
+  'Science',
+  'Mathematics',
+  'Economics',
   'Other',
 ] as const;
 
 /**
- * The onboarding steps, in order — the fast, guided personalization the beta
- * spec asks for. One question per screen, each with a `why` that says how the
- * answer personalizes Kloyya (a build requirement, not decorative copy). The
- * user's name comes from sign-up, so onboarding never asks for it again.
+ * The onboarding steps, in order. One question per screen, each with a `why`
+ * that says how the answer personalizes Kloyya (a build requirement, not
+ * decorative copy).
  */
 export const STEPS = [
   {
+    id: 'welcome',
+    title: 'Welcome to Kloyya',
+    why: "Let's personalize your AI Chief of Staff in under 5 minutes.",
+  },
+  {
+    id: 'name',
+    title: 'What would you like Kloyya to call you?',
+    why: 'Kloyya personalizes every interaction with you by name.',
+  },
+  {
     id: 'role',
-    title: 'What best describes your role?',
+    title: 'Who are you?',
     why: 'Your role decides what Kloyya puts first. A founder and an engineer see different things on the same project.',
+  },
+  {
+    id: 'industry',
+    title: "What's your industry or field?",
+    why: 'Kloyya uses this to understand your domain and surface relevant insights.',
   },
   {
     id: 'help',
@@ -234,16 +269,18 @@ export const STEPS = [
   {
     id: 'priorities',
     title: 'What are your top priorities right now?',
-    why: 'Kloyya keeps these in view and weighs today’s work against them.',
+    why: 'Kloyya keeps these in view and weighs today\'s work against them.',
   },
   {
     id: 'proactiveness',
     title: 'How proactive should Kloyya be?',
     why: 'This sets when Kloyya speaks up and when it stays quiet. You can change it anytime.',
   },
-  // The plan step is deliberately absent: no payment processor accepts Zambian
-  // cards yet, so showing prices would advertise something nobody can buy.
-  // Everyone is provisioned on `free`. Restore this step alongside billing.
+  {
+    id: 'privacy',
+    title: 'Privacy & Trust',
+    why: 'We take your data security seriously. Here\'s what you should know.',
+  },
 ] as const;
 
 export type StepId = (typeof STEPS)[number]['id'];
