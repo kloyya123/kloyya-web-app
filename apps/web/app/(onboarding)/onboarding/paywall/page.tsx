@@ -1,12 +1,16 @@
-import type { Metadata } from 'next';
-import { Paywall } from '@/features/billing/components/paywall';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Start Pro',
-  description: 'Add a payment method to start your Kloyya Pro plan.',
-  robots: { index: false, follow: false },
-};
-
-export default function PaywallPage() {
-  return <Paywall />;
+/**
+ * The paywall is switched off.
+ *
+ * No payment processor accepts Zambian cards yet, so there is nothing to sell
+ * and nothing to charge; asking for a card here would collect details we cannot
+ * act on. Anyone who reaches this URL — an old bookmark, a stale link — is sent
+ * on to the next real step instead of a dead end.
+ *
+ * The `Paywall` component still exists and is still tested. Restore this page to
+ * `return <Paywall />` when billing is live.
+ */
+export default function PaywallPage(): never {
+  redirect('/onboarding/connect-tools');
 }

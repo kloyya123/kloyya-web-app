@@ -241,11 +241,9 @@ export const STEPS = [
     title: 'How proactive should Kloyya be?',
     why: 'This sets when Kloyya speaks up and when it stays quiet. You can change it anytime.',
   },
-  {
-    id: 'plan',
-    title: 'Choose your plan',
-    why: 'Start free and upgrade whenever you like. No payment is taken during the beta.',
-  },
+  // The plan step is deliberately absent: no payment processor accepts Zambian
+  // cards yet, so showing prices would advertise something nobody can buy.
+  // Everyone is provisioned on `free`. Restore this step alongside billing.
 ] as const;
 
 export type StepId = (typeof STEPS)[number]['id'];

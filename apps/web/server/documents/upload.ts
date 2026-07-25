@@ -63,8 +63,10 @@ export async function assertUnderDocumentCap(db: AppDb, ctx: StartContext): Prom
       httpStatus: API_STATUS.Forbidden,
       errorCode: 'document_limit_reached',
       message: 'You’ve reached your plan’s document limit.',
-      description: `Your plan allows ${max} documents. Remove one, or upgrade for unlimited.`,
-      suggestedResolution: 'Delete a document, or upgrade to Pro.',
+      // No "upgrade" prompt while billing is off — see the same note on the Ask
+      // limit. Restore both with the paywall.
+      description: `Your plan allows ${max} documents. Remove one to make room.`,
+      suggestedResolution: 'Delete a document you no longer need, then try again.',
     });
   }
 }

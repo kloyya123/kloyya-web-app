@@ -55,5 +55,6 @@ export const STEP_FIELDS = {
   help: ['goals'],
   priorities: ['priorities'],
   proactiveness: ['proactiveness'],
-  plan: ['plan'],
+  // No `plan` entry: the plan step is hidden until billing exists. `plan` is
+  // still part of the submitted values, defaulted to 'free' by the wizard.
 } as const satisfies Record<string, ReadonlyArray<keyof OnboardingValues>>;

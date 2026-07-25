@@ -35,7 +35,9 @@ export const POST = kasRoute('verified', async (req, ctx) => {
       errorCode: 'ask_limit_reached',
       message: 'You’ve reached today’s Ask Kloyya limit.',
       description: `Your plan allows ${limit} questions a day. It resets at midnight UTC.`,
-      suggestedResolution: 'Upgrade to Pro for unlimited questions, or try again tomorrow.',
+      // No "upgrade" prompt while billing is off — pointing at a plan nobody can
+      // buy is a dead end. Restore it with the paywall.
+      suggestedResolution: 'Try again tomorrow, or ask a broader question to cover more ground.',
     });
   }
 

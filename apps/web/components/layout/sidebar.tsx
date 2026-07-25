@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleHelp, Settings, Sparkles } from 'lucide-react';
+import { CircleHelp, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo, LogoMark } from '@/components/brand/logo';
@@ -59,20 +59,9 @@ export function Sidebar({ className }: { className?: string }) {
         />
       </div>
 
-      <div className="px-3 pb-4">
-        <Link
-          href="/settings"
-          className="border-border hover:border-primary/40 flex items-center gap-3 rounded-lg border p-3 transition-colors"
-        >
-          <span className="bg-primary/10 text-primary inline-flex size-8 shrink-0 items-center justify-center rounded-full">
-            <Sparkles aria-hidden="true" className="size-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="text-small text-foreground block font-medium">Upgrade plan</span>
-            <span className="text-caption text-subtle block">Unlock more features</span>
-          </span>
-        </Link>
-      </div>
+      {/* The reference design has an "Upgrade plan" card here. It is omitted
+          until billing exists — an upgrade prompt that cannot be completed is
+          worse than no prompt. Restore it with the paywall. */}
     </nav>
   );
 }

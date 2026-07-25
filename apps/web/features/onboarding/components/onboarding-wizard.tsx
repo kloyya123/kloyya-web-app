@@ -25,7 +25,6 @@ import type { Goal } from '@/services/auth/types';
 import { FormError } from '@/features/auth/components/form-error';
 import {
   GOAL_OPTIONS,
-  PLAN_OPTIONS,
   PROACTIVENESS_OPTIONS,
   ROLE_OPTIONS,
   STEPS,
@@ -37,10 +36,13 @@ import { useOnboardingDraft } from '../use-onboarding-draft';
  * The private-beta onboarding — fast, guided, one question per screen.
  *
  * The user's name arrives from sign-up, so the wizard never asks for it; it only
- * personalizes (role, what to help with, priorities, proactiveness) and offers a
- * plan. Each step still explains *why* it asks — that transparency is what makes
- * this a conversation rather than a form — but the whole thing is meant to take a
+ * personalizes (role, what to help with, priorities, proactiveness). Each step
+ * still explains *why* it asks — that transparency is what makes this a
+ * conversation rather than a form — but the whole thing is meant to take a
  * minute, not five.
+ *
+ * There is no plan step: nothing is for sale until a processor that accepts
+ * Zambian cards is in place, so `plan` is submitted as 'free' for everyone.
  */
 export function OnboardingWizard() {
   const router = useRouter();
@@ -115,10 +117,10 @@ export function OnboardingWizard() {
     try {
       await completeOnboarding(values);
       clearDraft();
-      // Personalization done → connect tools, then build the workspace.
-      // The paywall is hidden for now (billing not yet activated), so everyone —
-      // including a Pro pick — goes straight to connecting tools. When billing is
-      // switched on, route a Pro pick to '/onboarding/paywall' again.
+      // Personalization done → connect tools, then build the workspace. Nobody
+      // passes through a paywall: there is no plan to pick and nothing to charge
+      // until billing exists. Route a Pro pick to '/onboarding/paywall' again
+      // once it does.
       router.replace('/onboarding/connect-tools');
     } catch (error) {
       setSubmitError(error);
@@ -278,27 +280,6 @@ export function OnboardingWizard() {
                 />
               ) : null}
 
-              {step.id === 'plan' ? (
-                <Controller
-                  control={control}
-                  name="plan"
-                  render={({ field }) => (
-                    <fieldset>
-                      <legend className="sr-only">Choose your plan</legend>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {PLAN_OPTIONS.map((plan) => (
-                          <PlanCard
-                            key={plan.value}
-                            plan={plan}
-                            isSelected={field.value === plan.value}
-                            onSelect={() => field.onChange(plan.value)}
-                          />
-                        ))}
-                      </div>
-                    </fieldset>
-                  )}
-                />
-              ) : null}
             </motion.div>
           </AnimatePresence>
 
@@ -425,69 +406,5 @@ function PrioritiesInput({
         </p>
       )}
     </div>
-  );
-}
-
-/** A selectable plan card for the final step. */
-function PlanCard({
-  plan,
-  isSelected,
-  onSelect,
-}: {
-  plan: (typeof PLAN_OPTIONS)[number];
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  const discounted = plan.discount ? Math.round(plan.priceUsd * (1 - plan.discount)) : plan.priceUsd;
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={isSelected}
-      className={cn(
-        'flex flex-col gap-3 rounded-md border p-4 text-left transition-colors duration-150',
-        isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-muted',
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-body text-foreground font-semibold">{plan.name}</span>
-        {plan.highlighted ? (
-          <span className="bg-primary/15 text-primary text-caption rounded-full px-2 py-0.5 font-medium">
-            Popular
-          </span>
-        ) : null}
-      </div>
-
-      <div className="flex items-baseline gap-2">
-        {plan.priceUsd === 0 ? (
-          <span className="text-h3 text-foreground font-semibold">Free</span>
-        ) : (
-          <>
-            <span className="text-h3 text-foreground font-semibold">${discounted}</span>
-            <span className="text-caption text-subtle">/mo</span>
-            {plan.discount ? (
-              <>
-                <span className="text-caption text-subtle line-through">${plan.priceUsd}</span>
-                <span className="text-notice text-caption font-medium">
-                  {Math.round(plan.discount * 100)}% off
-                </span>
-              </>
-            ) : null}
-          </>
-        )}
-      </div>
-
-      <p className="text-caption text-muted-foreground">{plan.tagline}</p>
-
-      <ul className="mt-1 space-y-1.5">
-        {plan.features.map((feature) => (
-          <li key={feature} className="text-caption text-muted-foreground flex items-start gap-1.5">
-            <Check aria-hidden="true" className="text-primary mt-0.5 size-3.5 shrink-0" />
-            {feature}
-          </li>
-        ))}
-      </ul>
-    </button>
   );
 }
