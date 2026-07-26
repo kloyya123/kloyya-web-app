@@ -36,3 +36,14 @@ claude-session.txt/
 # Agent tooling (regenerable via `npx skills add`)
 .agents/
 skills-lock.json
+
+# Vercel CLI: link metadata, and the .env.local it writes when you `vercel link`
+# or `vercel env pull` — that file holds real production secrets.
+.vercel
+
+# Every env file EXCEPT the committed template. Written as an allowlist so a
+# new .env.<something> is ignored by default rather than by remembering to add
+# it; .env.example is the one file that must stay tracked.
+.env
+.env.*
+!.env.example
