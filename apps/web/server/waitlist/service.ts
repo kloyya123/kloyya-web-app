@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db/client';
 import { waitlist } from '@kloyya/db/schema';
+import type { EmailSender } from '../email/sender';
+import { waitlistConfirmationEmail } from '../email/templates';
 
 /**
  * The private-beta waiting list.
@@ -57,6 +59,30 @@ export async function joinWaitlist(
     .returning({ inserted: sql<boolean>`(xmax = 0)` });
 
   return { isNew: rows[0]?.inserted ?? false };
+}
+
+/**
+ * Send the "you're on the list" receipt.
+ *
+ * A form that says "you're on the list" and then goes quiet is indistinguishable
+ * from a form that lost the submission. The email is the proof it worked.
+ *
+ * Best-effort, like the audience write: the address is already recorded, and
+ * failing the request because a mail provider hiccuped would lose a signup to
+ * protect a receipt. Sent only on a genuinely new row so that submitting twice
+ * does not send twice — the HTTP response stays identical either way, so this
+ * leaks nothing to whoever is at the keyboard.
+ */
+export async function sendWaitlistConfirmation(
+  email: string,
+  sender: EmailSender,
+): Promise<void> {
+  try {
+    const message = waitlistConfirmationEmail();
+    await sender.send({ ...message, to: normaliseEmail(email) });
+  } catch (error) {
+    console.warn('[waitlist] confirmation email failed to send', error);
+  }
 }
 
 /**

@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitlist } from '@kloyya/db/schema';
 import type { AppDb } from '@kloyya/db/client';
 import { createTestDb } from '../test/harness';
-import { addToResendAudience, joinWaitlist, normaliseEmail } from './service';
+import type { EmailMessage, EmailSender } from '../email/sender';
+import {
+  addToResendAudience,
+  joinWaitlist,
+  normaliseEmail,
+  sendWaitlistConfirmation,
+} from './service';
 
 describe('normaliseEmail', () => {
   it('lower-cases and trims, so one person is one row', () => {
@@ -100,5 +106,47 @@ describe('addToResendAudience', () => {
         fetchImpl: fetchImpl as unknown as typeof fetch,
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('sendWaitlistConfirmation', () => {
+  /** A sender that records instead of delivering. */
+  function recorder(): { sender: EmailSender; sent: EmailMessage[] } {
+    const sent: EmailMessage[] = [];
+    return {
+      sent,
+      sender: {
+        async send(message) {
+          sent.push(message);
+        },
+      },
+    };
+  }
+
+  it('addresses the receipt to the normalised address', async () => {
+    const { sender, sent } = recorder();
+    await sendWaitlistConfirmation('  Person@Example.COM ', sender);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.to).toBe('person@example.com');
+    expect(sent[0]?.subject).toContain('on the list');
+    // Both parts are required — some clients refuse HTML outright.
+    expect(sent[0]?.html.length).toBeGreaterThan(0);
+    expect(sent[0]?.text.length).toBeGreaterThan(0);
+  });
+
+  it('promises only the invitation, never a date we cannot keep', async () => {
+    const { sender, sent } = recorder();
+    await sendWaitlistConfirmation('a@example.com', sender);
+    expect(sent[0]?.text).toContain('next email you get from us will be your invitation');
+  });
+
+  it('swallows a sender failure — the signup is already recorded', async () => {
+    const failing: EmailSender = {
+      async send() {
+        throw new Error('provider down');
+      },
+    };
+    await expect(sendWaitlistConfirmation('a@example.com', failing)).resolves.toBeUndefined();
   });
 });

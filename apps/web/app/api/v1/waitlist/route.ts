@@ -5,7 +5,12 @@ import { ok } from '@server/http/envelope';
 import { API_STATUS, ApiError } from '@server/http/errors';
 import { publicRoute } from '@server/http/handler';
 import { checkRateLimit } from '@server/http/rate-limit';
-import { addToResendAudience, joinWaitlist } from '@server/waitlist/service';
+import { resolveEmailSender } from '@server/email/resend';
+import {
+  addToResendAudience,
+  joinWaitlist,
+  sendWaitlistConfirmation,
+} from '@server/waitlist/service';
 
 /**
  * Join the private-beta waiting list.
@@ -72,15 +77,21 @@ export const POST = publicRoute(async (req, ctx) => {
 
   const { email, source } = body.parse(await req.json());
 
-  await joinWaitlist(ctx.db, email, source ?? 'landing');
+  const { isNew } = await joinWaitlist(ctx.db, email, source ?? 'landing');
 
-  // Best-effort mirror into the mailing audience. Awaited so a serverless
-  // function is not frozen mid-flight, but its failure never fails the request —
-  // the database already holds the record.
+  // Both side effects are awaited so a serverless function is not frozen
+  // mid-flight, and both swallow their own failures — the database already
+  // holds the record, and losing a signup to protect a receipt would be the
+  // wrong trade.
   await addToResendAudience(email, {
     apiKey: config.RESEND_API_KEY,
     audienceId: config.RESEND_AUDIENCE_ID,
   });
+
+  // Only on a genuinely new row, so submitting twice does not send twice. The
+  // HTTP response below is identical either way, so this leaks nothing about
+  // whether the address was already known.
+  if (isNew) await sendWaitlistConfirmation(email, resolveEmailSender());
 
   // Identical response for a new and an existing address. See the note above.
   return NextResponse.json(
