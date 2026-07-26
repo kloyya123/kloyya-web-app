@@ -266,6 +266,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.2.17
         version: 0.2.17
+      '@supabase/supabase-js':
+        specifier: ^2.110.7
+        version: 2.110.7
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
