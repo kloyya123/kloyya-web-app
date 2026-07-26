@@ -5,6 +5,7 @@ import { kasRoute } from '@server/http/handler';
 import { ok } from '@server/http/envelope';
 import { API_STATUS, ApiError, errors } from '@server/http/errors';
 import { extractText } from '@server/documents/extract';
+import { assertAllowedMimeType } from '@server/documents/mime';
 import { createDocument, listDocuments } from '@server/documents/service';
 import { readTier } from '@server/plan/tier';
 import { StorageUnconfiguredError } from '@server/storage/provider';
@@ -73,8 +74,18 @@ export const POST = kasRoute('verified', async (req, ctx) => {
 
 /** The signed-URL finalize: bytes are already in storage; read, extract, land. */
 async function finalizeSignedUpload(req: Request, db: AppDb, start: StartContext) {
-  const { path, filename, mimeType } = finalizeBody.parse(await req.json());
+  const { path, filename, mimeType: declaredType } = finalizeBody.parse(await req.json());
   assertOwnedPath(start, path);
+  // The bytes are already in storage at this point, so a rejected type has to be
+  // swept up rather than merely refused — otherwise a caller could park arbitrary
+  // content in the bucket by starting an upload and never finalising it.
+  let mimeType: string;
+  try {
+    mimeType = assertAllowedMimeType(declaredType, filename);
+  } catch (error) {
+    await storage().remove(path).catch(() => {});
+    throw error;
+  }
 
   const store = storage();
   let bytes: Buffer;
@@ -121,9 +132,11 @@ async function handleMultipart(req: Request, db: AppDb, start: StartContext) {
   }
   if (file.size > MAX_UPLOAD_BYTES) throw tooLarge();
 
-  const bytes = Buffer.from(await file.arrayBuffer());
   const filename = file.name || 'file';
-  const mimeType = file.type || 'application/octet-stream';
+  // Checked before a single byte is read into memory, let alone stored.
+  const mimeType = assertAllowedMimeType(file.type, filename);
+
+  const bytes = Buffer.from(await file.arrayBuffer());
   const storagePath = storagePathFor(start.workspaceId, filename);
 
   const store = storage();

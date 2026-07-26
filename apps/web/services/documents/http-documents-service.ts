@@ -34,10 +34,12 @@ export class HttpDocumentService implements DocumentService {
 
   /** Direct browser→storage upload, then a JSON finalize to land the row. */
   private async uploadViaSignedUrl(file: File): Promise<DocumentItem> {
-    // 1. Ask the API for a one-time signed upload URL (cap + size checked there).
+    // 1. Ask the API for a one-time signed upload URL. The plan cap, the size,
+    //    and the file type are all checked there, so an unsupported file is
+    //    refused before the browser spends time uploading it.
     const signed = await apiFetch<SignedUpload>('/v1/documents/upload-url', {
       method: 'POST',
-      body: { filename: file.name, size: file.size },
+      body: { filename: file.name, size: file.size, mimeType: file.type },
     });
 
     // 2. PUT the bytes straight to Supabase Storage.

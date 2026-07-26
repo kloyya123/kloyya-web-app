@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { kasRoute } from '@server/http/handler';
 import { ok } from '@server/http/envelope';
 import { errors } from '@server/http/errors';
+import { assertAllowedMimeType } from '@server/documents/mime';
 import { resolveStartContext } from '@server/tenant';
 import {
   MAX_UPLOAD_BYTES,
@@ -22,10 +23,17 @@ import {
 const body = z.object({
   filename: z.string().trim().min(1).max(300),
   size: z.number().int().nonnegative(),
+  /**
+   * Optional so an older client still works, but validated when present. The
+   * finalize step re-checks and deletes the object on rejection either way —
+   * this exists so the common case fails before the browser spends a minute
+   * uploading bytes Kloyya was always going to refuse.
+   */
+  mimeType: z.string().max(200).optional(),
 });
 
 export const POST = kasRoute('verified', async (req, ctx) => {
-  const { filename, size } = body.parse(await req.json());
+  const { filename, size, mimeType } = body.parse(await req.json());
 
   const start = await resolveStartContext(ctx.db, ctx.identity.id);
   if (!start) throw errors.notFound('User profile');
@@ -33,6 +41,7 @@ export const POST = kasRoute('verified', async (req, ctx) => {
   const store = storage();
   if (!store.configured) throw storageUnconfigured();
   if (size > MAX_UPLOAD_BYTES) throw tooLarge();
+  if (mimeType !== undefined) assertAllowedMimeType(mimeType, filename);
   await assertUnderDocumentCap(ctx.db, start);
 
   const path = storagePathFor(start.workspaceId, filename);

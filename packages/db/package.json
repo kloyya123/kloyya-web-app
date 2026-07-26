@@ -18,6 +18,12 @@
     "check": "drizzle-kit check",
     "verify:local": "tsx scripts/verify-migration.ts",
     "verify:remote": "dotenv -e ../../.env -- tsx scripts/verify-remote.ts",
+    "audit:db": "dotenv -e ../../.env -- tsx scripts/audit-security.ts",
+    "audit:storage": "dotenv -e ../../.env -- tsx scripts/audit-storage.ts",
+    "audit:postgrest": "dotenv -e ../../.env -- tsx scripts/probe-postgrest.ts",
+    "audit:bundle": "dotenv -e ../../.env -- tsx scripts/scan-client-bundle.ts",
+    "audit": "pnpm audit:db && pnpm audit:storage && pnpm audit:postgrest",
+    "harden:storage": "dotenv -e ../../.env -- tsx scripts/harden-storage.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

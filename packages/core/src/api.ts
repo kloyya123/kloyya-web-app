@@ -63,6 +63,8 @@ export const API_STATUS = {
   NotFound: 404,
   Conflict: 409,
   PayloadTooLarge: 413,
+  /** The upload declared a type Kloyya refuses to store. See server/documents/mime.ts. */
+  UnsupportedMediaType: 415,
   ValidationFailed: 422,
   RateLimited: 429,
   InternalError: 500,
