@@ -10,7 +10,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { CONTACT_EMAIL } from '../content';
 
 /**
- * The holding page for an account that is not on the private-beta allowlist.
+ * The holding page for an account that is not yet on the access allowlist.
  *
  * The tone matters here. Someone has just signed up, given us an address, and
  * been told no — the page owes them a plain reason, their place in the queue,
@@ -60,16 +60,17 @@ export function BetaWall() {
       <main id="main" className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-lg">
           <span className="text-caption text-link bg-intelligence-blue/10 mb-6 inline-block rounded-sm px-2.5 py-1 font-mono tracking-widest uppercase">
-            Private beta
+            Access pending
           </span>
 
           <h1 className="text-heading-l font-semibold tracking-tight text-balance">
-            Kloyya isn’t open yet.
+            Your access isn’t active yet.
           </h1>
 
           <p className="text-muted-foreground mt-4">
-            We’re testing with a small group while the connectors settle. Your account is
-            created and waiting — we’ll email you the moment we let more people in.
+            We’re onboarding people gradually so every workspace gets attention while its
+            connectors settle. Your account is created and waiting — we’ll email you the
+            moment a place opens.
           </p>
 
           {email ? (

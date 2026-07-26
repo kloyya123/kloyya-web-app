@@ -27,7 +27,6 @@ export function LandingPage() {
   return (
     <div className="bg-background text-foreground min-h-dvh">
       <SiteHeader />
-      <BetaStrip />
 
       <main id="main">
         <Hero />
@@ -158,7 +157,7 @@ export function LandingPage() {
             ))}
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
-            Pricing applies when Kloyya opens. Beta testers get Pro free for three months.
+            Free is free. Pro billing starts once your access is live — never before.
           </p>
         </Section>
 
@@ -191,9 +190,9 @@ export function LandingPage() {
 
         <Section index="09" label="Access" title="How to get in" anchor="access">
           <Lede>
-            Kloyya is invitation-only while we test the connectors on real inboxes. Leave your
-            address and we will email you when we open a place. Nothing to pay, and no card at
-            any point.
+            We are onboarding people gradually so every workspace gets attention while its
+            connectors settle. Leave your address and we will email you when a place opens.
+            Nothing to pay, and no card at any point.
           </Lede>
 
           <div className="border-border bg-border grid max-w-3xl gap-px border sm:grid-cols-3">
@@ -217,7 +216,7 @@ export function LandingPage() {
           </div>
 
           <p className="text-caption text-subtle mt-6 font-mono">
-            Mobile apps land after the web beta settles — same list, same email.
+            Mobile apps follow the web app — same list, same email.
           </p>
         </Section>
 
@@ -275,21 +274,6 @@ function SiteHeader() {
   );
 }
 
-function BetaStrip() {
-  return (
-    <div className="bg-intelligence-blue/10 border-border border-b">
-      <p className="text-caption text-muted-foreground mx-auto flex max-w-content flex-wrap items-center justify-center gap-3 px-6 py-2.5 text-center font-mono">
-        <span aria-hidden="true" className="bg-intelligence-blue size-1.5 shrink-0 rounded-full" />
-        <span>
-          <span className="text-link font-semibold tracking-wider uppercase">Private beta</span>
-          {' · '}
-          invitation-only while we test — request access below
-        </span>
-      </p>
-    </div>
-  );
-}
-
 function Hero() {
   return (
     <section className="border-border relative border-b">
@@ -332,7 +316,7 @@ function Hero() {
             </div>
 
             <p className="text-caption text-subtle mt-4 font-mono">
-              Invitation-only while we test. No card, ever, to join the list.
+              Access is granted in batches. No card, ever, to join the list.
             </p>
           </div>
 
