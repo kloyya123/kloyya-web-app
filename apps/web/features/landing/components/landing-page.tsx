@@ -1,6 +1,7 @@
 import { ArrowRight, Check, Play } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Logo, LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { FAQS, FEATURES, PLANS, ROLES, TOOLS } from '../content';
@@ -231,12 +232,10 @@ function SiteHeader() {
   return (
     <header className="bg-background/85 border-border sticky top-0 z-50 border-b backdrop-blur-md">
       <div className="mx-auto flex max-w-content items-center justify-between gap-4 px-6 py-3.5">
-        <Link href="/" className="text-title text-foreground flex items-center gap-2 rounded-sm font-semibold">
-          <span
-            aria-hidden="true"
-            className="bg-intelligence-blue ring-intelligence-blue/20 size-2 rounded-[2px] ring-4"
-          />
-          Kloyya
+        {/* The real mark, not a stand-in: the same component the product uses,
+            so the brand cannot drift between the marketing page and the app. */}
+        <Link href="/" className="rounded-sm" aria-label="Kloyya home">
+          <Logo />
         </Link>
 
         <nav className="text-caption flex items-center gap-6 font-mono tracking-wider uppercase">
@@ -440,7 +439,9 @@ function SiteFooter() {
         </div>
 
         <div className="border-border text-caption text-subtle flex flex-wrap items-center justify-between gap-4 border-t py-5 font-mono">
-          <span>© 2026 Kloyya Inc. All rights reserved.</span>
+          <span className="flex items-center gap-2.5">
+            <LogoMark decorative className="size-5" />© 2026 Kloyya Inc. All rights reserved.
+          </span>
           <span>Built for people with too much arriving.</span>
         </div>
       </div>
