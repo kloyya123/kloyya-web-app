@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
+import { CONTACT_EMAIL } from '../content';
 
 /**
  * The holding page for an account that is not on the private-beta allowlist.
@@ -100,8 +101,8 @@ export function BetaWall() {
 
           <p className="text-caption text-subtle mt-8 font-mono">
             Think you should have access?{' '}
-            <a href="mailto:hello@kloyya.com" className="text-link rounded-sm hover:underline">
-              hello@kloyya.com
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-link rounded-sm hover:underline">
+              {CONTACT_EMAIL}
             </a>
           </p>
         </div>

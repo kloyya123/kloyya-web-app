@@ -7,6 +7,16 @@
  * promises a capability the app does not have is a bug, not a stretch goal.
  */
 
+/**
+ * The one address Kloyya answers.
+ *
+ * Defined once because the site previously advertised three — hello@, support@
+ * and press@ — of which only this one exists. A footer link to an address that
+ * bounces is worse than no link: the visitor writes, hears nothing, and
+ * concludes we ignored them.
+ */
+export const CONTACT_EMAIL = 'contactsupport@kloyya.com';
+
 export interface Feature {
   title: string;
   body: string;

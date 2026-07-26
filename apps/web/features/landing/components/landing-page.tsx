@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Logo, LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { FAQS, FEATURES, PLANS, ROLES, TOOLS } from '../content';
+import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, ROLES, TOOLS } from '../content';
 import { DemoPlayer } from './demo-player';
 import { WaitlistForm } from './waitlist-form';
 import { HeroBriefing, ProductScreens } from './product-screens';
@@ -106,7 +106,7 @@ export function LandingPage() {
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
             Missing something you rely on?{' '}
-            <a href="mailto:hello@kloyya.com" className="text-link rounded-sm hover:underline">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-link rounded-sm hover:underline">
               Tell us and we will build it.
             </a>
           </p>
@@ -401,9 +401,7 @@ function SiteFooter() {
     {
       heading: 'Company',
       links: [
-        { label: 'Contact', href: 'mailto:hello@kloyya.com' },
-        { label: 'Support', href: 'mailto:support@kloyya.com' },
-        { label: 'Press', href: 'mailto:press@kloyya.com' },
+        { label: 'Contact', href: `mailto:${CONTACT_EMAIL}` },
       ],
     },
     {
