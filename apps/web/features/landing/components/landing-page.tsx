@@ -151,13 +151,13 @@ export function LandingPage() {
                 </ul>
 
                 <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg">
-                  <Link href="/signup">{plan.featured ? 'Get Pro' : 'Start free'}</Link>
+                  <Link href="/signup">Request access</Link>
                 </Button>
               </div>
             ))}
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
-            Beta users get Pro free for three months. Cancel from Settings — no email required.
+            Pricing applies when Kloyya opens. Beta testers get Pro free for three months.
           </p>
         </Section>
 
@@ -188,19 +188,41 @@ export function LandingPage() {
           </div>
         </Section>
 
-        <Section index="09" label="Coming" title="Mobile is next">
+        <Section index="09" label="Access" title="How to get in" anchor="access">
           <Lede>
-            The full briefing in your pocket, with drafts you can approve with a thumb. iOS and
-            Android are in private beta and beta users get them first.
+            Kloyya is invitation-only while we test the connectors on real inboxes. Create an
+            account and you are on the list — we will email you when we open a place. Nothing
+            to pay, and no card at any point.
           </Lede>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" size="lg" isDisabled>
-              iOS beta
+
+          <div className="border-border bg-border grid max-w-3xl gap-px border sm:grid-cols-3">
+            {[
+              { step: '01', title: 'Create an account', body: 'Takes a minute. Your address is the only thing we need.' },
+              { step: '02', title: 'We let people in gradually', body: 'A few at a time, so we can watch how the syncs behave.' },
+              { step: '03', title: 'You get an email', body: 'When your place opens, sign in and connect your tools.' },
+            ].map((item) => (
+              <div key={item.step} className="bg-background p-6">
+                <span className="text-caption text-link mb-2 block font-mono tracking-widest uppercase">
+                  {item.step}
+                </span>
+                <h3 className="text-title text-foreground mb-1.5 font-semibold">{item.title}</h3>
+                <p className="text-small text-muted-foreground m-0">{item.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
+              <Link href="/signup">Request access</Link>
             </Button>
-            <Button variant="outline" size="lg" isDisabled>
-              Android beta
+            <Button asChild variant="outline" size="lg">
+              <Link href="/login">I already have access</Link>
             </Button>
           </div>
+
+          <p className="text-caption text-subtle mt-6 font-mono">
+            Mobile apps land after the web beta settles. Same list, same email.
+          </p>
         </Section>
 
         <Section index="10" label="Start" title="Tomorrow morning, the list is already made." center>
@@ -209,14 +231,14 @@ export function LandingPage() {
           </Lede>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <Link href="/signup">Start free</Link>
+              <Link href="/signup">Request access</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/login">Sign in</Link>
             </Button>
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
-            No card. Beta users get Pro free for three months.
+            We are letting people in a few at a time. You will hear from us by email.
           </p>
         </Section>
       </main>
@@ -266,9 +288,9 @@ function BetaStrip() {
       <p className="text-caption text-muted-foreground mx-auto flex max-w-content flex-wrap items-center justify-center gap-3 px-6 py-2.5 text-center font-mono">
         <span aria-hidden="true" className="bg-intelligence-blue size-1.5 shrink-0 rounded-full" />
         <span>
-          <span className="text-link font-semibold tracking-wider uppercase">Beta open</span>
+          <span className="text-link font-semibold tracking-wider uppercase">Private beta</span>
           {' · '}
-          early users get Pro free for three months
+          invitation-only while we test — request access below
         </span>
       </p>
     </div>
@@ -309,7 +331,7 @@ function Hero() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-                <Link href="/signup">Start free</Link>
+                <Link href="/signup">Request access</Link>
               </Button>
               <Button asChild variant="outline" size="lg" leadingIcon={<Play aria-hidden="true" />}>
                 <a href="#demo">Watch the demo</a>
@@ -317,7 +339,7 @@ function Hero() {
             </div>
 
             <p className="text-caption text-subtle mt-4 font-mono">
-              No card. The free plan does not expire.
+              Invitation-only while we test. No card, ever, to join the list.
             </p>
           </div>
 

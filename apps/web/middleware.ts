@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { isBetaAllowed } from '@/lib/beta-access';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { SESSION_COOKIE_NAME } from '@/services/auth/session-store';
 
@@ -24,11 +25,16 @@ const ROOT = '/';
 const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password'];
 /** Reachable while authenticated but not yet fully provisioned. */
 const PROVISIONING_ROUTES = ['/verify-email', '/onboarding', '/workspace-init'];
+/** Where a signed-in but non-allowlisted account is held during the beta. */
+const BETA_WALL = '/beta';
 
 interface AuthState {
   authed: boolean;
   verified: boolean;
   onboarded: boolean;
+  /** On the private-beta allowlist. See lib/beta-access.ts. */
+  betaAllowed: boolean;
+  email: string | null;
 }
 
 /**
@@ -58,6 +64,18 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
     return redirect(login);
   }
 
+  // Signed in, but not on the private-beta allowlist.
+  //
+  // Checked before verification and onboarding on purpose: walking someone
+  // through an email code and an eight-step wizard only to tell them at the end
+  // that they cannot come in would be a cruel way to spend their time. They are
+  // held at /beta, which explains the situation and takes their address for the
+  // waitlist. The landing page stays reachable so there is somewhere to go.
+  if (!state.betaAllowed) {
+    if (pathname === BETA_WALL || pathname === ROOT) return carry;
+    return redirect(new URL(BETA_WALL, request.url));
+  }
+
   // Authenticated but unverified: the only way forward is the code.
   if (!state.verified) {
     return pathname.startsWith('/verify-email') ? carry : redirect(new URL('/verify-email', request.url));
@@ -67,6 +85,9 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
   if (!state.onboarded) {
     return pathname.startsWith('/onboarding') ? carry : redirect(new URL('/onboarding', request.url));
   }
+
+  // An allowlisted user has no reason to sit on the beta wall.
+  if (pathname === BETA_WALL) return redirect(new URL('/dashboard', request.url));
 
   // Fully provisioned. Bounce away from `/`, the auth screens, and the
   // provisioning screens — a signed-in user has no business on the login page.
@@ -118,6 +139,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       authed: Boolean(user),
       verified: Boolean(user?.email_confirmed_at),
       onboarded: user?.user_metadata?.['onboarded'] === true,
+      // Read from the verified JWT's email claim, never from a header or query
+      // parameter — this decides who gets into the product.
+      betaAllowed: isBetaAllowed(user?.email),
+      email: user?.email ?? null,
     },
     response,
   );
@@ -126,12 +151,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 /** The mock branch: read the unsigned demo cookie. No cookies to carry. */
 function mockMiddleware(request: NextRequest): NextResponse {
   const raw = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  let state: AuthState = { authed: false, verified: false, onboarded: false };
+  let state: AuthState = {
+    authed: false,
+    verified: false,
+    onboarded: false,
+    betaAllowed: false,
+    email: null,
+  };
 
   if (raw) {
     try {
       const s = JSON.parse(decodeURIComponent(raw)) as {
-        user?: { isEmailVerified?: boolean; hasCompletedOnboarding?: boolean };
+        user?: { isEmailVerified?: boolean; hasCompletedOnboarding?: boolean; email?: string };
         organization?: unknown;
         workspace?: unknown;
         preferences?: unknown;
@@ -142,6 +173,8 @@ function mockMiddleware(request: NextRequest): NextResponse {
           authed: true,
           verified: s.user.isEmailVerified === true,
           onboarded: s.user.hasCompletedOnboarding === true,
+          betaAllowed: isBetaAllowed(s.user.email),
+          email: s.user.email ?? null,
         };
       }
     } catch {
