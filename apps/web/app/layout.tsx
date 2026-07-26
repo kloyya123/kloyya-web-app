@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import { Toaster, TooltipProvider } from '@/components/ui';
+import { siteUrl } from '@/lib/site-url';
 import { parseSessionCookie, SESSION_COOKIE_NAME } from '@/services/auth/session-store';
 import { AnalyticsProvider } from '@/providers/analytics-provider';
 import { AuthProvider } from '@/providers/auth-provider';
@@ -18,6 +19,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Without a base, the relative `canonical` and Open Graph URLs on the landing
+  // page resolve to nothing and Next warns on every build.
+  metadataBase: new URL(siteUrl()),
   title: {
     default: 'Kloyya',
     template: '%s · Kloyya',

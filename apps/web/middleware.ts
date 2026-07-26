@@ -48,11 +48,13 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
   };
 
   // Unauthenticated: everything except the public routes goes to login, with a
-  // validated return path so the user lands where they were headed.
+  // validated return path so the user lands where they were headed. `/` is
+  // public too — it is the marketing page, and bouncing a first-time visitor
+  // to a password field is how you lose them before they know what Kloyya is.
   if (!state.authed) {
-    if (isPublic) return carry;
+    if (isPublic || pathname === ROOT) return carry;
     const login = new URL('/login', request.url);
-    if (pathname !== ROOT) login.searchParams.set('next', `${pathname}${search}`);
+    login.searchParams.set('next', `${pathname}${search}`);
     return redirect(login);
   }
 
@@ -155,6 +157,12 @@ export const config = {
    * Everything except Next internals, the API routes (they authorize
    * themselves — running the page-gate here would turn a 401 into an HTML
    * redirect), static assets, and the favicon.
+   *
+   * robots.txt and sitemap.xml are excluded too: they are generated routes, so
+   * without this the gate answers a crawler with a redirect to /login and the
+   * site never gets indexed.
    */
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)'],
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)',
+  ],
 };
