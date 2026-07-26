@@ -12,6 +12,7 @@ import {
 } from '@/components/ui';
 import { toErrorPresentation } from '@/lib/error-presentation';
 import { useConnections } from '@/hooks/use-integrations';
+import { useFirstSync } from '../use-first-sync';
 import { isConnected, type IntegrationConnection } from '@/types/integrations';
 import { IntegrationCard } from './integration-card';
 
@@ -43,6 +44,10 @@ const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> =
 export function OnboardingConnectStep() {
   const router = useRouter();
   const { data, isPending, isError, error, refetch } = useConnections();
+
+  // Anything just connected has never synced; start it now. Nothing else in
+  // the app does, so without this a connected tool stays empty. See use-first-sync.
+  useFirstSync(data);
 
   const groups = useMemo(() => {
     const byId = new Map<string, IntegrationConnection>(

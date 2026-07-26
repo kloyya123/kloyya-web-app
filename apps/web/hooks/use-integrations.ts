@@ -11,7 +11,7 @@ import type { IntegrationCategory, IntegrationConnection } from '@/types/integra
  * disconnect invalidates both, so the dashboard widget's "12 of 18" and the
  * manager's cards can never disagree.
  */
-const CONNECTIONS_KEY = ['integrations', 'connections'] as const;
+export const CONNECTIONS_KEY = ['integrations', 'connections'] as const;
 const SUMMARY_KEY = ['integrations', 'summary'] as const;
 
 export function useConnections(category?: IntegrationCategory) {

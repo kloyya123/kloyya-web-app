@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/cn';
 import { toErrorPresentation } from '@/lib/error-presentation';
 import { useConnections } from '@/hooks/use-integrations';
+import { useFirstSync } from '../use-first-sync';
 import { CATEGORY_LABELS } from '../integration-meta';
 import {
   INTEGRATION_CATEGORIES,
@@ -32,6 +33,10 @@ import { IntegrationCard } from './integration-card';
  */
 export function ConnectionManager() {
   const { data, isPending, isError, error, refetch } = useConnections();
+
+  // Anything just connected has never synced; start it now. Nothing else in
+  // the app does, so without this a connected tool stays empty. See use-first-sync.
+  useFirstSync(data);
   const [activeCategory, setActiveCategory] = useState<IntegrationCategory | 'all'>('all');
 
   const grouped = useMemo(() => groupByCategory(data ?? []), [data]);
