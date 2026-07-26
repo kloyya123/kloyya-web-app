@@ -217,11 +217,7 @@ export function LandingPage() {
           </div>
 
           <p className="text-caption text-subtle mt-6 font-mono">
-            Already have access?{' '}
-            <Link href="/login" className="text-link rounded-sm hover:underline">
-              Sign in
-            </Link>
-            . Mobile apps land after the web beta settles — same list, same email.
+            Mobile apps land after the web beta settles — same list, same email.
           </p>
         </Section>
 
@@ -232,9 +228,6 @@ export function LandingPage() {
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
               <a href="#access">Request access</a>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/login">Sign in</Link>
             </Button>
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
@@ -270,12 +263,12 @@ function SiteHeader() {
           <a href="#faq" className="text-muted-foreground hover:text-foreground hidden rounded-sm sm:inline">
             FAQ
           </a>
-          <Link
-            href="/login"
+          <a
+            href="#access"
             className="border-border text-foreground hover:bg-hover rounded-sm border px-3 py-1.5 transition-colors"
           >
-            Sign in
-          </Link>
+            Request access
+          </a>
         </nav>
       </div>
     </header>

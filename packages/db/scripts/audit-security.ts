@@ -53,6 +53,8 @@ const note = (severity: Finding['severity'], area: string, detail: string) =>
 const OWNER_ONLY_TABLES: Record<string, string> = {
   rate_limits:
     'no tenant column; written by the request limiter before tenant scope is resolved',
+  waitlist:
+    'no tenant column; the people on it have no account, organization or workspace yet',
 };
 
 async function main(): Promise<void> {
