@@ -22,7 +22,9 @@
     "audit:storage": "dotenv -e ../../.env -- tsx scripts/audit-storage.ts",
     "audit:postgrest": "dotenv -e ../../.env -- tsx scripts/probe-postgrest.ts",
     "audit:bundle": "dotenv -e ../../.env -- tsx scripts/scan-client-bundle.ts",
-    "audit": "pnpm audit:db && pnpm audit:storage && pnpm audit:postgrest",
+    "audit:auth": "dotenv -e ../../.env -- tsx scripts/probe-auth.ts",
+    "audit:tenancy": "dotenv -e ../../.env -- tsx scripts/e2e-rls.ts",
+    "audit": "pnpm audit:db && pnpm audit:storage && pnpm audit:postgrest && pnpm audit:tenancy",
     "harden:storage": "dotenv -e ../../.env -- tsx scripts/harden-storage.ts",
     "typecheck": "tsc --noEmit"
   },
