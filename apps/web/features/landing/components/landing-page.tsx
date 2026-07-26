@@ -6,6 +6,7 @@ import { Button } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { FAQS, FEATURES, PLANS, ROLES, TOOLS } from '../content';
 import { DemoPlayer } from './demo-player';
+import { WaitlistForm } from './waitlist-form';
 import { HeroBriefing, ProductScreens } from './product-screens';
 import { SocialLinks } from './social-links';
 
@@ -151,7 +152,7 @@ export function LandingPage() {
                 </ul>
 
                 <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg">
-                  <Link href="/signup">Request access</Link>
+                  <a href="#access">Request access</a>
                 </Button>
               </div>
             ))}
@@ -190,16 +191,16 @@ export function LandingPage() {
 
         <Section index="09" label="Access" title="How to get in" anchor="access">
           <Lede>
-            Kloyya is invitation-only while we test the connectors on real inboxes. Create an
-            account and you are on the list — we will email you when we open a place. Nothing
-            to pay, and no card at any point.
+            Kloyya is invitation-only while we test the connectors on real inboxes. Leave your
+            address and we will email you when we open a place. Nothing to pay, and no card at
+            any point.
           </Lede>
 
           <div className="border-border bg-border grid max-w-3xl gap-px border sm:grid-cols-3">
             {[
-              { step: '01', title: 'Create an account', body: 'Takes a minute. Your address is the only thing we need.' },
+              { step: '01', title: 'Leave your email', body: 'That is the whole form. No account, no password, no card.' },
               { step: '02', title: 'We let people in gradually', body: 'A few at a time, so we can watch how the syncs behave.' },
-              { step: '03', title: 'You get an email', body: 'When your place opens, sign in and connect your tools.' },
+              { step: '03', title: 'You get an email', body: 'One message when your place opens, with a link to set up.' },
             ].map((item) => (
               <div key={item.step} className="bg-background p-6">
                 <span className="text-caption text-link mb-2 block font-mono tracking-widest uppercase">
@@ -211,17 +212,16 @@ export function LandingPage() {
             ))}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <Link href="/signup">Request access</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/login">I already have access</Link>
-            </Button>
+          <div className="mt-6">
+            <WaitlistForm source="landing-access" />
           </div>
 
           <p className="text-caption text-subtle mt-6 font-mono">
-            Mobile apps land after the web beta settles. Same list, same email.
+            Already have access?{' '}
+            <Link href="/login" className="text-link rounded-sm hover:underline">
+              Sign in
+            </Link>
+            . Mobile apps land after the web beta settles — same list, same email.
           </p>
         </Section>
 
@@ -231,7 +231,7 @@ export function LandingPage() {
           </Lede>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <Link href="/signup">Request access</Link>
+              <a href="#access">Request access</a>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/login">Sign in</Link>
@@ -331,7 +331,7 @@ function Hero() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-                <Link href="/signup">Request access</Link>
+                <a href="#access">Request access</a>
               </Button>
               <Button asChild variant="outline" size="lg" leadingIcon={<Play aria-hidden="true" />}>
                 <a href="#demo">Watch the demo</a>

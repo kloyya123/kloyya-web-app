@@ -169,6 +169,13 @@
       "when": 1784976864606,
       "tag": "0023_security_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785063264606,
+      "tag": "0024_waitlist",
+      "breakpoints": true
     }
   ]
 }

@@ -660,6 +660,38 @@ export const feedback = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * The private-beta waiting list.
+ *
+ * Deliberately outside the tenant model: a person on this list has no account,
+ * no organization, and no workspace — that is the whole point of them being on
+ * it. So there is no organization_id, and no `app_tenant` policy could be
+ * written for it. RLS is enabled with no policy, which denies anon and
+ * authenticated outright, and the API route reaches it as the owner. The
+ * PostgREST grants revoked in 0023 mean it is unreachable with the public key.
+ *
+ * The email is the primary key rather than a surrogate id: signing up twice is
+ * not an error, it is the same person being keen, and an upsert on the address
+ * expresses that without a uniqueness check in application code.
+ */
+export const waitlist = pgTable(
+  'waitlist',
+  {
+    /** Stored lower-cased and trimmed by the API; the address IS the identity. */
+    email: text('email').primaryKey(),
+    /** Where they came from — a landing-page section, a campaign. Free-form. */
+    source: text('source').notNull().default('landing'),
+    /**
+     * Set when the address is moved onto the allowlist and told. Null means
+     * still waiting, so "who has not heard from us yet" is a WHERE clause.
+     */
+    invitedAt: timestamp('invited_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('waitlist_created_at_idx').on(t.createdAt)],
+).enableRLS();
+
 export const userPreferences = pgTable('user_preferences', {
   userId: uuid('user_id')
     .primaryKey()

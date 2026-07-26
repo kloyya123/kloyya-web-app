@@ -49,6 +49,12 @@ const schema = z.object({
   // email is skipped with a clear log line rather than a crash.
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).default('Kloyya <onboarding@resend.dev>'),
+  /**
+   * The Resend audience the beta waiting list mirrors into. Optional: without
+   * it the list still records every signup in Postgres, it just cannot be
+   * mailed from Resend until the audience is configured.
+   */
+  RESEND_AUDIENCE_ID: z.string().min(1).optional(),
 
   // Where this app is reachable — invitation links and OAuth redirects point
   // here. One app, one origin, so this is also the OAuth callback host.
