@@ -124,7 +124,11 @@ export async function listRecentMessageIds(params: {
   const ids: string[] = [];
   let pageToken: string | undefined;
 
-  for (let page = 0; page < (params.maxPages ?? 10); page += 1) {
+  // Two pages, not ten. Each id costs a further round trip to fetch the
+  // message, so a thousand ids was a thousand requests and the run was killed
+  // before writing anything. Two hundred of the newest is a useful first read;
+  // the cursor means the next run continues rather than starting over.
+  for (let page = 0; page < (params.maxPages ?? 2); page += 1) {
     const url = new URL(`${GMAIL_API}/messages`);
     url.searchParams.set('q', `newer_than:${params.days}d`);
     url.searchParams.set('maxResults', '100');

@@ -26,7 +26,6 @@ import {
   getMessage,
   listGmailHistory,
   listRecentMessageIds,
-  type RawGmailMessage,
 } from './gmail';
 import {
   getDriveStartPageToken,
@@ -48,8 +47,78 @@ import { refreshMicrosoftToken } from './microsoft';
  * pipeline change its mind later without re-reading everyone's calendar.
  */
 
-/** A first sync reaches back this far. A decade of history helps nobody today. */
-const FIRST_SYNC_WINDOW_DAYS = 90;
+/**
+ * A first sync reaches back this far.
+ *
+ * Was 90 days. On a busy mailbox that is thousands of messages, each needing its
+ * own round trip, and the run never finished inside the function's 60-second
+ * budget — so nothing was ever written and the dashboard stayed empty. Two weeks
+ * is what a chief of staff can actually act on, and it lands in seconds. Older
+ * mail is not lost: the cursor advances, and later runs reach further back.
+ */
+const FIRST_SYNC_WINDOW_DAYS = 14;
+
+/**
+ * Wall-clock budget for one sync run.
+ *
+ * The route reserves 60 seconds; this stops well short so there is room to save
+ * the cursor and return a clean result rather than being killed mid-write. When
+ * the budget runs out the run stops early and reports `truncated` — the cursor
+ * is deliberately NOT advanced past the unread remainder, so the next run picks
+ * up the rest. Every write is an idempotent upsert, so re-reading an overlap
+ * costs nothing.
+ *
+ * This is what makes "a sync finishes in under a minute" a property of the code
+ * rather than a hope about someone's mailbox size.
+ */
+const SYNC_BUDGET_MS = 40_000;
+
+/** How many provider objects to fetch at once. */
+const FETCH_CONCURRENCY = 12;
+
+/** When this run must stop doing new work. */
+function deadlineFrom(deps: SyncDeps): number {
+  const start = deps.now?.() ?? Date.now();
+  return start + (deps.budgetMs ?? SYNC_BUDGET_MS);
+}
+
+/**
+ * Map over items with bounded parallelism, stopping at the deadline.
+ *
+ * Sequential per-object fetches were the whole problem: a thousand messages meant
+ * a thousand round trips end to end. Running a dozen at once turns minutes into
+ * seconds without pretending the provider has no rate limit.
+ *
+ * Returns what it managed plus whether it ran out of time, so the caller can
+ * decide what that means for its cursor.
+ */
+async function fetchWithBudget<T, R>(
+  items: T[],
+  deadline: number,
+  fn: (item: T) => Promise<R | null>,
+): Promise<{ results: R[]; truncated: boolean }> {
+  const results: R[] = [];
+  let index = 0;
+  let truncated = false;
+
+  async function worker(): Promise<void> {
+    for (;;) {
+      if (Date.now() >= deadline) {
+        truncated = true;
+        return;
+      }
+      const current = index++;
+      if (current >= items.length) return;
+      const value = await fn(items[current]!);
+      if (value !== null) results.push(value);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(FETCH_CONCURRENCY, items.length) }, () => worker()),
+  );
+  return { results, truncated };
+}
 
 export interface SyncOutcome {
   ok: boolean;
@@ -75,6 +144,8 @@ export interface SyncDeps {
   now?: () => number;
   /** Called for each record refused before storage, so rejections are visible. */
   onRejected?: (calendarId: string, failure: { externalId: string | null; reason: string }) => void;
+  /** Override the wall-clock budget. Tests use a small value; production uses the default. */
+  budgetMs?: number;
 }
 
 function hashPayload(payload: unknown): string {
@@ -370,6 +441,7 @@ export async function syncGmail(
   const integrationId = 'gmail';
   const now = new Date((deps.now ?? Date.now)());
   const fetchOpt = deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {};
+  const deadline = deadlineFrom(deps);
 
   const connection = await readConnection(db, ctx, integrationId);
   if (!connection) {
@@ -442,12 +514,15 @@ export async function syncGmail(
     }
 
     // Fetch and land the changed messages, metadata only.
-    const fetchedMessages: RawGmailMessage[] = [];
-    for (const id of changedIds) {
-      const message = await getMessage({ accessToken: token.accessToken, id, ...fetchOpt });
-      // null = deleted between list and get. An ordinary race, skipped.
-      if (message) fetchedMessages.push(message);
-    }
+    // Bounded parallelism against a wall clock. Sequentially, a large mailbox
+    // meant one round trip per message and the run was killed before writing
+    // anything; a dozen at a time finishes in seconds, and the deadline
+    // guarantees we stop with time left to save the cursor.
+    const { results: fetchedMessages, truncated } = await fetchWithBudget(
+      changedIds,
+      deadline,
+      (id) => getMessage({ accessToken: token.accessToken, id, ...fetchOpt }),
+    );
     fetched = fetchedMessages.length + deletedIds.length;
 
     const batch = validateGmailMessages(fetchedMessages);
@@ -469,9 +544,14 @@ export async function syncGmail(
       if (changed) written += 1;
     }
 
-    // The profile's historyId is the true "you are caught up to here" marker.
-    const nextHistoryId = await getMailboxHistoryId({ accessToken: token.accessToken, ...fetchOpt });
-    if (nextHistoryId) cursors[GMAIL_CURSOR_KEY] = nextHistoryId;
+    // The profile's historyId is the true "you are caught up to here" marker —
+    // so it is only advanced on a COMPLETE pass. Advancing it after a truncated
+    // run would silently skip everything we did not reach, and the gap would
+    // never be noticed because the next run would start after it.
+    if (!truncated) {
+      const nextHistoryId = await getMailboxHistoryId({ accessToken: token.accessToken, ...fetchOpt });
+      if (nextHistoryId) cursors[GMAIL_CURSOR_KEY] = nextHistoryId;
+    }
   } catch (error) {
     const transient = error instanceof GoogleTransientError;
     await saveProgress(db, ctx, integrationId, cursors, {
