@@ -35,6 +35,7 @@ import { MockIntegrationsService } from './integrations/mock-integrations-servic
 import { HttpIntegrationsService } from './integrations/http-integrations-service';
 import type { IntegrationsService } from './integrations/types';
 import { MockIntelligenceService } from './intelligence/mock-intelligence-service';
+import { HttpIntelligenceService } from './intelligence/http-intelligence-service';
 import type { IntelligenceService } from './intelligence/types';
 import { MockNotificationService } from './notifications/mock-notification-service';
 import type { NotificationService } from './notifications/types';
@@ -91,8 +92,8 @@ export interface Services {
  * layer — the 527 tests stay green because they never touch this branch.
  *
  * Only the services with a real backend are switched; the rest (calendar,
- * meetings, inbox, knowledge, search, notifications, intelligence, sources)
- * have no API yet and stay on the mock until their phases land. Mixing is fine
+ * meetings, inbox, knowledge, search, notifications, sources) have no API yet
+ * and stay on the mock until their phases land. Mixing is fine
  * on purpose: a page reading real auth and mock inbox is exactly the
  * incremental cut-over the frontend-first architecture was built to allow.
  */
@@ -118,8 +119,8 @@ export const services: Services = {
   integrations: USE_REAL_API ? new HttpIntegrationsService() : new MockIntegrationsService(),
   tasks: USE_REAL_API ? new HttpTaskService() : new MockTaskService(),
   projects: USE_REAL_API ? new HttpProjectService() : new MockProjectService(),
+  intelligence: USE_REAL_API ? new HttpIntelligenceService() : new MockIntelligenceService(),
   // No backend yet — these land with their roadmap phases.
-  intelligence: new MockIntelligenceService(),
   sources: new MockSourcesService(),
   calendar: new MockCalendarService(),
   meetings: new MockMeetingService(),
