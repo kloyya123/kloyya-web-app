@@ -65,14 +65,20 @@ export interface Tool {
   live: boolean;
 }
 
-/** Mirrors packages/core/src/integration-catalogue.ts — the connectable set. */
+/**
+ * What a visitor is told they can connect — and only that.
+ *
+ * Every entry here is connectable today. Outlook and Slack used to appear as
+ * "Next", which reads as a roadmap promise rather than a fact, and Outlook in
+ * particular is currently hidden from the product's own UI pending its Azure
+ * redirect URI. Advertising a tool the app will not let you connect is the kind
+ * of small dishonesty that costs trust on the first click.
+ */
 export const TOOLS: Tool[] = [
   { name: 'Gmail', live: true },
   { name: 'Google Calendar', live: true },
   { name: 'Google Drive', live: true },
   { name: 'Notion', live: true },
-  { name: 'Slack', live: false },
-  { name: 'Outlook', live: false },
 ];
 
 export interface Plan {

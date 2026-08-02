@@ -7,6 +7,7 @@ import { ok } from '@server/http/envelope';
 import { API_STATUS, ApiError, errors } from '@server/http/errors';
 import { resolveAiProvider } from '@server/ai/provider';
 import { ask } from '@server/ask/service';
+import { resolveWebSearch } from '@server/ask/web-search';
 import { getAskCountToday, incrementAskCount } from '@server/ask/usage';
 import { readTier } from '@server/plan/tier';
 import { resolveStartContext } from '@server/tenant';
@@ -47,9 +48,19 @@ export const POST = kasRoute('verified', async (req, ctx) => {
     openaiModel: config.OPENAI_MODEL,
     anthropicApiKey: config.ANTHROPIC_API_KEY,
     anthropicModel: config.ANTHROPIC_MODEL,
+    perplexityApiKey: config.PERPLEXITY_API_KEY,
+    perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
   });
 
-  const outcome = await ask(ctx.db, start, question, provider);
+  // Null when no search key is configured, in which case Ask Kloyya answers
+  // from the workspace alone exactly as it did before web search existed.
+  const webSearch = resolveWebSearch({
+    perplexityApiKey: config.PERPLEXITY_API_KEY,
+    perplexityModel: config.PERPLEXITY_MODEL,
+    tavilyApiKey: config.TAVILY_API_KEY,
+  });
+
+  const outcome = await ask(ctx.db, start, question, provider, undefined, webSearch);
 
   if (!outcome.ok) {
     if (outcome.reason === 'not_configured') {

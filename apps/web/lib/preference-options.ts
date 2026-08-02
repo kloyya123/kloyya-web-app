@@ -119,14 +119,20 @@ export const NOTIFICATION_LEVEL_OPTIONS: Option<NotificationLevel>[] = [
  * Roles for the onboarding "who are you" step. Presented as a card grid, with an
  * "Other" free-text escape hatch — role is stored as free-form text, so a title
  * we did not list is a first-class answer, not a fallback.
+ *
+ * Matches the persona list in the product positioning doc (founders,
+ * professionals, small businesses, freelancers, students, researchers,
+ * consultants, creators, teams) — "Small Business Owner" and "Creator" added to
+ * close the gap with that list.
  */
 export const ROLE_OPTIONS = [
   'Student',
   'Founder',
-  'Business Owner',
+  'Small Business Owner',
   'Professional',
   'Freelancer',
   'Researcher',
+  'Creator',
   'Educator',
   'Executive',
   'Consultant',

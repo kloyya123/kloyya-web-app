@@ -28,6 +28,7 @@ interface AuthContextValue {
   verifyEmail: (code: string) => Promise<Session>;
   resendVerificationCode: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   completeOnboarding: (profile: OnboardingProfile) => Promise<Session>;
   updateSettings: (patch: SettingsPatch) => Promise<Session>;
 }
@@ -113,6 +114,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
       resendVerificationCode: () => services.auth.resendVerificationCode(),
       requestPasswordReset: (email: string) =>
         services.auth.requestPasswordReset(email),
+      updatePassword: (newPassword: string) => services.auth.updatePassword(newPassword),
       completeOnboarding: onboardingMutation.mutateAsync,
       updateSettings: settingsMutation.mutateAsync,
     }),

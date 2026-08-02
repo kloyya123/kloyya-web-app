@@ -50,6 +50,23 @@ export type SignUpValues = z.infer<typeof signUpSchema>;
 export const forgotPasswordSchema = z.object({ email });
 export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
+/**
+ * Setting a new password after following a reset link.
+ *
+ * Confirmation is required here but not at sign-up, and the asymmetry is
+ * deliberate: at sign-up a typo is recoverable — you reset. At reset, a typo
+ * locks you out of the account you were in the middle of recovering, and the
+ * only way back is another reset email. The second field is worth the friction
+ * exactly once.
+ */
+export const resetPasswordSchema = z
+  .object({ password, confirmPassword: z.string().min(1, 'Re-enter your new password.') })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: 'Those passwords do not match.',
+    path: ['confirmPassword'],
+  });
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
+
 export const verifyEmailSchema = z.object({
   code: z
     .string()

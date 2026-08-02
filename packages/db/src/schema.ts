@@ -456,6 +456,44 @@ export const askUsage = pgTable(
 ).enableRLS();
 
 /**
+ * The generated morning briefing, one row per workspace per day.
+ *
+ * Cached rather than regenerated because a briefing costs a model call: without
+ * this, every dashboard load paid a few seconds of latency and real money to
+ * re-derive the same three sentences from the same records. Keyed by
+ * (workspace, day) so a second visit on the same morning is a plain row read.
+ *
+ * `evidenceCount` is stored alongside the prose because it is what `confidence`
+ * was computed from — keeping it means a briefing can be explained after the
+ * fact ("written from 12 items across 3 tools") rather than presenting a number
+ * nobody can account for.
+ */
+export const briefings = pgTable(
+  'briefings',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** The UTC calendar day this briefing covers. */
+    day: date('day').notNull(),
+    kind: text('kind').notNull().default('morning'),
+    headline: text('headline').notNull(),
+    narrative: text('narrative').notNull(),
+    confidence: integer('confidence').notNull(),
+    /** How many landed records it was written from. */
+    evidenceCount: integer('evidence_count').notNull().default(0),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.day] }),
+    index('briefings_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
  * API rate-limit buckets — a blunt abuse guard, not tenant data.
  *
  * A fixed-window counter: one row per (subject, window-start), incremented on

@@ -100,6 +100,14 @@ export interface AuthService {
    */
   requestPasswordReset(email: string): Promise<void>;
 
+  /**
+   * Set a new password, using the recovery session the emailed link established.
+   *
+   * Throws when there is no such session — an expired or already-used link — so
+   * the form can say that plainly instead of appearing to succeed.
+   */
+  updatePassword(newPassword: string): Promise<void>;
+
   /** Throws 422 when the code is wrong or expired. */
   verifyEmail(code: string): Promise<Session>;
 

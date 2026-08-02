@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { describeAllowlist, isBetaAllowed } from '@/lib/beta-access';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { SESSION_COOKIE_NAME } from '@/services/auth/session-store';
 
@@ -18,22 +17,40 @@ import { SESSION_COOKIE_NAME } from '@/services/auth/session-store';
  * (and refreshes it, carrying the rotated cookies onto every response); with the
  * mock it reads the unsigned demo cookie. The decision tree — where each of
  * {unauthenticated, unverified, un-onboarded, provisioned} may go — is shared.
+ *
+ * There is no allowlist here anymore: anyone who creates an account reaches the
+ * product. That gate existed for the private beta and was removed by request —
+ * see the git history around lib/beta-access.ts if it needs to come back.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
+/**
+ * The marketing page, and the one route a stranger is meant to land on.
+ *
+ * Kept out of PUBLIC_ROUTES deliberately: that list is matched with
+ * `startsWith`, and '/' is a prefix of every path, so adding it there would
+ * quietly make the entire app public.
+ */
 const ROOT = '/';
 const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password'];
 /** Reachable while authenticated but not yet fully provisioned. */
 const PROVISIONING_ROUTES = ['/verify-email', '/onboarding', '/workspace-init'];
-/** Where a signed-in account that is not on the allowlist is held. */
-const WAITLIST_WALL = '/waitlist';
+
+/**
+ * Setting a new password, reached from the emailed reset link.
+ *
+ * Exempt from every branch below, in both directions. Supabase establishes a
+ * recovery SESSION when the link is followed, so by the time this screen loads
+ * the visitor is authenticated — which would otherwise send them straight to
+ * /dashboard, past the one screen they came here to use. Equally it must work
+ * when no session exists yet, so the link is never a dead end.
+ */
+const RESET_PASSWORD = '/reset-password';
 
 interface AuthState {
   authed: boolean;
   verified: boolean;
   onboarded: boolean;
-  /** On the access allowlist. See lib/beta-access.ts. */
-  allowed: boolean;
 }
 
 /**
@@ -41,9 +58,11 @@ interface AuthState {
  * refreshed Supabase session) must survive onto any redirect — the canonical
  * @supabase/ssr pitfall is dropping them.
  */
-function decide(request: NextRequest, state: AuthState, carry: NextResponse): NextResponse {
+export function decide(request: NextRequest, state: AuthState, carry: NextResponse): NextResponse {
   const { pathname, search } = request.nextUrl;
-  const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+  // Exact match on ROOT, prefix match on the rest — see ROOT above for why.
+  const isPublic =
+    pathname === ROOT || PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   const isProvisioning = PROVISIONING_ROUTES.some((route) => pathname.startsWith(route));
 
   const redirect = (to: URL) => {
@@ -52,29 +71,18 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
     return res;
   };
 
+  // The reset screen is exempt from the whole tree — see RESET_PASSWORD above.
+  if (pathname.startsWith(RESET_PASSWORD)) return carry;
+
   // Unauthenticated: everything except the public routes goes to login, with a
   // validated return path so the user lands where they were headed. `/` is
-  // public too — it is the marketing page, and bouncing a first-time visitor
-  // to a password field is how you lose them before they know what Kloyya is.
+  // public, so a stranger gets the marketing page rather than a login form.
   if (!state.authed) {
-    if (isPublic || pathname === ROOT) return carry;
+    if (isPublic) return carry;
     const login = new URL('/login', request.url);
     login.searchParams.set('next', `${pathname}${search}`);
     return redirect(login);
   }
-
-  // Signed in, but not on the allowlist.
-  //
-  // Checked before verification and onboarding on purpose: walking someone
-  // through an email code and an eight-step wizard only to refuse them at the
-  // end would be a cruel way to spend their time.
-  if (!state.allowed) {
-    if (pathname === WAITLIST_WALL || pathname === ROOT) return carry;
-    return redirect(new URL(WAITLIST_WALL, request.url));
-  }
-
-  // An allowed user has no reason to sit on the wall.
-  if (pathname === WAITLIST_WALL) return redirect(new URL('/dashboard', request.url));
 
   // Authenticated but unverified: the only way forward is the code.
   if (!state.verified) {
@@ -82,13 +90,45 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
   }
 
   // Verified but not onboarded: the only way forward is onboarding.
+  //
+  // /workspace-init counts as forward, not backward. It runs immediately AFTER
+  // the wizard, and the `onboarded` flag it is measured against is stamped into
+  // user_metadata best-effort (see server/users/metadata.ts) — the database is
+  // the source of truth, that stamp is a convenience for this very check. When
+  // the stamp fails the flag stays false, and without this exemption pressing
+  // Continue on the connect-tools screen bounced the user back to the start of
+  // the wizard they had just finished: a silent loop that looks like a dead
+  // button. Provisioning is idempotent, so letting it through is safe.
   if (!state.onboarded) {
-    return pathname.startsWith('/onboarding') ? carry : redirect(new URL('/onboarding', request.url));
+    const movingForward =
+      pathname.startsWith('/onboarding') || pathname.startsWith('/workspace-init');
+    return movingForward ? carry : redirect(new URL('/onboarding', request.url));
   }
 
-  // Fully provisioned. Bounce away from `/`, the auth screens, and the
-  // provisioning screens — a signed-in user has no business on the login page.
-  if (pathname === ROOT || isPublic || isProvisioning) {
+  // `/` stays the marketing page even when signed in.
+  //
+  // It used to forward to /dashboard, which was right while the app had its own
+  // domain and `/` was merely "the logged-out state". Now that kloyya.com is the
+  // company's public front door, that rule hid the pricing and FAQ from the very
+  // people most likely to look them up, and made a shared kloyya.com link open
+  // someone's dashboard instead of the page they were sent. The header offers
+  // them the way back into the product.
+  if (pathname === ROOT) return carry;
+
+  // The public surface — `/`, /login, /signup, /forgot-password — renders for
+  // everyone, signed in or not.
+  //
+  // These used to forward a signed-in visitor to /dashboard, which meant the
+  // landing page's own "Log in" and "Sign up" buttons dropped anyone with a
+  // stale session straight into the app. Clicking Sign up and landing on a
+  // dashboard is not a redirect a person can make sense of, and it read as the
+  // page being broken. Nothing depends on the bounce: the login form navigates
+  // itself with `router.replace(redirectTo)` once credentials are accepted.
+  if (isPublic) return carry;
+
+  // Provisioning screens are different — they are steps in a flow, not pages.
+  // A finished account has no reason to be standing in one.
+  if (isProvisioning) {
     // Two provisioning routes run AFTER onboarding, on the way to the dashboard,
     // so a provisioned user may see them: connect-tools and workspace-init.
     if (pathname.startsWith('/workspace-init') || pathname.startsWith('/onboarding/connect-tools')) {
@@ -130,18 +170,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return withGateHeader(
-    decide(
-      request,
-      {
-        authed: Boolean(user),
-        verified: Boolean(user?.email_confirmed_at),
-        onboarded: user?.user_metadata?.['onboarded'] === true,
-        // From the verified JWT's email claim, never a header or query parameter.
-        allowed: isBetaAllowed(user?.email),
-      },
-      response,
-    ),
+  return decide(
+    request,
+    {
+      authed: Boolean(user),
+      verified: Boolean(user?.email_confirmed_at),
+      onboarded: user?.user_metadata?.['onboarded'] === true,
+    },
+    response,
   );
 }
 
@@ -152,13 +188,12 @@ function mockMiddleware(request: NextRequest): NextResponse {
     authed: false,
     verified: false,
     onboarded: false,
-    allowed: false,
   };
 
   if (raw) {
     try {
       const s = JSON.parse(decodeURIComponent(raw)) as {
-        user?: { isEmailVerified?: boolean; hasCompletedOnboarding?: boolean; email?: string };
+        user?: { isEmailVerified?: boolean; hasCompletedOnboarding?: boolean };
         organization?: unknown;
         workspace?: unknown;
         preferences?: unknown;
@@ -169,7 +204,6 @@ function mockMiddleware(request: NextRequest): NextResponse {
           authed: true,
           verified: s.user.isEmailVerified === true,
           onboarded: s.user.hasCompletedOnboarding === true,
-          allowed: isBetaAllowed(s.user.email),
         };
       }
     } catch {
@@ -177,26 +211,7 @@ function mockMiddleware(request: NextRequest): NextResponse {
     }
   }
 
-  return withGateHeader(decide(request, state, NextResponse.next()));
-}
-
-/**
- * Report what the gate can see, as a response header.
- *
- * TEMPORARY. The previous version of this gate refused an allowlisted address
- * and the cause could never be established, because nothing about the check was
- * observable from outside — a missing variable, a malformed one, and a session
- * without an email all produced the same wall.
- *
- * Middleware runs on the Edge runtime, so its view of the environment is not
- * necessarily an API route's view; this header is the only way to read the Edge
- * side directly. It carries a count and entry LENGTHS, never an address, so a
- * stray quote or trailing space shows up as a wrong length without publishing
- * anyone's email. Remove once the gate is confirmed working.
- */
-function withGateHeader(response: NextResponse): NextResponse {
-  response.headers.set('x-kloyya-gate', describeAllowlist());
-  return response;
+  return decide(request, state, NextResponse.next());
 }
 
 export const config = {

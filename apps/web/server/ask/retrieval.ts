@@ -110,7 +110,7 @@ export async function retrieveContext(
  * We try the common keys and fall back to the resource type, never dumping raw
  * JSON at a person.
  */
-function describe(payload: unknown, resourceType: string): string {
+export function describe(payload: unknown, resourceType: string): string {
   if (payload && typeof payload === 'object') {
     const p = payload as Record<string, unknown>;
     for (const key of ['subject', 'title', 'name', 'summary']) {

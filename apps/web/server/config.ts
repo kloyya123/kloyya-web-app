@@ -92,7 +92,25 @@ const schema = z.object({
   // AI (Ask Kloyya). Provider-neutral: AI_PROVIDER picks the default, and the
   // selected provider's key powers it. Both keys are server-only and optional —
   // absent, Ask Kloyya degrades to an honest "not configured" state.
-  AI_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+  /**
+   * Trusted web search (Level 3 of the source hierarchy). Both optional: with
+   * neither set, Ask Kloyya answers from the workspace alone, exactly as it did
+   * before the feature existed. Perplexity wins if both are present.
+   */
+  PERPLEXITY_API_KEY: z.string().min(1).optional(),
+  PERPLEXITY_MODEL: z.string().min(1).default('sonar'),
+  TAVILY_API_KEY: z.string().min(1).optional(),
+
+  /**
+   * The Sonar model that ANSWERS questions, as opposed to PERPLEXITY_MODEL
+   * above, which finds sources. Both roles run on the one key, but they want
+   * different settings — and eventually different models, since answering a hard
+   * question well is a different job from listing links. Kept as two variables so
+   * tuning one can never silently retune the other.
+   */
+  PERPLEXITY_CHAT_MODEL: z.string().min(1).default('sonar'),
+
+  AI_PROVIDER: z.enum(['openai', 'anthropic', 'perplexity']).default('openai'),
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),

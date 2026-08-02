@@ -176,6 +176,13 @@
       "when": 1785063264606,
       "tag": "0024_waitlist",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785568568885,
+      "tag": "0025_parallel_red_shift",
+      "breakpoints": true
     }
   ]
 }

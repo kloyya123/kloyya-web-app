@@ -2,6 +2,9 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db/client';
 import { withTenantScope } from '@kloyya/db/scope';
 import { syncRecords, tasks } from '@kloyya/db/schema';
+import type { Briefing } from '@kloyya/core';
+import type { AiProvider } from '../ai/provider';
+import { generateBriefing } from '../briefing/service';
 import type { StartContext } from '../tenant';
 
 /**
@@ -19,9 +22,15 @@ import type { StartContext } from '../tenant';
  *   priorities      — the workspace's own tasks, ranked by AI priority score
  *   upcomingMeetings— calendar events landed by the Google/Outlook connectors
  *   metrics         — counted from those two
+ *   briefing        — written from what actually landed in the last day
+ *
+ * The briefing matters more than its size suggests. Until it existed this file
+ * queried only `calendar_event`, so a workspace could sync thousands of emails,
+ * files and Notion pages and still render a blank screen — sync reported success
+ * and nothing the user connected was anywhere on the page. See briefing/service.
  *
  * Empty, because no backend produces them yet:
- *   briefing, recommendations, agents, notifications, projects
+ *   recommendations, agents, notifications, projects
  *
  * Returning [] for those is the honest answer, and every consumer already
  * renders an empty state for it — the alternative would be inventing content
@@ -47,7 +56,7 @@ export interface DashboardMeeting {
 }
 
 export interface DashboardPayload {
-  briefing: null;
+  briefing: Briefing | null;
   recommendations: never[];
   priorities: unknown[];
   projects: never[];
@@ -176,10 +185,16 @@ export async function getDashboard(
   db: AppDb,
   ctx: StartContext,
   now: Date = new Date(),
+  provider: AiProvider | null = null,
 ): Promise<DashboardPayload> {
   const windowEnd = new Date(now.getTime() + MEETING_WINDOW_HOURS * 3_600_000);
 
-  return withTenantScope(db, ctx.organizationId, async (tx) => {
+  // Started before the queries below and awaited after them, so the model call
+  // overlaps the database work instead of following it. It never rejects — a
+  // briefing that cannot be written is null, not a failed dashboard.
+  const briefingPromise = generateBriefing(db, ctx, provider, now);
+
+  const payload = await withTenantScope(db, ctx.organizationId, async (tx) => {
     const [taskRows, openCountRow, eventRows] = await Promise.all([
       tx
         .select({
@@ -258,7 +273,7 @@ export async function getDashboard(
     }).length;
 
     return {
-      briefing: null,
+      briefing: null as Briefing | null,
       recommendations: [],
       priorities: taskRows.map((task) => ({
         ...task,
@@ -281,4 +296,6 @@ export async function getDashboard(
       },
     } satisfies DashboardPayload;
   });
+
+  return { ...payload, briefing: await briefingPromise };
 }
