@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db/client';
 import { withTenantScope } from '@kloyya/db/scope';
 import { connections, syncRecords } from '@kloyya/db/schema';
@@ -75,6 +75,15 @@ const SYNC_BUDGET_MS = 40_000;
 
 /** How many provider objects to fetch at once. */
 const FETCH_CONCURRENCY = 12;
+
+/**
+ * Rows per batched write.
+ *
+ * Comfortably under Postgres's 65535 bound-parameter limit even at ten columns
+ * a row, with headroom to spare — this is a safety cap for an unusually large
+ * first sync, not a number tuned against the limit.
+ */
+const LAND_CHUNK_SIZE = 500;
 
 /** When this run must stop doing new work. */
 function deadlineFrom(deps: SyncDeps): number {
@@ -152,72 +161,95 @@ function hashPayload(payload: unknown): string {
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
+/** One provider object, reduced to what landing it needs to know. */
+export interface RecordToLand {
+  resourceType: string;
+  externalId: string;
+  payload: unknown;
+  cancelled: boolean;
+}
+
 /**
- * Land one provider object.
+ * Land a page of provider objects in as few round trips as the database will
+ * allow.
  *
- * The hash is what makes a re-sync cheap: Google re-sends objects that haven't
- * changed, and rewriting them would churn the table and wake the pipeline for
- * nothing. Returns whether anything was actually written.
+ * This used to be `landRecord`, called once per object: a SELECT to compare the
+ * content hash, then an INSERT — so a first sync with a thousand messages spent
+ * roughly two thousand sequential round trips talking to Postgres before any
+ * Gmail time was even counted. This is one `INSERT ... ON CONFLICT DO UPDATE`
+ * per chunk instead.
+ *
+ * The WHERE clause on the update is what replaces the old SELECT: a row is only
+ * rewritten when its content hash changed or its tombstone state flipped — the
+ * same skip rule as before, but decided by Postgres in the statement itself
+ * rather than by a query we ran first. `RETURNING` then tells us which rows were
+ * actually written: Postgres omits a conflicting row from RETURNING when its
+ * `DO UPDATE ... WHERE` condition is false, which is exactly the "nothing
+ * changed" case the old SELECT used to detect.
  */
-async function landRecord(
+export async function landRecords(
   db: AppDb,
   ctx: StartContext,
   connectionId: string,
   integrationId: string,
-  resourceType: string,
-  externalId: string,
-  payload: unknown,
-  cancelled: boolean,
+  records: RecordToLand[],
   now: Date,
-): Promise<boolean> {
-  const contentHash = hashPayload(payload);
+): Promise<{ written: number; tombstoned: number }> {
+  if (records.length === 0) return { written: 0, tombstoned: 0 };
+
+  // Last write wins. A single INSERT cannot touch the same conflict target
+  // twice — Postgres raises "ON CONFLICT DO UPDATE command cannot affect row a
+  // second time" — and while a provider page repeating a (resourceType,
+  // externalId) pair would be unusual, it costs nothing to make it impossible
+  // rather than to trust every provider never does it.
+  const deduped = new Map<string, RecordToLand>();
+  for (const record of records) {
+    deduped.set(`${record.resourceType}:${record.externalId}`, record);
+  }
+  const unique = [...deduped.values()];
 
   return withTenantScope(db, ctx.organizationId, async (tx) => {
-    const [existing] = await tx
-      .select({ contentHash: syncRecords.contentHash, deletedAtSource: syncRecords.deletedAtSource })
-      .from(syncRecords)
-      .where(
-        and(
-          eq(syncRecords.connectionId, connectionId),
-          eq(syncRecords.resourceType, resourceType),
-          eq(syncRecords.externalId, externalId),
-        ),
-      )
-      .limit(1);
+    let written = 0;
+    let tombstoned = 0;
 
-    const alreadyTombstoned = existing?.deletedAtSource != null;
-    if (existing && existing.contentHash === contentHash && alreadyTombstoned === cancelled) {
-      return false;
-    }
-
-    await tx
-      .insert(syncRecords)
-      .values({
+    for (let i = 0; i < unique.length; i += LAND_CHUNK_SIZE) {
+      const chunk = unique.slice(i, i + LAND_CHUNK_SIZE);
+      const rows = chunk.map((record) => ({
         organizationId: ctx.organizationId,
         workspaceId: ctx.workspaceId,
         connectionId,
         integrationId,
-        resourceType,
-        externalId,
-        payload: payload as object,
-        contentHash,
+        resourceType: record.resourceType,
+        externalId: record.externalId,
+        payload: record.payload as object,
+        contentHash: hashPayload(record.payload),
         fetchedAt: now,
-        ...(cancelled ? { deletedAtSource: now } : {}),
-      })
-      .onConflictDoUpdate({
-        target: [syncRecords.connectionId, syncRecords.resourceType, syncRecords.externalId],
-        set: {
-          payload: payload as object,
-          contentHash,
-          fetchedAt: now,
-          // A cancelled/deleted object is tombstoned, not removed — "this was
-          // cancelled" is intelligence. Re-appearing clears the tombstone, because
-          // providers do let objects come back.
-          deletedAtSource: cancelled ? now : null,
-        },
-      });
+        // A cancelled/deleted object is tombstoned, not removed — "this was
+        // cancelled" is intelligence. Re-appearing clears the tombstone, because
+        // providers do let objects come back.
+        deletedAtSource: record.cancelled ? now : null,
+      }));
 
-    return true;
+      const touched = await tx
+        .insert(syncRecords)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: [syncRecords.connectionId, syncRecords.resourceType, syncRecords.externalId],
+          set: {
+            payload: sql`excluded.payload`,
+            contentHash: sql`excluded.content_hash`,
+            fetchedAt: sql`excluded.fetched_at`,
+            deletedAtSource: sql`excluded.deleted_at_source`,
+          },
+          where: sql`${syncRecords.contentHash} <> excluded.content_hash or (${syncRecords.deletedAtSource} is null) <> (excluded.deleted_at_source is null)`,
+        })
+        .returning({ deletedAtSource: syncRecords.deletedAtSource });
+
+      written += touched.length;
+      tombstoned += touched.filter((row) => row.deletedAtSource !== null).length;
+    }
+
+    return { written, tombstoned };
   });
 }
 
@@ -351,24 +383,23 @@ export async function syncGoogleCalendar(
         deps.onRejected?.(calendar.id, failure);
       }
 
-      for (const event of batch.valid) {
-        const cancelled = isCancelled(event);
-        const changed = await landRecord(
-          db,
-          ctx,
-          connection.id,
-          integrationId,
-          'calendar_event',
-          event.id,
-          event,
-          cancelled,
-          now,
-        );
-        if (changed) {
-          written += 1;
-          if (cancelled) tombstoned += 1;
-        }
-      }
+      // One write for this calendar's page, rather than one per event — see
+      // landRecords.
+      const landed = await landRecords(
+        db,
+        ctx,
+        connection.id,
+        integrationId,
+        batch.valid.map((event) => ({
+          resourceType: 'calendar_event',
+          externalId: event.id,
+          payload: event,
+          cancelled: isCancelled(event),
+        })),
+        now,
+      );
+      written += landed.written;
+      tombstoned += landed.tombstoned;
 
       // Only a final page yields a token. Storing null would silently downgrade
       // the next run to a full read.
@@ -493,26 +524,6 @@ export async function syncGmail(
       });
     }
 
-    // Tombstone the deletions Gmail reported. A raw payload isn't needed to say
-    // "gone"; the id and the tombstone are the record.
-    for (const id of deletedIds) {
-      const changed = await landRecord(
-        db,
-        ctx,
-        connection.id,
-        integrationId,
-        'message',
-        id,
-        { id, deleted: true },
-        true,
-        now,
-      );
-      if (changed) {
-        written += 1;
-        tombstoned += 1;
-      }
-    }
-
     // Fetch and land the changed messages, metadata only.
     // Bounded parallelism against a wall clock. Sequentially, a large mailbox
     // meant one round trip per message and the run was killed before writing
@@ -529,20 +540,32 @@ export async function syncGmail(
     rejected += batch.rejected.length;
     for (const failure of batch.rejected) deps.onRejected?.('mailbox', failure);
 
-    for (const message of batch.valid) {
-      const changed = await landRecord(
-        db,
-        ctx,
-        connection.id,
-        integrationId,
-        'message',
-        message.id,
-        message,
-        false,
-        now,
-      );
-      if (changed) written += 1;
-    }
+    // Tombstones and live messages land together, one write for the whole run —
+    // see landRecords. A tombstone carries no payload beyond the id; the history
+    // feed says a message is gone, not what it contained.
+    const landed = await landRecords(
+      db,
+      ctx,
+      connection.id,
+      integrationId,
+      [
+        ...deletedIds.map((id) => ({
+          resourceType: 'message',
+          externalId: id,
+          payload: { id, deleted: true },
+          cancelled: true,
+        })),
+        ...batch.valid.map((message) => ({
+          resourceType: 'message',
+          externalId: message.id,
+          payload: message,
+          cancelled: false,
+        })),
+      ],
+      now,
+    );
+    written += landed.written;
+    tombstoned += landed.tombstoned;
 
     // The profile's historyId is the true "you are caught up to here" marker —
     // so it is only advanced on a COMPLETE pass. Advancing it after a truncated
@@ -613,29 +636,23 @@ export async function syncGoogleDrive(
   let tombstoned = 0;
   let rejected = 0;
 
-  /** Land one file: live files are validated; removals are tombstoned by id. */
-  const land = async (
-    fileId: string,
-    file: RawDriveFile | null,
-    removed: boolean,
-  ): Promise<void> => {
+  /**
+   * Reduce one Drive object to a record to land, tracking fetched/rejected
+   * counts as it goes. The actual write happens once, after every object from
+   * this run has been staged — see landRecords.
+   */
+  const toLand: RecordToLand[] = [];
+  const stage = (fileId: string, file: RawDriveFile | null, removed: boolean): void => {
     fetched += 1;
     if (removed) {
-      const changed = await landRecord(
-        db,
-        ctx,
-        connection.id,
-        integrationId,
-        'file',
-        fileId,
-        file ?? { id: fileId, removed: true },
-        true,
-        now,
-      );
-      if (changed) {
-        written += 1;
-        tombstoned += 1;
-      }
+      // Drive does not resend a trashed file's metadata, so a removal is
+      // landed by id alone.
+      toLand.push({
+        resourceType: 'file',
+        externalId: fileId,
+        payload: file ?? { id: fileId, removed: true },
+        cancelled: true,
+      });
       return;
     }
 
@@ -644,8 +661,7 @@ export async function syncGoogleDrive(
     for (const failure of batch.rejected) deps.onRejected?.('drive', failure);
 
     for (const valid of batch.valid) {
-      const changed = await landRecord(db, ctx, connection.id, integrationId, 'file', valid.id, valid, false, now);
-      if (changed) written += 1;
+      toLand.push({ resourceType: 'file', externalId: valid.id, payload: valid, cancelled: false });
     }
   };
 
@@ -665,7 +681,7 @@ export async function syncGoogleDrive(
 
       if (result) {
         for (const change of result.changes) {
-          await land(change.fileId, change.file, isDriveRemoval(change));
+          stage(change.fileId, change.file, isDriveRemoval(change));
         }
         if (result.nextPageToken) cursors[DRIVE_CURSOR_KEY] = result.nextPageToken;
       }
@@ -679,10 +695,15 @@ export async function syncGoogleDrive(
       const startToken = await getDriveStartPageToken({ accessToken: token.accessToken, ...fetchOpt });
       const files = await listDriveFiles({ accessToken: token.accessToken, ...fetchOpt });
       for (const file of files) {
-        await land(file.id, file, file.trashed === true);
+        stage(file.id, file, file.trashed === true);
       }
       if (startToken) cursors[DRIVE_CURSOR_KEY] = startToken;
     }
+
+    // One write for the whole run — see landRecords.
+    const landed = await landRecords(db, ctx, connection.id, integrationId, toLand, now);
+    written += landed.written;
+    tombstoned += landed.tombstoned;
   } catch (error) {
     const transient = error instanceof GoogleTransientError;
     await saveProgress(db, ctx, integrationId, cursors, {
@@ -766,34 +787,37 @@ async function syncGraphResource(
       result = await config.listDelta({ accessToken: token.accessToken, deltaLink: undefined, ...fetchOpt });
     }
 
-    // Tombstone the removals: an id and a tombstone are the whole record.
-    for (const id of result.removed) {
-      const changed = await landRecord(
-        db,
-        ctx,
-        connection.id,
-        integrationId,
-        resourceType,
-        id,
-        { id, removed: true },
-        true,
-        now,
-      );
-      if (changed) {
-        written += 1;
-        tombstoned += 1;
-      }
-    }
-
     const batch = validateGraphItems(result.items);
     rejected += batch.rejected.length;
     for (const failure of batch.rejected) deps.onRejected?.(resourceType, failure);
-
-    for (const item of batch.valid) {
-      const changed = await landRecord(db, ctx, connection.id, integrationId, resourceType, item.id, item, false, now);
-      if (changed) written += 1;
-    }
     fetched = result.items.length + result.removed.length;
+
+    // Removals and live items land together, one write for the whole run — see
+    // landRecords. A removal carries no payload beyond the id; the delta feed
+    // says an item is gone, not what it contained.
+    const landed = await landRecords(
+      db,
+      ctx,
+      connection.id,
+      integrationId,
+      [
+        ...result.removed.map((id) => ({
+          resourceType,
+          externalId: id,
+          payload: { id, removed: true },
+          cancelled: true,
+        })),
+        ...batch.valid.map((item) => ({
+          resourceType,
+          externalId: item.id,
+          payload: item,
+          cancelled: false,
+        })),
+      ],
+      now,
+    );
+    written += landed.written;
+    tombstoned += landed.tombstoned;
 
     if (result.nextDeltaLink) cursors[GRAPH_CURSOR_KEY] = result.nextDeltaLink;
   } catch (error) {
@@ -908,42 +932,35 @@ export async function syncNotion(
     const removals = page.items.filter(isNotionRemoval);
     const live = page.items.filter((item) => !isNotionRemoval(item));
 
-    for (const item of removals) {
-      const changed = await landRecord(
-        db,
-        ctx,
-        connection.id,
-        integrationId,
-        resourceTypeOf(item),
-        item.id,
-        item,
-        true,
-        now,
-      );
-      if (changed) {
-        written += 1;
-        tombstoned += 1;
-      }
-    }
-
     const batch = validateNotionItems(live);
     rejected += batch.rejected.length;
     for (const failure of batch.rejected) deps.onRejected?.('notion', failure);
 
-    for (const item of batch.valid) {
-      const changed = await landRecord(
-        db,
-        ctx,
-        connection.id,
-        integrationId,
-        resourceTypeOf(item),
-        item.id,
-        item,
-        false,
-        now,
-      );
-      if (changed) written += 1;
-    }
+    // Removals and live items land together, one write for the whole run — see
+    // landRecords.
+    const landed = await landRecords(
+      db,
+      ctx,
+      connection.id,
+      integrationId,
+      [
+        ...removals.map((item) => ({
+          resourceType: resourceTypeOf(item),
+          externalId: item.id,
+          payload: item,
+          cancelled: true,
+        })),
+        ...batch.valid.map((item) => ({
+          resourceType: resourceTypeOf(item),
+          externalId: item.id,
+          payload: item,
+          cancelled: false,
+        })),
+      ],
+      now,
+    );
+    written += landed.written;
+    tombstoned += landed.tombstoned;
 
     // Advance the high-water mark only if this run saw something newer — an empty
     // sync must not push the mark backward to null and re-read the world next time.
