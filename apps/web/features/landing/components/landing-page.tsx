@@ -252,11 +252,17 @@ function SiteHeader() {
             Log in is one click away for a returning visitor. The waitlist is
             not removed for it — it stays reachable from the hero and the
             final section below, as its own path for someone who would rather
-            wait than sign up today. */}
-        <div className="flex items-center gap-5">
+            wait than sign up today.
+
+            Log in is deliberately NOT hidden below `sm` the way the nav links
+            above are: those are conveniences a mobile visitor can live
+            without, but log in is the one thing a returning user on a phone
+            has no other way to reach from this page. It was hidden here once
+            already and cost exactly that — fixed, not a style call. */}
+        <div className="flex items-center gap-3 sm:gap-5">
           <Link
             href="/login"
-            className="hidden text-small text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)] sm:inline"
+            className="text-small whitespace-nowrap text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)]"
           >
             Log in
           </Link>

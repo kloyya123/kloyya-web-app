@@ -21,6 +21,7 @@ import type { DraftService } from './drafts/types';
 import { MockCalendarService } from './calendar/mock-calendar-service';
 import type { CalendarService } from './calendar/types';
 import { MockInboxService } from './inbox/mock-inbox-service';
+import { HttpInboxService } from './inbox/http-inbox-service';
 import type { InboxService } from './inbox/types';
 import { MockKnowledgeService } from './knowledge/mock-knowledge-service';
 import type { KnowledgeService } from './knowledge/types';
@@ -92,10 +93,10 @@ export interface Services {
  * layer — the 527 tests stay green because they never touch this branch.
  *
  * Only the services with a real backend are switched; the rest (calendar,
- * meetings, inbox, knowledge, search, notifications, sources) have no API yet
- * and stay on the mock until their phases land. Mixing is fine
- * on purpose: a page reading real auth and mock inbox is exactly the
- * incremental cut-over the frontend-first architecture was built to allow.
+ * meetings, knowledge, search, notifications, sources) have no API yet and
+ * stay on the mock until their phases land. Mixing is fine on purpose: a page
+ * reading real auth and mock calendar is exactly the incremental cut-over the
+ * frontend-first architecture was built to allow.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
@@ -120,11 +121,11 @@ export const services: Services = {
   tasks: USE_REAL_API ? new HttpTaskService() : new MockTaskService(),
   projects: USE_REAL_API ? new HttpProjectService() : new MockProjectService(),
   intelligence: USE_REAL_API ? new HttpIntelligenceService() : new MockIntelligenceService(),
+  inbox: USE_REAL_API ? new HttpInboxService() : new MockInboxService(),
   // No backend yet — these land with their roadmap phases.
   sources: new MockSourcesService(),
   calendar: new MockCalendarService(),
   meetings: new MockMeetingService(),
-  inbox: new MockInboxService(),
   knowledge: new MockKnowledgeService(),
   search: new MockSearchService(),
   notifications: new MockNotificationService(),
