@@ -124,6 +124,18 @@ const schema = z.object({
   // blunt abuse guard on every guarded route (the Ask per-day cap is a separate
   // entitlement limit). `0` disables it. Coerced because env vars are strings.
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(120),
+
+  /**
+   * Shared secret for the scheduled-sync endpoint.
+   *
+   * That route acts on every workspace, so it cannot be guarded by a session
+   * the way the rest of the API is — the caller is Vercel Cron, not a person.
+   * Optional so local development and preview deploys boot without it, but the
+   * route refuses to run when it is unset rather than defaulting to open: an
+   * unauthenticated endpoint that syncs every tenant is worse than one that
+   * does not run at all.
+   */
+  CRON_SECRET: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof schema>;
