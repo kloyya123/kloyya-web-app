@@ -127,6 +127,13 @@ export async function storeProviderTokens(
           accessTokenExpiresAt: tokens.expiresAt ?? null,
           grantedScopes: tokens.grantedScopes,
           errorReason: null,
+          // A fresh token means the sync pipeline knows nothing about what this
+          // token can reach yet — most importantly after a revoke-then-reconnect,
+          // where the row otherwise still carries the OLD token's lastSyncedAt.
+          // useFirstSync (features/connections/use-first-sync.ts) only auto-syncs
+          // when this is null, so leaving the old value meant a reconnect after
+          // a revoked/rotated OAuth client silently never synced again.
+          lastSyncedAt: null,
         },
       });
   });
