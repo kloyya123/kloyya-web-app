@@ -1,3 +1,5 @@
+import type { IntegrationCategory } from '@/types/integrations';
+
 /**
  * Landing page copy, in one place.
  *
@@ -63,28 +65,38 @@ export interface Tool {
   name: string;
   /** Connectable today, or on the roadmap. */
   live: boolean;
+  /** The catalogue id, where one exists — feeds the real icon lookup in
+   *  integration-meta.ts rather than a bespoke landing-page icon set. */
+  id: string;
+  category: IntegrationCategory;
 }
 
 /**
- * What a visitor is told they can connect — and only that.
+ * What a visitor is told they can connect.
  *
- * Every entry here is connectable today. Outlook and Slack used to appear as
- * "Next", which reads as a roadmap promise rather than a fact, and Outlook in
- * particular is currently hidden from the product's own UI pending its Azure
- * redirect URI. Advertising a tool the app will not let you connect is the kind
- * of small dishonesty that costs trust on the first click.
+ * Every `live: true` entry is connectable today; the flag is what keeps the
+ * grid honest rather than aspirational — Outlook is hidden from the product's
+ * own UI pending its Azure redirect URI, and stays off this list for the same
+ * reason. Slack is listed on request but marked `live: false`: there is no
+ * OAuth flow, no catalogue entry, and no sync for it yet, so showing it as
+ * connectable would be the exact small dishonesty this file exists to avoid.
  */
 export const TOOLS: Tool[] = [
-  { name: 'Gmail', live: true },
-  { name: 'Google Calendar', live: true },
-  { name: 'Google Drive', live: true },
-  { name: 'Notion', live: true },
+  { name: 'Gmail', live: true, id: 'gmail', category: 'communication' },
+  { name: 'Google Calendar', live: true, id: 'google_calendar', category: 'calendar' },
+  { name: 'Google Drive', live: true, id: 'google_drive', category: 'documents' },
+  { name: 'Notion', live: true, id: 'notion', category: 'documents' },
+  { name: 'Slack', live: false, id: 'slack', category: 'communication' },
 ];
 
 export interface Plan {
   name: string;
   price: string;
   period?: string;
+  /** A yearly alternative to the price above, shown as a secondary line. Kept
+   *  optional and separate from `price` rather than a billing-cycle toggle:
+   *  there are still only two plans, and this is one of them shown two ways. */
+  yearlyPrice?: string;
   features: string[];
   featured?: boolean;
 }
@@ -110,6 +122,7 @@ export const PLANS: Plan[] = [
     name: 'Pro',
     price: '$20',
     period: '/mo',
+    yearlyPrice: '$99/yr',
     featured: true,
     features: [
       'Everything in Free',

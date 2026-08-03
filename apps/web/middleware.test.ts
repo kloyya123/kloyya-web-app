@@ -12,15 +12,23 @@ import { decide } from './middleware';
  * prefix match on ROOT would hand out the dashboard and nothing would look wrong
  * until a stranger opened one.
  */
-const ANON = { authed: false, verified: false, onboarded: false };
-const READY = { authed: true, verified: true, onboarded: true };
+// `allowed: true` everywhere below except the dedicated allowlist tests: these
+// fixtures exist to pin verified/onboarded behaviour, and defaulting to "on the
+// list" keeps that the case without every one of them re-litigating the gate.
+const ANON = { authed: false, verified: false, onboarded: false, allowed: true };
+const READY = { authed: true, verified: true, onboarded: true, allowed: true };
 
 /** `decide` at `path`, returning the Location header (null when it passes through). */
 function go(path: string, state: typeof ANON): string | null {
   const request = new NextRequest(new URL(`https://kloyya.com${path}`));
   const response = decide(request, state, NextResponse.next());
   const location = response.headers.get('location');
-  return location ? new URL(location).pathname + new URL(location).search : null;
+  if (!location) return null;
+  const url = new URL(location);
+  // .hash included: the allowlist gate redirects to /#waitlist, and dropping
+  // the fragment here would make that redirect indistinguishable from a plain
+  // '/' in every assertion below.
+  return url.pathname + url.search + url.hash;
 }
 
 describe('the landing page is public', () => {
@@ -93,12 +101,12 @@ describe('the dashboard is unreachable until sign-up or log-in is finished', () 
     { name: 'never signed in', state: ANON, sentTo: '/login?next=%2Fdashboard' },
     {
       name: 'signed up but has not entered the emailed code',
-      state: { authed: true, verified: false, onboarded: false },
+      state: { authed: true, verified: false, onboarded: false, allowed: true },
       sentTo: '/verify-email',
     },
     {
       name: 'verified but has not finished onboarding',
-      state: { authed: true, verified: true, onboarded: false },
+      state: { authed: true, verified: true, onboarded: false, allowed: true },
       sentTo: '/onboarding',
     },
   ];
@@ -114,9 +122,36 @@ describe('the dashboard is unreachable until sign-up or log-in is finished', () 
   });
 });
 
+describe('the allowlist gate', () => {
+  // A real account, real session, just not on the list — this is the state
+  // isBetaAllowed() itself is unit-tested against in beta-access.test.ts. Here
+  // the question is purely what the gate DOES with that answer.
+  const DISALLOWED = { authed: true, verified: true, onboarded: true, allowed: false };
+
+  it('sends a disallowed account to the waitlist, not the dashboard', () => {
+    expect(go('/dashboard', DISALLOWED)).toBe('/#waitlist');
+  });
+
+  it('checked before verification or onboarding — no point walking someone through the wizard first', () => {
+    const midway = { authed: true, verified: false, onboarded: false, allowed: false };
+    expect(go('/verify-email', midway)).toBe('/#waitlist');
+    expect(go('/onboarding', midway)).toBe('/#waitlist');
+  });
+
+  it('still lets a disallowed account read the marketing page', () => {
+    // The whole point of routing them here rather than a dead end: `/` is where
+    // the waitlist actually lives.
+    expect(go('/', DISALLOWED)).toBeNull();
+  });
+
+  it('never blocks an allowed account', () => {
+    expect(go('/dashboard', READY)).toBeNull();
+  });
+});
+
 describe('provisioning still funnels forward', () => {
   it('holds an unverified user at the code screen', () => {
-    const unverified = { authed: true, verified: false, onboarded: false };
+    const unverified = { authed: true, verified: false, onboarded: false, allowed: true };
     expect(go('/dashboard', unverified)).toBe('/verify-email');
     expect(go('/verify-email', unverified)).toBeNull();
   });
@@ -125,7 +160,7 @@ describe('provisioning still funnels forward', () => {
     // The Continue button bug: workspace-init runs after the wizard, and the
     // `onboarded` stamp is best-effort, so gating on it alone looped the user
     // back to the start of the wizard they had just finished.
-    const midway = { authed: true, verified: true, onboarded: false };
+    const midway = { authed: true, verified: true, onboarded: false, allowed: true };
     expect(go('/workspace-init', midway)).toBeNull();
     expect(go('/onboarding', midway)).toBeNull();
     expect(go('/dashboard', midway)).toBe('/onboarding');

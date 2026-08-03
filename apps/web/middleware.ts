@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { describeAllowlist, isBetaAllowed } from '@/lib/beta-access';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { SESSION_COOKIE_NAME } from '@/services/auth/session-store';
 
@@ -16,11 +17,13 @@ import { SESSION_COOKIE_NAME } from '@/services/auth/session-store';
  * Two backends, one gate: with the real backend it reads the Supabase session
  * (and refreshes it, carrying the rotated cookies onto every response); with the
  * mock it reads the unsigned demo cookie. The decision tree — where each of
- * {unauthenticated, unverified, un-onboarded, provisioned} may go — is shared.
+ * {unauthenticated, unverified, un-onboarded, allowed, provisioned} may go — is
+ * shared.
  *
- * There is no allowlist here anymore: anyone who creates an account reaches the
- * product. That gate existed for the private beta and was removed by request —
- * see the git history around lib/beta-access.ts if it needs to come back.
+ * The allowlist is back, by request, scoped to two addresses. Sign-up and
+ * sign-in still go straight to Supabase, so an account not on the list CAN be
+ * created — that call never passes through our server. What it cannot do is
+ * reach the app: this runs on every request. See lib/beta-access.ts.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
@@ -51,6 +54,8 @@ interface AuthState {
   authed: boolean;
   verified: boolean;
   onboarded: boolean;
+  /** On the access allowlist. See lib/beta-access.ts. */
+  allowed: boolean;
 }
 
 /**
@@ -82,6 +87,19 @@ export function decide(request: NextRequest, state: AuthState, carry: NextRespon
     const login = new URL('/login', request.url);
     login.searchParams.set('next', `${pathname}${search}`);
     return redirect(login);
+  }
+
+  // Signed in, but not on the allowlist.
+  //
+  // Checked before verification and onboarding on purpose: walking someone
+  // through an email code and the onboarding wizard only to refuse them at the
+  // end would be a cruel way to spend their time. `/` already carries for
+  // everyone (see below), so a disallowed visitor lands on the one page that
+  // has the waitlist on it — nothing special-cased here needs a dedicated
+  // wall route the way it once did.
+  if (!state.allowed) {
+    if (pathname === ROOT) return carry;
+    return redirect(new URL('/#waitlist', request.url));
   }
 
   // Authenticated but unverified: the only way forward is the code.
@@ -170,15 +188,33 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return decide(
-    request,
-    {
-      authed: Boolean(user),
-      verified: Boolean(user?.email_confirmed_at),
-      onboarded: user?.user_metadata?.['onboarded'] === true,
-    },
-    response,
+  return withGateHeader(
+    decide(
+      request,
+      {
+        authed: Boolean(user),
+        verified: Boolean(user?.email_confirmed_at),
+        onboarded: user?.user_metadata?.['onboarded'] === true,
+        allowed: isBetaAllowed(user?.email),
+      },
+      response,
+    ),
   );
+}
+
+/**
+ * TEMPORARY, same reasoning as the last time this gate existed: an earlier
+ * version once refused an allowlisted address and the cause was never
+ * established, because nothing about the check was observable from outside —
+ * a missing variable, a malformed one, and a session without an email all
+ * produced the same wall. This header carries a count and entry LENGTHS,
+ * never an address, so a stray quote or trailing space shows up as a wrong
+ * length without publishing anyone's email. Remove once this configuration is
+ * confirmed working end to end.
+ */
+function withGateHeader(response: NextResponse): NextResponse {
+  response.headers.set('x-kloyya-gate', describeAllowlist());
+  return response;
 }
 
 /** The mock branch: read the unsigned demo cookie. No cookies to carry. */
@@ -188,12 +224,13 @@ function mockMiddleware(request: NextRequest): NextResponse {
     authed: false,
     verified: false,
     onboarded: false,
+    allowed: false,
   };
 
   if (raw) {
     try {
       const s = JSON.parse(decodeURIComponent(raw)) as {
-        user?: { isEmailVerified?: boolean; hasCompletedOnboarding?: boolean };
+        user?: { email?: string; isEmailVerified?: boolean; hasCompletedOnboarding?: boolean };
         organization?: unknown;
         workspace?: unknown;
         preferences?: unknown;
@@ -204,6 +241,7 @@ function mockMiddleware(request: NextRequest): NextResponse {
           authed: true,
           verified: s.user.isEmailVerified === true,
           onboarded: s.user.hasCompletedOnboarding === true,
+          allowed: isBetaAllowed(s.user.email),
         };
       }
     } catch {

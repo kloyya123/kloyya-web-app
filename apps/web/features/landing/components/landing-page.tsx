@@ -5,6 +5,7 @@ import { Logo, LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, ROLES, TOOLS } from '../content';
+import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { WaitlistForm } from './waitlist-form';
 import { HeroBriefing, ProductScreens } from './product-screens';
@@ -13,100 +14,117 @@ import { SocialLinks } from './social-links';
 /**
  * Kloyya's public front door.
  *
- * `/` used to redirect straight to /login, on the basis that the marketing site
- * lived in a separate repository. It now lives here, on the same domain, so a
- * visitor who has never heard of Kloyya gets an explanation before a password
- * field — and so the app's own KDS tokens keep the two surfaces identical.
- * A signed-in visitor sees this page too. It is the company's front door, so
- * forwarding them to their dashboard would hide the pricing and FAQ from the
- * people most likely to look them up, and would turn a shared kloyya.com link
- * into someone else's dashboard.
+ * Visual language is deliberately not KDS: a warm, editorial register for the
+ * marketing page (serif display type, cream background, soft rounded cards),
+ * kept out of the product entirely. See the `.landing` block in tokens.css for
+ * why that is a scoped exception rather than a rule change.
  *
- * Layout: a ruled margin runs down the left with numbered section labels in it,
- * echoing what Kloyya does — reading the day and marking up what matters.
+ * `/` renders for everyone, signed in or not — this is the company's front
+ * door, and forwarding a returning visitor to their dashboard would hide the
+ * pricing and FAQ from the person most likely to look them up, and turn a
+ * shared kloyya.com link into someone else's dashboard.
  */
 export function LandingPage() {
   return (
-    /* `light` pins the marketing page to the white KDS palette regardless of
-       the visitor's system theme. The app itself defaults to dark at :root and
-       lets people choose — but a landing page that changes colour depending on
-       who is looking cannot be designed, screenshotted, or shared with any
-       confidence about what the other person sees. The class scopes the light
-       token set to this subtree only, so nothing inside the product moves. */
-    <div className="light bg-background text-foreground min-h-dvh">
+    /* Two classes doing two different jobs. `.light` sets the standard KDS
+     * tokens (`bg-card`, `border-border`, `text-subtle`…) so every screenshot
+     * mockup and the Button component keep rendering exactly as they do in the
+     * product — a white "window" is part of the look, not a bug. `.landing`
+     * layers the warm cream background and ink on top, for the hand-written
+     * sections around those windows. Neither reaches into the product. */
+    <div className="light landing bg-[var(--landing-bg)] text-[color:var(--landing-ink)] min-h-dvh">
       <SiteHeader />
 
       <main id="main">
         <Hero />
+        <ToolStrip />
 
-
-        <Section index="02" label="Product" title="Kloyya in action">
-          <Lede>Three screens you will live in. Nothing here is a placeholder.</Lede>
-          <ProductScreens />
+        <Section
+          eyebrow="See it work"
+          title={
+            <>
+              Kloyya, in <Accent>action.</Accent>
+            </>
+          }
+          lede="Three screens you'll live in. Nothing here is a placeholder."
+          id="product"
+        >
+          <Lifted>
+            <ProductScreens />
+          </Lifted>
         </Section>
 
-        <Section index="03" label="What it does" title="Five jobs, done quietly">
-          <Lede>Kloyya does not ask for a new workflow. It reads the one you have.</Lede>
-          {/* Cards rather than the ruled rows this used to be: five headings
-              stacked down the page read as a spec sheet and get skimmed past.
-              The first card spans two columns because "reads your mail" is the
-              one that has to land — the rest only matter once it does. */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Section
+          eyebrow="What it does"
+          title={
+            <>
+              Five jobs, done <Accent>quietly.</Accent>
+            </>
+          }
+          lede="Kloyya does not ask for a new workflow. It reads the one you have."
+        >
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((feature, index) => (
-              <article
-                key={feature.title}
-                className={cn(
-                  'border-border bg-background hover:border-link/40 flex flex-col gap-2 rounded-lg border p-6 transition-colors',
-                  index === 0 && 'sm:col-span-2',
-                )}
-              >
-                <span className="text-caption text-link font-mono tracking-widest uppercase">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <h3 className="text-title text-foreground font-semibold">{feature.title}</h3>
-                <p className="text-muted-foreground m-0">{feature.body}</p>
-              </article>
+              <FeatureCard key={feature.title} index={index} {...feature} />
             ))}
           </div>
         </Section>
 
-        <Section index="04" label="Who it's for" title="Six versions of the same problem">
-          <Lede>Too much arriving, too little of it yours.</Lede>
-          <div className="border-border bg-border grid gap-px border sm:grid-cols-2 lg:grid-cols-3">
+        <Section
+          eyebrow="Built for you"
+          title={
+            <>
+              However you <Accent>work.</Accent>
+            </>
+          }
+          lede="Too much arriving, too little of it yours."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {ROLES.map((role) => (
-              <div key={role.name} className="bg-background hover:bg-surface p-6 transition-colors">
-                <span className="text-caption text-link mb-2 block font-mono tracking-widest uppercase">
+              <div
+                key={role.name}
+                className="rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-card)]"
+              >
+                <span className="text-caption font-mono tracking-widest text-[var(--color-intelligence-blue)] uppercase">
                   {role.name}
                 </span>
-                <p className="text-muted-foreground m-0">{role.body}</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">
+                  {role.body}
+                </p>
               </div>
             ))}
           </div>
         </Section>
 
-        <Section index="05" label="Connects" title="Bring your own tools" anchor="tools">
-          <Lede>
-            Read access by default. Anything that acts — sending, declining, replying — stays off
-            until you switch it on, and is revocable in one click.
-          </Lede>
-          <div className="border-border bg-border grid gap-px border sm:grid-cols-2 lg:grid-cols-3">
+        <Section
+          eyebrow="Connects"
+          title={
+            <>
+              Bring your own <Accent>tools.</Accent>
+            </>
+          }
+          lede="Read access by default. Anything that acts — sending, declining, replying — stays off until you switch it on, and is revocable in one click."
+          id="tools"
+        >
+          <ConnectHub />
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {TOOLS.map((tool) => (
               <div
                 key={tool.name}
-                className="bg-background hover:bg-surface flex items-center justify-between gap-4 p-5 transition-colors"
+                className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-5 shadow-[var(--landing-shadow-card)]"
               >
-                <span className="text-body text-foreground">{tool.name}</span>
+                <span className="text-body text-[var(--landing-ink)]">{tool.name}</span>
                 <span
                   className={cn(
                     'text-caption inline-flex items-center gap-2 font-mono tracking-wider whitespace-nowrap uppercase',
-                    tool.live ? 'text-positive' : 'text-subtle',
+                    tool.live ? 'text-[var(--color-success)]' : 'text-[var(--landing-ink-subtle)]',
                   )}
                 >
                   <span
                     aria-hidden="true"
                     className={cn(
                       'size-1.5 rounded-full',
-                      tool.live ? 'bg-positive ring-positive/25 ring-3' : 'bg-subtle',
+                      tool.live ? 'bg-[var(--color-success)]' : 'bg-[var(--landing-ink-subtle)]',
                     )}
                   />
                   {tool.live ? 'Live' : 'Next'}
@@ -114,147 +132,90 @@ export function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="text-caption text-subtle mt-4 font-mono">
+          <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">
             Missing something you rely on?{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-link rounded-sm hover:underline">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--color-intelligence-blue)] underline underline-offset-4">
               Tell us and we will build it.
             </a>
           </p>
         </Section>
 
-        <Section index="06" label="Pricing" title="Two plans. That is the whole menu." anchor="pricing">
-          <Lede>Free is a real product, not a countdown to a paywall.</Lede>
-          <div className="border-border bg-border grid max-w-3xl gap-px border sm:grid-cols-2">
+        <Section
+          eyebrow="Safe with us"
+          title={
+            <>
+              Always <Accent>private.</Accent>
+            </>
+          }
+          lede="Connecting a tool should feel safe. Kloyya reads on a least-privilege basis and stays out of your way until you ask it something."
+        >
+          <div className="grid gap-4 sm:grid-cols-3">
+            <TrustCard
+              title="Read-only, always"
+              body="Kloyya can read what you connect. Sending, editing or deleting is a separate switch you turn on yourself."
+            />
+            <TrustCard
+              title="Your login stays private"
+              body="Connections go through the provider's own sign-in — Google, Microsoft, Notion. Kloyya never sees your password."
+            />
+            <TrustCard
+              title="Encrypted, and yours"
+              body="Every token is encrypted at rest. Disconnect a tool or delete your account and the access — and the data — goes with it."
+            />
+          </div>
+        </Section>
+
+        <Section
+          eyebrow="Pricing"
+          title={
+            <>
+              Two plans. That’s the whole <Accent>menu.</Accent>
+            </>
+          }
+          lede="Free is a real product, not a countdown to a paywall."
+          id="pricing"
+        >
+          <div className="grid max-w-3xl gap-5 sm:grid-cols-2">
             {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={cn(
-                  'flex flex-col gap-5 p-7',
-                  plan.featured
-                    ? 'bg-surface shadow-[inset_0_2px_0_var(--color-intelligence-blue)]'
-                    : 'bg-background',
-                )}
-              >
-                <div className="flex items-baseline justify-between gap-4">
-                  <span
-                    className={cn(
-                      'text-caption font-mono tracking-widest uppercase',
-                      plan.featured ? 'text-link' : 'text-subtle',
-                    )}
-                  >
-                    {plan.name}
-                  </span>
-                  <span className="text-heading-l text-foreground font-semibold">
-                    {plan.price}
-                    {plan.period ? (
-                      <span className="text-caption text-subtle font-mono">{plan.period}</span>
-                    ) : null}
-                  </span>
-                </div>
-
-                <ul className="m-0 flex flex-1 list-none flex-col gap-2.5 p-0">
-                  {plan.features.map((item) => (
-                    <li key={item} className="text-small text-muted-foreground flex gap-2.5">
-                      <Check aria-hidden="true" className="text-link mt-0.5 size-4 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg">
-                  <a href="#waitlist">{plan.featured ? 'Get Pro at launch' : 'Join the waitlist'}</a>
-                </Button>
-              </div>
+              <PricingCard key={plan.name} plan={plan} />
             ))}
           </div>
-          <p className="text-caption text-subtle mt-4 font-mono">
+          <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">
             Free is free, and it stays free. Upgrade to Pro whenever you want more.
           </p>
         </Section>
 
-        <Section index="07" label="Questions" title="Fair questions" anchor="faq">
-          <Lede>
-            Mostly about your data and what Kloyya is allowed to do, which is the right thing to
-            ask about.
-          </Lede>
-          <div className="border-border max-w-3xl border-t">
+        <Section
+          eyebrow="Questions"
+          title={
+            <>
+              Fair <Accent>questions.</Accent>
+            </>
+          }
+          lede="Mostly about your data and what Kloyya is allowed to do, which is the right thing to ask about."
+          id="faq"
+        >
+          <div className="max-w-3xl divide-y divide-[var(--landing-border)] rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]">
             {FAQS.map((faq, index) => (
-              <details
-                key={faq.q}
-                open={index === 0}
-                className="border-border/60 group border-b"
-              >
-                <summary className="text-body text-foreground marker:content-none hover:text-link flex cursor-pointer list-none items-center justify-between gap-4 py-4 transition-colors">
+              <details key={faq.q} open={index === 0} className="group px-6">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-body text-[var(--landing-ink)] marker:content-none">
                   {faq.q}
                   <span
                     aria-hidden="true"
-                    className="text-link shrink-0 font-mono transition-transform group-open:rotate-45"
+                    className="shrink-0 font-mono text-[var(--color-intelligence-blue)] transition-transform group-open:rotate-45"
                   >
                     +
                   </span>
                 </summary>
-                <p className="text-small text-muted-foreground m-0 max-w-[60ch] pb-5">{faq.a}</p>
+                <p className="max-w-[60ch] pb-5 text-small leading-relaxed text-[var(--landing-ink-soft)]">
+                  {faq.a}
+                </p>
               </details>
             ))}
           </div>
         </Section>
 
-        <Section index="09" label="Get started" title="Three steps to your first briefing" anchor="access">
-          <Lede>
-            Creating an account takes a minute and costs nothing. Connect one tool and Kloyya
-            starts reading straight away.
-          </Lede>
-
-          <div className="border-border bg-border grid max-w-3xl gap-px border sm:grid-cols-3">
-            {[
-              { step: '01', title: 'Create your account', body: 'Email and a password. No card, and the free plan does not expire.' },
-              { step: '02', title: 'Connect a tool', body: 'Gmail, Calendar, Drive or Notion. Read access only, revocable in one click.' },
-              { step: '03', title: 'Read your briefing', body: 'Kloyya works through what it found and hands you the short list.' },
-            ].map((item) => (
-              <div key={item.step} className="bg-background p-6">
-                <span className="text-caption text-link mb-2 block font-mono tracking-widest uppercase">
-                  {item.step}
-                </span>
-                <h3 className="text-title text-foreground mb-1.5 font-semibold">{item.title}</h3>
-                <p className="text-small text-muted-foreground m-0">{item.body}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <a href="#waitlist">Join the waitlist</a>
-            </Button>
-          </div>
-
-          {/* The list is a queue for access again: sign-up is closed while the
-              connectors are being proven, so this is the only way in. Worded as
-              a queue rather than a newsletter, because that is what it is. */}
-          <div id="waitlist" className="border-border/60 mt-10 scroll-mt-24 border-t pt-8">
-            <h3 className="text-title text-foreground mb-1.5 font-semibold">
-              Get early access
-            </h3>
-            <p className="text-small text-muted-foreground mb-4">
-              Kloyya is not open to everyone yet. Leave your address and we will email you when
-              your place is ready — nothing else, and never to anyone else.
-            </p>
-            <WaitlistForm source="landing" />
-          </div>
-        </Section>
-
-        <Section index="10" label="Start" title="Tomorrow morning, the list is already made." center>
-          <Lede center>
-            Connect one tool and see what Kloyya finds. It takes about two minutes.
-          </Lede>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <a href="#waitlist">Join the waitlist</a>
-            </Button>
-          </div>
-          <p className="text-caption text-subtle mt-4 font-mono">
-            Free when it opens, no card. We will email you the moment there is a place for you.
-          </p>
-        </Section>
+        <FinalCta />
       </main>
 
       <SiteFooter />
@@ -266,37 +227,48 @@ export function LandingPage() {
 
 function SiteHeader() {
   return (
-    <header className="bg-background/85 border-border sticky top-0 z-50 border-b backdrop-blur-md">
-      <div className="mx-auto flex max-w-content items-center justify-between gap-4 px-6 py-3.5">
-        {/* The real mark, not a stand-in: the same component the product uses,
-            so the brand cannot drift between the marketing page and the app. */}
+    <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[var(--landing-bg)]/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
         <Link href="/" className="rounded-sm" aria-label="Kloyya home">
           <Logo />
         </Link>
 
-        <nav className="text-caption flex items-center gap-6 font-mono tracking-wider uppercase">
-          <a href="#tools" className="text-muted-foreground hover:text-foreground hidden rounded-sm sm:inline">
+        <nav className="hidden items-center gap-7 text-small text-[var(--landing-ink-soft)] sm:flex">
+          <a href="#product" className="rounded-sm hover:text-[var(--landing-ink)]">
+            Product
+          </a>
+          <a href="#tools" className="rounded-sm hover:text-[var(--landing-ink)]">
             Integrations
           </a>
-          <a href="#pricing" className="text-muted-foreground hover:text-foreground hidden rounded-sm sm:inline">
+          <a href="#pricing" className="rounded-sm hover:text-[var(--landing-ink)]">
             Pricing
           </a>
-          <a href="#faq" className="text-muted-foreground hover:text-foreground hidden rounded-sm sm:inline">
-            FAQ
-          </a>
-          {/* Sign-in and sign-up are deliberately absent while Kloyya is
-              closed. Showing a login form for a product nobody can join yet
-              invites people to try credentials they do not have; one action
-              that works beats two that mostly do not. The /login and /signup
-              routes still exist and still work — they are simply not advertised
-              here — so testing continues without a special path back in. */}
-          <a
-            href="#waitlist"
-            className="bg-intelligence-blue text-on-intelligence-blue rounded-sm px-3 py-1.5 transition-colors hover:bg-intelligence-blue/90"
-          >
-            Join the waitlist
-          </a>
+          <Link href="/trust" className="rounded-sm hover:text-[var(--landing-ink)]">
+            Trust
+          </Link>
         </nav>
+
+        {/* Restored on request: Get Started leads straight to an account, and
+            Log in is one click away for a returning visitor. The waitlist is
+            not removed for it — it stays reachable from the hero and the
+            final section below, as its own path for someone who would rather
+            wait than sign up today. */}
+        <div className="flex items-center gap-5">
+          <Link
+            href="/login"
+            className="hidden text-small text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)] sm:inline"
+          >
+            Log in
+          </Link>
+          <Button
+            asChild
+            size="md"
+            className="rounded-full"
+            trailingIcon={<ArrowRight aria-hidden="true" className="size-4" />}
+          >
+            <Link href="/signup">Get started</Link>
+          </Button>
+        </div>
       </div>
     </header>
   );
@@ -304,71 +276,61 @@ function SiteHeader() {
 
 function Hero() {
   return (
-    <section className="border-border relative border-b">
+    <section className="relative overflow-hidden">
+      {/* A quiet vignette in the same warm neutrals — depth without the
+          product's blue/purple gradient, which has no place on this page
+          anymore (see tokens.css: the marketing page is not KDS). */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
-          background: [
-            /**
-             * Kloyya's own palette rather than the reference's pink-and-mint.
-             *
-             * The reference washes two unrelated warm and cool blooms across a
-             * white field, which looks pleasant and says nothing — swap the logo
-             * and it belongs to any startup. This is built from the product's
-             * actual tokens: intelligence blue as the anchor, executive purple
-             * beside it, and one warm ember far enough away to keep the whole
-             * thing from reading cold. The result is recognisably Kloyya at a
-             * glance, which is the only job a hero gradient has.
-             *
-             * Ordered back-to-front, with the white core listed FIRST so it is
-             * painted underneath: colour stays at the edges and the headline and
-             * waitlist field always sit on plain white.
-             */
-            'radial-gradient(64% 56% at 46% 26%, var(--color-background) 38%, transparent 76%)',
-            'radial-gradient(46% 62% at 4% -6%, color-mix(in srgb, var(--color-executive-purple) 30%, transparent), transparent 66%)',
-            'radial-gradient(40% 50% at 16% 2%, color-mix(in srgb, var(--color-intelligence-blue) 26%, transparent), transparent 62%)',
-            'radial-gradient(52% 64% at 98% -4%, color-mix(in srgb, var(--color-intelligence-blue) 34%, transparent), transparent 68%)',
-            'radial-gradient(34% 44% at 86% 10%, color-mix(in srgb, var(--color-notice) 22%, transparent), transparent 62%)',
-            'radial-gradient(30% 38% at 70% 2%, color-mix(in srgb, var(--color-caution) 14%, transparent), transparent 60%)',
-            'linear-gradient(180deg, color-mix(in srgb, var(--color-intelligence-blue) 5%, transparent), transparent 42%)',
-          ].join(', '),
+          background:
+            'radial-gradient(60% 50% at 50% 0%, var(--landing-bg-soft), transparent 70%)',
         }}
       />
 
-      <div className="mx-auto max-w-content px-6 py-20 md:py-28">
-        <span className="text-caption text-subtle font-mono tracking-widest uppercase">
-          Kloyya / 01
+      <div className="mx-auto max-w-4xl px-6 pt-20 pb-16 text-center md:pt-28 md:pb-24">
+        <span className="text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
+          AI Chief of Staff
         </span>
 
-        <h1 className="text-foreground mt-6 max-w-3xl text-4xl leading-[1.08] font-bold tracking-tight text-balance sm:text-5xl lg:text-[3.4rem]">
-          One morning briefing,
-          <br />
-          <span className="text-muted-foreground">every tool you use.</span>
+        <h1 className="mt-6 font-serif text-[2.75rem] leading-[1.08] font-normal tracking-tight text-[var(--landing-ink)] text-balance sm:text-6xl lg:text-[4.25rem]">
+          Ask your work, <Accent>anything.</Accent>
         </h1>
 
-        <p className="text-body text-muted-foreground mt-5 max-w-md">
-          Connect your mail, calendar, and documents. Kloyya works through the noise overnight and
-          hands you the short list — then drafts the replies and waits for your nod before anything
-          is sent.
+        <p className="mx-auto mt-6 max-w-xl text-body text-[var(--landing-ink-soft)]">
+          Kloyya reads your mail, calendar and documents overnight, then hands you the short list
+          each morning — what moved, what’s waiting on you, what can wait. Ask anything and get an
+          answer with its sources attached.
         </p>
 
-        {/* The one action available while Kloyya is closed, put where the
-            reference design puts it: in the hero, not at the bottom of a page
-            most visitors will never reach. */}
-        <div className="mt-8 max-w-md">
-          <WaitlistForm source="landing-hero" />
-          <p className="text-caption text-subtle mt-3 font-mono">
-            Free when it opens. No card. We email you once, when your place is ready.
-          </p>
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Button
+            asChild
+            size="lg"
+            className="rounded-full px-8"
+            trailingIcon={<ArrowRight aria-hidden="true" />}
+          >
+            <Link href="/signup">Get started</Link>
+          </Button>
+          <a
+            href="#waitlist"
+            className="text-small text-[var(--landing-ink-soft)] underline underline-offset-4 hover:text-[var(--landing-ink)]"
+          >
+            or join the waitlist
+          </a>
         </div>
 
-        <Reveal delay={120} className="mx-auto mt-14 max-w-4xl">
-          <HeroBriefing />
+        <p className="mt-4 text-caption font-mono text-[var(--landing-ink-subtle)]">
+          Free to start. No card required. The free plan does not expire.
+        </p>
+
+        <Reveal delay={120} className="mx-auto mt-16 max-w-3xl">
+          <Lifted>
+            <HeroBriefing />
+          </Lifted>
         </Reveal>
       </div>
-
-      <ToolStrip />
     </section>
   );
 }
@@ -379,24 +341,19 @@ function Hero() {
  * The reference design puts customer logos here. Kloyya has no customers who
  * have agreed to be named, and borrowed logos are the fastest possible way to
  * lose the trust this whole product is selling — so this says the true version
- * of the same thing. "Works with what you already use" is the reassurance a
- * visitor is actually looking for at this point on the page, and every name
- * here is a connector that exists.
+ * of the same thing instead. Every name here is a connector that exists.
  */
 function ToolStrip() {
   const live = TOOLS.filter((tool) => tool.live);
   return (
-    <div className="border-border bg-surface/40 border-t">
-      <div className="mx-auto max-w-content px-6 py-6">
-        <p className="text-caption text-subtle mb-4 text-center font-mono tracking-widest uppercase">
+    <div className="border-y border-[var(--landing-border)] bg-[var(--landing-bg-soft)]/60">
+      <div className="mx-auto max-w-6xl px-6 py-6">
+        <p className="mb-4 text-center text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
           Works with what you already use
         </p>
         <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-10 gap-y-3 p-0">
           {live.map((tool) => (
-            <li
-              key={tool.name}
-              className="text-body text-muted-foreground font-medium whitespace-nowrap"
-            >
+            <li key={tool.name} className="font-medium whitespace-nowrap text-[var(--landing-ink-soft)]">
               {tool.name}
             </li>
           ))}
@@ -406,50 +363,174 @@ function ToolStrip() {
   );
 }
 
-/** One ruled section: a numbered label in the margin, content in the column. */
+/** Lifts a screenshot mockup off the page with a stronger shadow than the KDS default. */
+function Lifted({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-2xl shadow-[var(--landing-shadow-lifted)]" style={{ borderRadius: '1rem' }}>
+      {children}
+    </div>
+  );
+}
+
+/** The italic serif emphasis word — the one technique borrowed directly from the reference. */
+function Accent({ children }: { children: ReactNode }) {
+  return <em className="font-serif text-[var(--color-intelligence-blue)] not-italic italic">{children}</em>;
+}
+
+/** A centered section: eyebrow label, serif headline with one accented word, lede, content. */
 function Section({
-  index,
-  label,
+  eyebrow,
   title,
-  anchor,
-  center,
+  lede,
+  id,
   children,
 }: {
-  index: string;
-  label: string;
-  title: string;
-  anchor?: string;
-  center?: boolean;
+  eyebrow: string;
+  title: ReactNode;
+  lede: string;
+  id?: string;
   children: ReactNode;
 }) {
-  const id = anchor ?? label.toLowerCase().replace(/[^a-z]+/g, '-');
-
   return (
-    <section id={id} className="border-border scroll-mt-16 border-b">
-      <div className="mx-auto grid max-w-content px-6 md:grid-cols-[9rem_minmax(0,1fr)]">
-        <div className="border-border pt-12 md:border-r md:py-18 md:pr-6">
-          <span className="text-caption text-subtle sticky top-20 font-mono tracking-widest uppercase md:block md:text-right">
-            {label} / {index}
+    <section id={id} className="scroll-mt-20 border-b border-[var(--landing-border)] py-16 md:py-24">
+      <Reveal className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto mb-12 max-w-2xl text-center">
+          <span className="text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
+            {eyebrow}
           </span>
-        </div>
-
-        {/* One Reveal per section rather than per element: the whole block
-            arriving together reads as a page turning, where staggering every
-            card turns scrolling into a slot machine. */}
-        <Reveal className={cn('py-8 md:py-18 md:pl-10', center && 'text-center')}>
-          <h2 className="text-heading-l text-foreground mb-3 font-semibold tracking-tight text-balance">
+          <h2 className="mt-3 font-serif text-3xl leading-tight font-normal text-[var(--landing-ink)] text-balance sm:text-4xl">
             {title}
           </h2>
-          {children}
-        </Reveal>
-      </div>
+          <p className="mt-4 text-body text-[var(--landing-ink-soft)]">{lede}</p>
+        </div>
+        {children}
+      </Reveal>
     </section>
   );
 }
 
-function Lede({ children, center }: { children: ReactNode; center?: boolean }) {
+function FeatureCard({ title, body, index }: { title: string; body: string; index: number }) {
   return (
-    <p className={cn('text-muted-foreground mb-8 max-w-2xl', center && 'mx-auto')}>{children}</p>
+    <article
+      className={cn(
+        'flex flex-col gap-2 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-card)]',
+        index === 0 && 'sm:col-span-2 lg:col-span-1',
+      )}
+    >
+      <span className="font-mono text-caption tracking-widest text-[var(--color-intelligence-blue)] uppercase">
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <h3 className="text-title font-semibold text-[var(--landing-ink)]">{title}</h3>
+      <p className="m-0 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">{body}</p>
+    </article>
+  );
+}
+
+function TrustCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 text-center shadow-[var(--landing-shadow-card)]">
+      <h3 className="text-title font-semibold text-[var(--landing-ink)]">{title}</h3>
+      <p className="mt-2 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">{body}</p>
+    </div>
+  );
+}
+
+function PricingCard({
+  plan,
+}: {
+  plan: { name: string; price: string; period?: string; yearlyPrice?: string; features: string[]; featured?: boolean };
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-5 rounded-2xl border p-7',
+        plan.featured
+          ? 'border-[var(--color-intelligence-blue)]/40 bg-[var(--landing-card)] shadow-[var(--landing-shadow-lifted)]'
+          : 'border-[var(--landing-border)] bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]',
+      )}
+    >
+      <div>
+        <div className="flex items-baseline justify-between gap-4">
+          <span
+            className={cn(
+              'text-caption font-mono tracking-widest uppercase',
+              plan.featured ? 'text-[var(--color-intelligence-blue)]' : 'text-[var(--landing-ink-subtle)]',
+            )}
+          >
+            {plan.name}
+          </span>
+          <span className="text-2xl font-semibold text-[var(--landing-ink)]">
+            {plan.price}
+            {plan.period ? (
+              <span className="text-caption font-mono text-[var(--landing-ink-subtle)]">{plan.period}</span>
+            ) : null}
+          </span>
+        </div>
+        {plan.yearlyPrice ? (
+          <p className="mt-1 text-caption font-mono text-[var(--landing-ink-subtle)]">
+            or {plan.yearlyPrice} billed annually
+          </p>
+        ) : null}
+      </div>
+
+      <ul className="m-0 flex flex-1 list-none flex-col gap-2.5 p-0">
+        {plan.features.map((item) => (
+          <li key={item} className="flex gap-2.5 text-small text-[var(--landing-ink-soft)]">
+            <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--color-intelligence-blue)]" />
+            {item}
+          </li>
+        ))}
+      </ul>
+
+      <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg" className="rounded-full">
+        <Link href="/signup">{plan.featured ? 'Get Pro' : 'Get started free'}</Link>
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The closing band. Get Started is the primary action; the waitlist is kept —
+ * on request — as the path for someone who would rather be notified than open
+ * an account today.
+ */
+function FinalCta() {
+  return (
+    <section className="py-16 md:py-24">
+      <Reveal className="mx-auto max-w-3xl px-6">
+        <div className="rounded-3xl border border-[var(--landing-border)] bg-[var(--landing-card)] px-8 py-14 text-center shadow-[var(--landing-shadow-lifted)] sm:px-14">
+          <h2 className="font-serif text-3xl leading-tight font-normal text-[var(--landing-ink)] text-balance sm:text-4xl">
+            Tomorrow morning, the list is already <Accent>made.</Accent>
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-body text-[var(--landing-ink-soft)]">
+            Create an account and connect one tool. Kloyya starts reading straight away.
+          </p>
+
+          <div className="mt-8 flex justify-center">
+            <Button
+              asChild
+              size="lg"
+              className="rounded-full px-8"
+              trailingIcon={<ArrowRight aria-hidden="true" />}
+            >
+              <Link href="/signup">Get started</Link>
+            </Button>
+          </div>
+          <p className="mt-3 text-caption font-mono text-[var(--landing-ink-subtle)]">
+            Free to start, no card required.
+          </p>
+
+          <div id="waitlist" className="mx-auto mt-12 max-w-md scroll-mt-24 border-t border-[var(--landing-border)] pt-8">
+            <h3 className="text-title font-semibold text-[var(--landing-ink)]">Not ready for an account?</h3>
+            <p className="mt-1.5 mb-4 text-small text-[var(--landing-ink-soft)]">
+              Leave your address and we will email you when something worth knowing ships — new
+              integrations, or the mobile apps. Nothing else.
+            </p>
+            <WaitlistForm source="landing-final" />
+          </div>
+        </div>
+      </Reveal>
+    </section>
   );
 }
 
@@ -465,9 +546,7 @@ function SiteFooter() {
     },
     {
       heading: 'Company',
-      links: [
-        { label: 'Contact', href: `mailto:${CONTACT_EMAIL}` },
-      ],
+      links: [{ label: 'Contact', href: `mailto:${CONTACT_EMAIL}` }],
     },
     {
       heading: 'Resources',
@@ -488,19 +567,19 @@ function SiteFooter() {
   ];
 
   return (
-    <footer className="bg-surface border-border border-t">
-      <div className="mx-auto max-w-content px-6">
+    <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-bg-soft)]/60">
+      <div className="mx-auto max-w-6xl px-6">
         <div className="grid gap-8 py-12 sm:grid-cols-3 lg:grid-cols-5">
           {columns.map((column) => (
             <div key={column.heading}>
-              <h2 className="text-caption text-subtle mb-3 font-mono font-medium tracking-widest uppercase">
+              <h2 className="mb-3 text-caption font-mono font-medium tracking-widest text-[var(--landing-ink-subtle)] uppercase">
                 {column.heading}
               </h2>
               {column.links.map((link) => (
                 <a
                   key={link.label}
                   href={link.href}
-                  className="text-small text-muted-foreground hover:text-link block rounded-sm py-1 transition-colors"
+                  className="block rounded-sm py-1 text-small text-[var(--landing-ink-soft)] hover:text-[var(--color-intelligence-blue)]"
                 >
                   {link.label}
                 </a>
@@ -509,14 +588,14 @@ function SiteFooter() {
           ))}
 
           <div>
-            <h2 className="text-caption text-subtle mb-3 font-mono font-medium tracking-widest uppercase">
+            <h2 className="mb-3 text-caption font-mono font-medium tracking-widest text-[var(--landing-ink-subtle)] uppercase">
               Follow
             </h2>
             <SocialLinks />
           </div>
         </div>
 
-        <div className="border-border text-caption text-subtle flex flex-wrap items-center justify-between gap-4 border-t py-5 font-mono">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--landing-border)] py-5 text-caption font-mono text-[var(--landing-ink-subtle)]">
           <span className="flex items-center gap-2.5">
             <LogoMark decorative className="size-5" />© 2026 Kloyya Inc. All rights reserved.
           </span>

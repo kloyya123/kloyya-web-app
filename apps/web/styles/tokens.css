@@ -110,6 +110,12 @@
   --font-sans:
     var(--font-inter), system-ui, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
 
+  /* NOT part of KDS. The marketing page (features/landing) uses a serif for
+   * display headlines; the product never does. Registering it here is what
+   * makes Tailwind's `font-serif` utility exist at all — kept isolated to one
+   * font-family declaration so its non-KDS origin stays obvious. */
+  --font-serif: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+
   --text-display: 3rem; /* 48px */
   --text-display--line-height: 1.1;
   --text-heading-xl: 2.5rem; /* 40px */
@@ -340,4 +346,34 @@
   --kds-shadow-5: 0 16px 48px -8px rgb(0 0 0 / 0.52);
 
   color-scheme: dark;
+}
+
+/* =====================================================================
+ * LANDING PAGE — NOT KDS.
+ *
+ * Everything above this line is governed: KDS is "the single source of truth"
+ * and the product must never step outside it. The marketing page is the one
+ * deliberate exception, on the same reasoning this file already accepts for
+ * dark/light — a distinct visual register belongs in its own scoped class, not
+ * hardcoded at call sites.
+ *
+ * Warm neutrals, not the product's slate/blue-black. `--color-intelligence-blue`
+ * and `--color-on-intelligence-blue` are reused as-is for accents and buttons —
+ * this adds a background and ink to put them on, not a second brand color.
+ * Applied via the `.landing` class on the page's own root element, so nothing
+ * here can reach the product.
+ * ================================================================== */
+.landing {
+  --landing-bg: #faf4ea;
+  --landing-bg-soft: #f2e9da;
+  --landing-card: #fffdf8;
+  --landing-border: #e7dcc8;
+  --landing-ink: #211d17;
+  --landing-ink-soft: #6b6153;
+  --landing-ink-subtle: #a89b87;
+
+  --landing-shadow-card: 0 1px 2px 0 rgb(38 26 10 / 0.04), 0 8px 24px -8px rgb(38 26 10 / 0.1);
+  --landing-shadow-lifted: 0 24px 64px -24px rgb(38 26 10 / 0.28);
+
+  color-scheme: light;
 }

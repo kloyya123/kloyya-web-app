@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Fraunces, Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import { Toaster, TooltipProvider } from '@/components/ui';
@@ -15,6 +15,22 @@ import '@/styles/globals.css';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+/**
+ * A serif for the marketing page only — KDS specifies Inter for the product,
+ * so this is deliberately kept out of the design-system font stack and used
+ * nowhere the app itself renders. Loaded here rather than per-page because
+ * next/font requires a module-scope call; exposing the variable at the root
+ * costs nothing when unused, and the landing page is the only place `font-serif`
+ * is ever applied. Italic is loaded because the marketing page leans on it for
+ * emphasis (see the hero) rather than synthesizing a fake italic in the browser.
+ */
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  variable: '--font-fraunces',
   display: 'swap',
 });
 
@@ -50,7 +66,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     // suppressHydrationWarning: next-themes writes the theme class onto <html>
     // before React hydrates, so server and client markup differ here by design.
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${fraunces.variable}`} suppressHydrationWarning>
       <body className="min-h-dvh">
         <ThemeProvider>
           <QueryProvider>
