@@ -98,6 +98,10 @@ const schema = z.object({
     .string()
     .url()
     .default('http://localhost:3000/api/v1/integrations/oauth/slack/callback'),
+  // Verifies every incoming Events API request actually came from Slack (HMAC
+  // over the raw body, per Slack's signing spec) — the webhook route refuses
+  // every request if this isn't set, rather than trusting an unsigned one.
+  SLACK_SIGNING_SECRET: z.string().min(1).optional(),
 
   // AI (Ask Kloyya). Provider-neutral: AI_PROVIDER picks the default, and the
   // selected provider's key powers it. Both keys are server-only and optional —

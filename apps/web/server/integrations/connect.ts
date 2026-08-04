@@ -117,6 +117,9 @@ export async function storeProviderTokens(
         ...(tokens.expiresAt ? { accessTokenExpiresAt: tokens.expiresAt } : {}),
         grantedScopes: tokens.grantedScopes,
         errorReason: null,
+        // Seed provider metadata (e.g. Slack's team id) at connect time — most
+        // providers pass nothing here, and the column already defaults to '{}'.
+        ...(tokens.metadata ? { syncCursors: tokens.metadata } : {}),
       })
       .onConflictDoUpdate({
         target: [connections.workspaceId, connections.integrationId],
@@ -135,6 +138,10 @@ export async function storeProviderTokens(
           // when this is null, so leaving the old value meant a reconnect after
           // a revoked/rotated OAuth client silently never synced again.
           lastSyncedAt: null,
+          // Only touched when the provider actually returns metadata (Slack) —
+          // Google/Microsoft/Notion's sync cursors must survive a reconnect
+          // untouched, exactly as before this field existed.
+          ...(tokens.metadata ? { syncCursors: tokens.metadata } : {}),
         },
       });
   });

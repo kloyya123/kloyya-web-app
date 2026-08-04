@@ -40,6 +40,16 @@ export function isSlackIntegration(integrationId: string): boolean {
   return integrationId === 'slack';
 }
 
+/**
+ * Where the installed Slack team's id lives in a connection's `syncCursors`.
+ *
+ * A live event from Slack's Events API carries a `team_id`, not a workspace or
+ * organization id — this is how the webhook route finds which Kloyya
+ * connection(s) an incoming event belongs to. Written once, at connect time
+ * (see `exchangeSlackCode` below and `storeProviderTokens` in connect.ts).
+ */
+export const SLACK_TEAM_ID_KEY = 'slack:team_id';
+
 export function buildSlackAuthUrl(params: {
   clientId: string;
   redirectUri: string;
@@ -58,6 +68,7 @@ interface SlackTokenResponse {
   access_token?: string;
   scope?: string;
   error?: string;
+  team?: { id?: string; name?: string };
 }
 
 /**
@@ -103,5 +114,6 @@ export async function exchangeSlackCode(params: {
     expiresAt: null,
     // Believe Slack's answer, not our own request — it can grant less than asked.
     grantedScopes: body.scope ? body.scope.split(',').filter(Boolean) : [],
+    ...(body.team?.id ? { metadata: { [SLACK_TEAM_ID_KEY]: body.team.id } } : {}),
   };
 }

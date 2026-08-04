@@ -14,6 +14,15 @@ export interface ProviderTokens {
   expiresAt: Date | null;
   /** What the provider actually granted — which can be less than we asked. */
   grantedScopes: string[];
+  /**
+   * Non-secret bookkeeping a provider needs remembered alongside the tokens —
+   * e.g. Slack's installed team id, which an incoming webhook event carries but
+   * a bare access token does not. Most providers have nothing to put here.
+   * Stored in the connection's `syncCursors` JSON (see connect.ts) rather than
+   * a new column, the same "opaque provider values" reasoning that column
+   * already exists for.
+   */
+  metadata?: Record<string, string>;
 }
 
 /** A new access token, and possibly a rotated refresh token, from a refresh. */
