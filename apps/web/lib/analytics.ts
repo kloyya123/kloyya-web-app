@@ -13,22 +13,30 @@ import posthog from 'posthog-js';
  * it is meant to reach the browser. A `phx_` personal key is a secret and must
  * never be exposed here; it lives server-side for the management API only.
  */
-const KEY = process.env['NEXT_PUBLIC_POSTHOG_KEY'];
-const HOST = process.env['NEXT_PUBLIC_POSTHOG_HOST'] ?? 'https://us.i.posthog.com';
+const KEY = process.env['NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN'];
+const HOST = process.env['NEXT_PUBLIC_POSTHOG_HOST'];
 
 /** True once init has run against a real key. Guards every call below. */
 let ready = false;
 
 /** True when a project key is configured — analytics can run at all. */
 export function analyticsEnabled(): boolean {
-  return typeof window !== 'undefined' && typeof KEY === 'string' && KEY.length > 0;
+  return typeof window !== 'undefined' && typeof KEY === 'string' && KEY.length > 0 && typeof HOST === 'string' && HOST.length > 0;
 }
 
 /** Start PostHog once, on the client. Safe to call repeatedly. */
 export function initAnalytics(): void {
-  if (ready || !analyticsEnabled()) return;
+  if (ready) return;
+  if (!analyticsEnabled()) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        'NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN is configured',
+      );
+    }
+    return;
+  }
   posthog.init(KEY as string, {
-    api_host: HOST,
+    api_host: HOST as string,
     // We send page views ourselves on route change (App Router gives no full
     // navigations), so the automatic pageview capture would double-count.
     capture_pageview: false,
