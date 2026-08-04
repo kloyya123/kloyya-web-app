@@ -49,6 +49,14 @@ describe('the landing page is public', () => {
       expect(go(path, ANON), path).toBeNull();
     }
   });
+
+  it('keeps the legal pages reachable by anyone, signed in or not', () => {
+    // Google's OAuth verification, and a visitor deciding whether to sign up,
+    // both need these with no account and no allowlist entry.
+    for (const path of ['/privacy', '/terms']) {
+      expect(go(path, ANON), path).toBeNull();
+    }
+  });
 });
 
 describe('a signed-in user can still read the marketing page', () => {

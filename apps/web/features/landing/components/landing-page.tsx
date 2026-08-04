@@ -225,7 +225,7 @@ export function LandingPage() {
 
 /* ---------------------------------------------------------------- chrome */
 
-function SiteHeader() {
+export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[var(--landing-bg)]/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
@@ -540,7 +540,7 @@ function FinalCta() {
   );
 }
 
-function SiteFooter() {
+export function SiteFooter() {
   const columns: { heading: string; links: { label: string; href: string }[] }[] = [
     {
       heading: 'Product',
