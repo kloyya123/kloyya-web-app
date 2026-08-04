@@ -50,10 +50,10 @@ describe('the landing page is public', () => {
     }
   });
 
-  it('keeps the legal pages reachable by anyone, signed in or not', () => {
+  it('keeps the legal and marketing-adjacent pages reachable by anyone, signed in or not', () => {
     // Google's OAuth verification, and a visitor deciding whether to sign up,
     // both need these with no account and no allowlist entry.
-    for (const path of ['/privacy', '/terms']) {
+    for (const path of ['/privacy', '/terms', '/trust-center', '/compliance', '/help', '/contact']) {
       expect(go(path, ANON), path).toBeNull();
     }
   });

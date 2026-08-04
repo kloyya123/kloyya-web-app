@@ -43,6 +43,18 @@ export function LegalDocument({ doc }: { doc: LegalDoc }) {
                     </ul>
                   );
                 }
+                if (block.type === 'email') {
+                  return (
+                    <p key={key} className="text-small">
+                      <a
+                        href={`mailto:${block.address}`}
+                        className="text-[var(--color-intelligence-blue)] hover:underline"
+                      >
+                        {block.address}
+                      </a>
+                    </p>
+                  );
+                }
                 return (
                   <p key={key} className="text-small text-[var(--landing-ink-soft)]">
                     {block.text}

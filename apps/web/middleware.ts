@@ -35,7 +35,17 @@ const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
  * quietly make the entire app public.
  */
 const ROOT = '/';
-const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/privacy', '/terms'];
+const PUBLIC_ROUTES = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/privacy',
+  '/terms',
+  '/trust-center',
+  '/compliance',
+  '/help',
+  '/contact',
+];
 /** Reachable while authenticated but not yet fully provisioned. */
 const PROVISIONING_ROUTES = ['/verify-email', '/onboarding', '/workspace-init'];
 

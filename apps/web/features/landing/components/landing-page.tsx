@@ -552,14 +552,14 @@ export function SiteFooter() {
     },
     {
       heading: 'Company',
-      links: [{ label: 'Contact', href: `mailto:${CONTACT_EMAIL}` }],
+      links: [{ label: 'Contact', href: '/contact' }],
     },
     {
       heading: 'Resources',
       links: [
         { label: 'Help', href: '/help' },
         { label: 'FAQ', href: '#faq' },
-        { label: 'Trust Centre', href: '/trust' },
+        { label: 'Trust Centre', href: '/trust-center' },
       ],
     },
     {

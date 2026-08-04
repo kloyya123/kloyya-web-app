@@ -11,7 +11,8 @@
 export type LegalBlock =
   | { type: 'p'; text: string }
   | { type: 'list'; items: string[] }
-  | { type: 'h3'; text: string };
+  | { type: 'h3'; text: string }
+  | { type: 'email'; address: string };
 
 export interface LegalSection {
   heading: string;
@@ -28,6 +29,7 @@ export interface LegalDoc {
 const p = (text: string): LegalBlock => ({ type: 'p', text });
 const list = (items: string[]): LegalBlock => ({ type: 'list', items });
 const h3 = (text: string): LegalBlock => ({ type: 'h3', text });
+const email = (address: string): LegalBlock => ({ type: 'email', address });
 
 export const PRIVACY_POLICY: LegalDoc = {
   title: 'Kloyya Privacy Policy',
@@ -200,7 +202,7 @@ export const PRIVACY_POLICY: LegalDoc = {
     },
     {
       heading: '14. Contact',
-      blocks: [p('Email: contactsupport@kloyya.com')],
+      blocks: [email('contactsupport@kloyya.com')],
     },
   ],
 };
@@ -354,12 +356,263 @@ export const TERMS_OF_SERVICE: LegalDoc = {
       heading: '18. Contact',
       blocks: [
         h3('General Support'),
-        p('contactsupport@kloyya.com'),
+        email('contactsupport@kloyya.com'),
         h3('Privacy'),
-        p('contactsupport@kloyya.com'),
+        email('contactsupport@kloyya.com'),
         h3('Legal'),
-        p('contactsupport@kloyya.com'),
+        email('contactsupport@kloyya.com'),
       ],
     },
   ],
 };
+
+export const TRUST_CENTER: LegalDoc = {
+  title: 'Kloyya Trust Center',
+  effectiveDate: 'August 2026',
+  intro: [
+    'At Kloyya, trust is the foundation of everything we build.',
+    'Our mission is to help individuals and organizations work more effectively with AI while ensuring their information remains secure, private, and under their control.',
+    'This Trust Center explains how we protect your data, build AI responsibly, and maintain the reliability of our platform.',
+  ],
+  sections: [
+    {
+      heading: 'Security',
+      blocks: [
+        p('We use modern security practices designed to protect customer data and maintain the integrity of our platform.'),
+        p('Our security measures include:'),
+        list([
+          'Encryption in transit using HTTPS/TLS',
+          'Encryption at rest through our infrastructure providers',
+          'Secure authentication',
+          'Row Level Security (RLS)',
+          'Secure API authentication',
+          'Secure OAuth integrations',
+          'Principle of least privilege',
+          'Continuous monitoring',
+          'Rate limiting',
+          'Secure session management',
+          'Regular dependency updates',
+        ]),
+        p('Security is considered throughout the development lifecycle rather than added after features are built.'),
+      ],
+    },
+    {
+      heading: 'Privacy',
+      blocks: [
+        p('Your data belongs to you.'),
+        p('We do not sell your personal information or customer data.'),
+        p('Kloyya only accesses data that you explicitly authorize through connected services such as Gmail, Calendar, Notion, or other supported integrations.'),
+        p('You remain in control of your connected accounts and may disconnect them at any time.'),
+      ],
+    },
+    {
+      heading: 'Responsible AI',
+      blocks: [
+        p('Kloyya is designed to help users make better decisions—not replace human judgment.'),
+        p('Our AI may:'),
+        list(['Summarize information', 'Generate recommendations', 'Produce daily briefings', 'Retrieve relevant knowledge', 'Organize information']),
+        p('AI-generated responses may occasionally be incomplete or incorrect. We encourage users to review important outputs before relying on them for critical decisions.'),
+      ],
+    },
+    {
+      heading: 'Data Ownership',
+      blocks: [
+        p('Everything you upload or connect remains yours.'),
+        p('This includes:'),
+        list(['Documents', 'Emails', 'Notes', 'Calendar events', 'Connected workspace data']),
+        p('Kloyya processes this information only to provide requested services.'),
+      ],
+    },
+    {
+      heading: 'Infrastructure',
+      blocks: [
+        p('Kloyya is built using trusted cloud infrastructure providers.'),
+        p('Our technology stack includes:'),
+        list(['Supabase', 'Vercel', 'OpenAI', 'Resend', 'PostHog']),
+        p('These providers maintain their own security standards and certifications.'),
+      ],
+    },
+    {
+      heading: 'Availability',
+      blocks: [
+        p('We continuously monitor platform health and work to maintain reliable service.'),
+        p('Planned maintenance may occasionally require temporary downtime. Significant incidents affecting customer data or platform availability will be communicated as appropriate.'),
+      ],
+    },
+    {
+      heading: 'Compliance Journey',
+      blocks: [
+        p('As Kloyya grows, we intend to align our security and privacy practices with recognized industry standards and applicable regulations. We will publish updates as our compliance program evolves.'),
+      ],
+    },
+    {
+      heading: 'Contact',
+      blocks: [
+        h3('Security questions'),
+        email('contactsupport@kloyya.com'),
+        h3('Privacy questions'),
+        email('contactsupport@kloyya.com'),
+      ],
+    },
+  ],
+};
+
+export const COMPLIANCE: LegalDoc = {
+  title: 'Kloyya Compliance',
+  effectiveDate: 'August 2026',
+  intro: [
+    'Kloyya is committed to operating responsibly while protecting customer data and respecting applicable privacy and security requirements.',
+    'Our compliance program continues to evolve alongside our product.',
+  ],
+  sections: [
+    {
+      heading: 'Security by Design',
+      blocks: [
+        p('Security is integrated into our engineering process from the beginning.'),
+        p('We use:'),
+        list([
+          'Secure authentication',
+          'Database Row Level Security',
+          'Encrypted communication',
+          'Secure cloud infrastructure',
+          'Access controls',
+          'Audit logging',
+          'Secure software development practices',
+        ]),
+      ],
+    },
+    {
+      heading: 'Data Protection',
+      blocks: [
+        p('We are committed to protecting customer information through:'),
+        list(['Data minimization', 'Encryption', 'Secure storage', 'Authentication controls', 'Permission-based access', 'Customer-controlled integrations']),
+      ],
+    },
+    {
+      heading: 'Privacy',
+      blocks: [
+        p('Our privacy practices are designed to provide transparency regarding:'),
+        list(['Information collected', 'Purpose of collection', 'Data retention', 'Customer rights', 'Third-party services']),
+        p('Please review our Privacy Policy for complete details.'),
+      ],
+    },
+    {
+      heading: 'Responsible AI',
+      blocks: [
+        p('Kloyya is designed to assist users rather than replace decision-making.'),
+        p('Our AI systems:'),
+        list([
+          'Use connected workspace information only with user authorization',
+          'Do not sell customer data',
+          'Do not use private customer workspace data to train our own foundation models',
+          'Prioritize transparency and source-backed responses where possible',
+        ]),
+      ],
+    },
+    {
+      heading: 'Future Compliance',
+      blocks: [
+        p('As our company grows, we intend to pursue industry-recognized security and privacy certifications appropriate for our customers and the markets we serve.'),
+      ],
+    },
+    {
+      heading: 'Questions',
+      blocks: [email('contactsupport@kloyya.com')],
+    },
+  ],
+};
+
+export const HELP_CENTER: LegalDoc = {
+  title: 'Kloyya Help Center',
+  effectiveDate: 'August 2026',
+  intro: ['Welcome to the Kloyya Help Center.', 'Everything you need to get started with Kloyya.'],
+  sections: [
+    {
+      heading: 'Creating an Account',
+      blocks: [p('Create your Kloyya account using your email address and verify your account before signing in.')],
+    },
+    {
+      heading: 'Connecting Your Tools',
+      blocks: [
+        p('You can securely connect supported services, including:'),
+        list(['Gmail', 'Google Calendar', 'Google Drive', 'Microsoft Outlook', 'OneDrive', 'Notion']),
+        p('Additional integrations will be added over time.'),
+      ],
+    },
+    {
+      heading: 'Uploading Files',
+      blocks: [
+        p('Upload documents including PDFs, Word documents, spreadsheets, presentations, and images so Kloyya can help you search, organize, and understand your information.'),
+      ],
+    },
+    {
+      heading: 'Morning Brief',
+      blocks: [
+        p('Every morning, Kloyya generates a personalized briefing summarizing:'),
+        list(['Meetings', 'Important emails', 'Tasks', 'Priorities', 'Deadlines', 'Recommended actions']),
+      ],
+    },
+    {
+      heading: 'Search',
+      blocks: [
+        p('Ask questions in natural language.'),
+        p('Kloyya searches across your connected workspace and provides relevant answers using your authorized information.'),
+      ],
+    },
+    {
+      heading: 'AI',
+      blocks: [
+        p('Kloyya can help you:'),
+        list(['Research', 'Summarize documents', 'Draft content', 'Organize work', 'Prepare meetings', 'Answer questions', 'Prioritize tasks']),
+      ],
+    },
+    {
+      heading: 'Billing',
+      blocks: [
+        p('Manage your subscription from your account settings.'),
+        p('You can:'),
+        list(['Upgrade', 'Downgrade', 'Cancel', 'Update payment information']),
+      ],
+    },
+    {
+      heading: 'Privacy',
+      blocks: [p('You control your connected services.'), p('Disconnecting an integration stops future synchronization.')],
+    },
+    {
+      heading: 'Frequently Asked Questions',
+      blocks: [
+        h3('Does Kloyya read all my emails?'),
+        p('No. Kloyya only accesses information that you authorize and processes it to provide requested features.'),
+        h3('Can I disconnect my tools?'),
+        p('Yes. You may disconnect integrations at any time.'),
+        h3('Can I delete my account?'),
+        p('Yes. You can request deletion of your account and associated data in accordance with our Privacy Policy.'),
+        h3('Does Kloyya train AI models using my data?'),
+        p('No. Kloyya processes your information to provide services within your workspace. We do not use your private workspace data to train our own foundation models.'),
+      ],
+    },
+    {
+      heading: 'Need more help?',
+      blocks: [email('contactsupport@kloyya.com')],
+    },
+  ],
+};
+
+export interface ContactChannel {
+  label: string;
+  description: string;
+  email: string;
+}
+
+export const CONTACT_CHANNELS: ContactChannel[] = [
+  { label: 'General', description: 'Questions about Kloyya, partnerships, or the company.', email: 'hello@kloyya.com' },
+  { label: 'Customer Support', description: 'Need help using Kloyya?', email: 'contactsupport@kloyya.com' },
+  { label: 'Sales', description: 'Interested in Business or Enterprise plans?', email: 'contactsupport@kloyya.com' },
+  { label: 'Security', description: 'Report a security issue or vulnerability.', email: 'contactsupport@kloyya.com' },
+  { label: 'Privacy', description: 'Questions about your personal information or privacy rights.', email: 'contactsupport@kloyya.com' },
+  { label: 'Compliance', description: 'Questions regarding compliance or enterprise requirements.', email: 'contactsupport@kloyya.com' },
+  { label: 'Legal', description: 'Legal notices and requests.', email: 'contactsupport@kloyya.com' },
+];
+
+export const CONTACT_RESPONSE_TIME =
+  'Our goal is to respond to all inquiries within 1–2 business days. Security-related reports are prioritized and reviewed as quickly as possible.';
