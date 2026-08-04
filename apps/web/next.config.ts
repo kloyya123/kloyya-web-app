@@ -35,7 +35,7 @@ const supabaseOrigin = (() => {
 // PostHog (product analytics) loads its script and sends events to its own
 // hosts, so they must be allowed when a PostHog key is configured. Empty
 // otherwise, keeping the policy tight for deployments that don't use it.
-const posthogHosts = process.env.NEXT_PUBLIC_POSTHOG_KEY
+const posthogHosts = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
   ? 'https://us.i.posthog.com https://us-assets.i.posthog.com'
   : '';
 
