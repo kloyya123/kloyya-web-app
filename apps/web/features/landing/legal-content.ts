@@ -424,15 +424,6 @@ export const TRUST_CENTER: LegalDoc = {
       ],
     },
     {
-      heading: 'Infrastructure',
-      blocks: [
-        p('Kloyya is built using trusted cloud infrastructure providers.'),
-        p('Our technology stack includes:'),
-        list(['Supabase', 'Vercel', 'OpenAI', 'Resend', 'PostHog']),
-        p('These providers maintain their own security standards and certifications.'),
-      ],
-    },
-    {
       heading: 'Availability',
       blocks: [
         p('We continuously monitor platform health and work to maintain reliable service.'),
@@ -605,7 +596,7 @@ export interface ContactChannel {
 }
 
 export const CONTACT_CHANNELS: ContactChannel[] = [
-  { label: 'General', description: 'Questions about Kloyya, partnerships, or the company.', email: 'hello@kloyya.com' },
+  { label: 'General', description: 'Questions about Kloyya, partnerships, or the company.', email: 'contactsupport@kloyya.com' },
   { label: 'Customer Support', description: 'Need help using Kloyya?', email: 'contactsupport@kloyya.com' },
   { label: 'Sales', description: 'Interested in Business or Enterprise plans?', email: 'contactsupport@kloyya.com' },
   { label: 'Security', description: 'Report a security issue or vulnerability.', email: 'contactsupport@kloyya.com' },
