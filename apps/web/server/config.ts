@@ -89,6 +89,16 @@ const schema = z.object({
     .url()
     .default('http://localhost:3000/api/v1/integrations/oauth/notion/callback'),
 
+  // Slack OAuth (Bot Token Scopes — the app is added to a workspace, not one
+  // member's account). The bot token doesn't expire, so there is no refresh
+  // secret here either, same reasoning as Notion above.
+  SLACK_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  SLACK_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  SLACK_OAUTH_REDIRECT_URI: z
+    .string()
+    .url()
+    .default('http://localhost:3000/api/v1/integrations/oauth/slack/callback'),
+
   // AI (Ask Kloyya). Provider-neutral: AI_PROVIDER picks the default, and the
   // selected provider's key powers it. Both keys are server-only and optional —
   // absent, Ask Kloyya degrades to an honest "not configured" state.

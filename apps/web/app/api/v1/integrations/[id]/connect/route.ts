@@ -14,6 +14,7 @@ import {
   MICROSOFT_SCOPES,
 } from '@server/integrations/microsoft';
 import { buildNotionAuthUrl, isNotionIntegration } from '@server/integrations/notion';
+import { buildSlackAuthUrl, isSlackIntegration } from '@server/integrations/slack';
 import { encodeState } from '@server/integrations/state';
 
 const idParam = z.string().min(1);
@@ -44,7 +45,9 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
       ? 'microsoft'
       : isNotionIntegration(id)
         ? 'notion'
-        : null;
+        : isSlackIntegration(id)
+          ? 'slack'
+          : null;
 
   if (!provider) {
     throw new ApiError({
@@ -52,7 +55,7 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
       errorCode: 'connector_unavailable',
       message: 'That integration cannot be connected yet.',
       description: `Kloyya has a card for "${id}" but no connector for it yet.`,
-      suggestedResolution: 'Connect a Google, Microsoft or Notion app, or check back as more land.',
+      suggestedResolution: 'Connect a Google, Microsoft, Notion or Slack app, or check back as more land.',
     });
   }
   if (!config.TOKEN_ENCRYPTION_KEY) throw errors.unauthorized();
@@ -96,7 +99,7 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
       scopes: MICROSOFT_SCOPES[id]!,
       state,
     });
-  } else {
+  } else if (provider === 'notion') {
     if (!config.NOTION_OAUTH_CLIENT_ID || !config.NOTION_OAUTH_CLIENT_SECRET) {
       throw oauthUnconfigured('Notion', 'NOTION_OAUTH_CLIENT_ID and NOTION_OAUTH_CLIENT_SECRET');
     }
@@ -105,6 +108,16 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
     authUrl = buildNotionAuthUrl({
       clientId: config.NOTION_OAUTH_CLIENT_ID,
       redirectUri: config.NOTION_OAUTH_REDIRECT_URI,
+      state,
+    });
+  } else {
+    if (!config.SLACK_OAUTH_CLIENT_ID || !config.SLACK_OAUTH_CLIENT_SECRET) {
+      throw oauthUnconfigured('Slack', 'SLACK_OAUTH_CLIENT_ID and SLACK_OAUTH_CLIENT_SECRET');
+    }
+    await markConnecting(ctx.db, start, id);
+    authUrl = buildSlackAuthUrl({
+      clientId: config.SLACK_OAUTH_CLIENT_ID,
+      redirectUri: config.SLACK_OAUTH_REDIRECT_URI,
       state,
     });
   }

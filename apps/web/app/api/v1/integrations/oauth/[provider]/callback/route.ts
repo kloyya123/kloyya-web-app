@@ -8,6 +8,7 @@ import {
   storeGoogleTokens,
   storeMicrosoftTokens,
   storeNotionTokens,
+  storeSlackTokens,
   type StartContext,
   type StoreResult,
 } from '@server/integrations/connect';
@@ -15,6 +16,7 @@ import { exchangeGoogleCode } from '@server/integrations/google';
 import { exchangeMicrosoftCode } from '@server/integrations/microsoft';
 import { exchangeNotionCode } from '@server/integrations/notion';
 import type { ProviderTokens } from '@server/integrations/oauth';
+import { exchangeSlackCode } from '@server/integrations/slack';
 import { decodeState } from '@server/integrations/state';
 
 /**
@@ -30,7 +32,7 @@ import { decodeState } from '@server/integrations/state';
  * The caller is a browser, so failures redirect to /connections?status=… rather
  * than returning a JSON envelope.
  */
-type Provider = 'google' | 'microsoft' | 'notion';
+type Provider = 'google' | 'microsoft' | 'notion' | 'slack';
 
 interface ProviderAdapter {
   label: string;
@@ -88,6 +90,19 @@ function adapterFor(provider: Provider): ProviderAdapter | null {
           }),
         store: storeNotionTokens,
       };
+    case 'slack':
+      return {
+        label: 'Slack',
+        configured: Boolean(config.SLACK_OAUTH_CLIENT_ID && config.SLACK_OAUTH_CLIENT_SECRET),
+        exchange: (code) =>
+          exchangeSlackCode({
+            code,
+            clientId: config.SLACK_OAUTH_CLIENT_ID!,
+            clientSecret: config.SLACK_OAUTH_CLIENT_SECRET!,
+            redirectUri: config.SLACK_OAUTH_REDIRECT_URI,
+          }),
+        store: storeSlackTokens,
+      };
   }
 }
 
@@ -104,7 +119,7 @@ export async function GET(
 ): Promise<Response> {
   const { provider } = await route.params;
   const adapter =
-    provider === 'google' || provider === 'microsoft' || provider === 'notion'
+    provider === 'google' || provider === 'microsoft' || provider === 'notion' || provider === 'slack'
       ? adapterFor(provider)
       : null;
   if (!adapter) return NextResponse.redirect(back('invalid'));

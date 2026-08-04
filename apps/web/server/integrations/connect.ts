@@ -5,6 +5,7 @@ import { connections } from '@kloyya/db/schema';
 import type { TokenCrypto } from '../crypto/tokens';
 import { GOOGLE_SCOPES } from './google';
 import { MICROSOFT_SCOPES } from './microsoft';
+import { SLACK_SCOPES } from './slack';
 import type { ProviderTokens } from './oauth';
 
 // StartContext + resolveStartContext moved to the tenant layer (server/tenant.ts)
@@ -199,6 +200,25 @@ export function storeNotionTokens(
     requiredScopes: [],
     scopeGranted: () => true,
     // null: Notion tokens never expire, so a missing refresh token is expected.
+    noRefreshMessage: null,
+  });
+}
+
+/**
+ * Slack grants bot scopes exactly, the same as Google, so an exact-includes
+ * check is right. The bot token never expires (token rotation is off), so —
+ * like Notion — a missing refresh token is expected, not a failure.
+ */
+export function storeSlackTokens(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  integrationId: string,
+  tokens: ProviderTokens,
+): Promise<StoreResult> {
+  return storeProviderTokens(db, crypto, ctx, integrationId, tokens, {
+    requiredScopes: SLACK_SCOPES,
+    scopeGranted: (granted, required) => required.every((s) => granted.includes(s)),
     noRefreshMessage: null,
   });
 }

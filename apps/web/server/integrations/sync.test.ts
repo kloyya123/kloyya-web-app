@@ -7,7 +7,7 @@ import { withTenantScope } from '@kloyya/db/scope';
 import { createTestDb, createTestIdentity, startContextFor } from '../test/harness';
 import type { StartContext } from '../tenant';
 import { createTokenCrypto } from '../crypto/tokens';
-import { landRecords, syncGoogleCalendar, type RecordToLand } from './sync';
+import { landRecords, syncGoogleCalendar, syncSlack, type RecordToLand } from './sync';
 
 /**
  * The batched write this file exists to protect.
@@ -378,5 +378,116 @@ describe('syncGoogleCalendar, end to end through the batched write', () => {
     expect(second.ok).toBe(true);
     expect(second.written).toBe(0);
     expect(second.tombstoned).toBe(0);
+  });
+});
+
+describe('syncSlack, end to end through the batched write', () => {
+  let db: AppDb;
+  let ctx: StartContext;
+  let crypto: ReturnType<typeof createTokenCrypto>;
+  // Deliberately NOT a fixed historical Date, unlike the other describe blocks
+  // above: fetchWithBudget's deadline is compared against the real wall clock
+  // (Date.now()), not against `deps.now()` — so a frozen past "now" here would
+  // make the deadline already expired before the first conversation is even
+  // read, truncating every run to zero fetches. Production never overrides
+  // `now`, so this mismatch is a test-only concern; real time sidesteps it.
+
+  const CONVERSATIONS = [{ id: 'C1', name: 'general' }, { id: 'C2', name: 'eng' }];
+  const messagesFor = (channel: string) => {
+    if (channel === 'C1') {
+      return [
+        { type: 'message', user: 'U1', text: 'Ship it', ts: '1722675000.000100' },
+        // A system message — landed nowhere, since it isn't conversation content.
+        { type: 'message', subtype: 'channel_join', user: 'U2', ts: '1722675001.000100' },
+      ];
+    }
+    return [{ type: 'message', user: 'U3', text: 'Build is green', ts: '1722675002.000100' }];
+  };
+
+  function fetchImpl(): typeof fetch {
+    return (async (url: string | URL) => {
+      const href = String(url);
+      if (href.includes('conversations.list')) {
+        return new Response(JSON.stringify({ ok: true, channels: CONVERSATIONS }), { status: 200 });
+      }
+      if (href.includes('conversations.history')) {
+        const channel = new URL(href).searchParams.get('channel')!;
+        return new Response(
+          JSON.stringify({ ok: true, messages: messagesFor(channel), has_more: false }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`unexpected request: ${href}`);
+    }) as unknown as typeof fetch;
+  }
+
+  beforeEach(async () => {
+    ({ db } = await createTestDb());
+    const identity = await createTestIdentity(db, { email: 'owner@example.com' });
+    ctx = await startContextFor(db, identity);
+    crypto = createTokenCrypto(randomBytes(32).toString('base64'));
+
+    await withTenantScope(db, ctx.organizationId, async (tx) => {
+      await tx.insert(connections).values({
+        organizationId: ctx.organizationId,
+        workspaceId: ctx.workspaceId,
+        integrationId: 'slack',
+        status: 'connected',
+        connectedByUserId: ctx.userId,
+        // A bot token, like Notion's: no refresh token, no expiry to track.
+        accessTokenEnc: crypto.encrypt('xoxb-test-token'),
+      });
+    });
+  });
+
+  it('lands messages from every conversation the bot can read, skipping system subtypes', async () => {
+    const outcome = await syncSlack(db, crypto, ctx, {
+      clientId: '',
+      clientSecret: '',
+      fetchImpl: fetchImpl(),
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.fetched).toBe(3);
+    expect(outcome.written).toBe(2); // The channel_join subtype never reaches landRecords.
+
+    const rows = await withTenantScope(db, ctx.organizationId, async (tx) =>
+      tx.select().from(syncRecords).where(eq(syncRecords.resourceType, 'slack_message')),
+    );
+    expect(rows.map((r) => r.externalId).sort()).toEqual([
+      'C1:1722675000.000100',
+      'C2:1722675002.000100',
+    ]);
+    // The composite key means the same ts in two different channels can't collide.
+    const generalMessage = rows.find((r) => r.externalId === 'C1:1722675000.000100');
+    expect((generalMessage?.payload as { channelName: string }).channelName).toBe('general');
+  });
+
+  it('a second run with identical data writes nothing', async () => {
+    const deps = { clientId: '', clientSecret: '' };
+    await syncSlack(db, crypto, ctx, { ...deps, fetchImpl: fetchImpl() });
+    const second = await syncSlack(db, crypto, ctx, { ...deps, fetchImpl: fetchImpl() });
+
+    expect(second.ok).toBe(true);
+    expect(second.written).toBe(0);
+  });
+
+  it('reports revoked when Slack refuses the token', async () => {
+    const revokedFetch = (async () =>
+      new Response(JSON.stringify({ ok: false, error: 'token_revoked' }), { status: 200 })) as unknown as typeof fetch;
+
+    const outcome = await syncSlack(db, crypto, ctx, {
+      clientId: '',
+      clientSecret: '',
+      fetchImpl: revokedFetch,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toBe('revoked');
+
+    const [connection] = await withTenantScope(db, ctx.organizationId, async (tx) =>
+      tx.select().from(connections).where(eq(connections.integrationId, 'slack')),
+    );
+    expect(connection?.status).toBe('error');
   });
 });

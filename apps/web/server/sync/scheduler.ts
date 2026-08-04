@@ -11,6 +11,7 @@ import {
   syncNotion,
   syncOutlookCalendar,
   syncOutlookMail,
+  syncSlack,
   type SyncDeps,
   type SyncOutcome,
 } from '../integrations/sync';
@@ -51,6 +52,7 @@ const DEFAULT_SYNCERS: Record<string, Syncer> = {
   outlook: syncOutlookMail,
   outlook_calendar: syncOutlookCalendar,
   notion: syncNotion,
+  slack: syncSlack,
 };
 
 /**
@@ -122,8 +124,8 @@ function credentialsFor(
   integrationId: string,
   deps: SchedulerDeps,
 ): { clientId: string; clientSecret: string } | null {
-  // Notion's token never expires, so it needs no client pair to refresh with.
-  if (integrationId === 'notion') return { clientId: '', clientSecret: '' };
+  // Notion and Slack tokens never expire, so neither needs a client pair to refresh with.
+  if (integrationId === 'notion' || integrationId === 'slack') return { clientId: '', clientSecret: '' };
 
   const microsoft = integrationId === 'outlook' || integrationId === 'outlook_calendar';
   const clientId = microsoft ? deps.microsoftClientId : deps.googleClientId;

@@ -19,6 +19,13 @@ import {
   NotionUnauthorizedError,
   type RawNotionItem,
 } from './notion-client';
+import {
+  listSlackChannelHistory,
+  listSlackConversations,
+  SlackTransientError,
+  SlackUnauthorizedError,
+} from './slack-client';
+import { validateSlackMessages } from './validation';
 import { GoogleTransientError, SyncTokenExpiredError } from './google-http';
 import { isCancelled, listCalendars, listEvents, type RawGoogleEvent } from './google-calendar';
 import {
@@ -985,6 +992,146 @@ export async function syncNotion(
       errorReason: transient
         ? null
         : 'Kloyya could not read this Notion workspace. It will try again; reconnect if this persists.',
+    });
+    return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
+  }
+
+  await saveProgress(db, ctx, integrationId, cursors, {
+    status: 'connected',
+    errorReason: null,
+    syncedAt: now,
+  });
+
+  return { ok: true, fetched, written, tombstoned, rejected };
+}
+
+/** The high-water mark for Slack: the newest message `ts` seen across every conversation, last run. */
+const SLACK_CURSOR_KEY = 'slack:oldest';
+
+/**
+ * Sync a workspace's Slack.
+ *
+ * Like Notion, there is no refresh (the bot token doesn't expire) and no
+ * changes feed — but unlike Notion's single search endpoint, Slack's history
+ * is one call PER conversation, the same N+1 shape Gmail has. `fetchWithBudget`
+ * is reused for exactly that reason: several conversations read in parallel,
+ * bounded by the same wall-clock deadline every other connector respects.
+ *
+ * A conversation can itself have more history than one page; the inner loop
+ * pages through a single conversation's messages and checks the deadline on
+ * every page, not just between conversations — otherwise one very active
+ * channel could consume the entire budget before `fetchWithBudget` ever gets a
+ * chance to notice time is up.
+ */
+export async function syncSlack(
+  db: AppDb,
+  crypto: TokenCrypto,
+  ctx: StartContext,
+  deps: SyncDeps,
+): Promise<SyncOutcome> {
+  const integrationId = 'slack';
+  const now = new Date((deps.now ?? Date.now)());
+  const fetchOpt = deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {};
+  const deadline = deadlineFrom(deps);
+
+  const connection = await readConnection(db, ctx, integrationId);
+  if (!connection) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: 'not_connected' };
+  }
+
+  const token = await getStaticAccessToken(db, crypto, ctx, integrationId);
+  if (!token.ok) {
+    return { ok: false, fetched: 0, written: 0, tombstoned: 0, rejected: 0, reason: token.reason };
+  }
+
+  await saveProgress(db, ctx, integrationId, connection.cursors, { status: 'syncing' });
+
+  const cursors = { ...connection.cursors };
+  let fetched = 0;
+  let written = 0;
+  let tombstoned = 0;
+  let rejected = 0;
+
+  try {
+    const since = cursors[SLACK_CURSOR_KEY];
+    // Slack's `oldest` is seconds-since-epoch as a string; a first sync reaches
+    // back the same window every other first sync does.
+    const oldest = since ?? String(Math.floor(now.getTime() / 1000) - FIRST_SYNC_WINDOW_DAYS * 24 * 60 * 60);
+
+    const conversations = await listSlackConversations({ accessToken: token.accessToken, ...fetchOpt });
+
+    let newWatermark = since ? Number(since) : 0;
+    let anyChannelTruncated = false;
+    const toLand: RecordToLand[] = [];
+
+    const { truncated } = await fetchWithBudget(conversations, deadline, async (conversation) => {
+      let cursor: string | undefined;
+      for (;;) {
+        if (Date.now() >= deadline) {
+          anyChannelTruncated = true;
+          break;
+        }
+        const page = await listSlackChannelHistory({
+          accessToken: token.accessToken,
+          channelId: conversation.id,
+          oldest,
+          ...(cursor ? { cursor } : {}),
+          ...fetchOpt,
+        });
+        fetched += page.messages.length;
+
+        const batch = validateSlackMessages(page.messages);
+        rejected += batch.rejected.length;
+        for (const failure of batch.rejected) deps.onRejected?.(conversation.id, failure);
+
+        for (const message of batch.valid) {
+          const ts = Number(message.ts);
+          if (Number.isFinite(ts) && ts > newWatermark) newWatermark = ts;
+          // A channel-join, rename, etc. is Slack bookkeeping, not something a
+          // chief of staff needs to read — skipped here, not in validation,
+          // because it IS a storable message, just not one worth storing.
+          if (message.subtype) continue;
+          toLand.push({
+            resourceType: 'slack_message',
+            // ts alone repeats across conversations; the composite is the real key.
+            externalId: `${conversation.id}:${message.ts}`,
+            payload: { ...message, channelId: conversation.id, channelName: conversation.name ?? null },
+            cancelled: false,
+          });
+        }
+
+        if (!page.hasMore || !page.nextCursor) break;
+        cursor = page.nextCursor;
+      }
+      return null;
+    });
+
+    const landed = await landRecords(db, ctx, connection.id, integrationId, toLand, now);
+    written += landed.written;
+    tombstoned += landed.tombstoned;
+
+    // Advance the mark only on a fully-completed run, same reasoning as every
+    // other connector: a truncated run must re-read the gap next time, not
+    // skip it because the mark moved past messages we never actually reached.
+    if (!truncated && !anyChannelTruncated && newWatermark > 0) {
+      cursors[SLACK_CURSOR_KEY] = String(newWatermark);
+    }
+  } catch (error) {
+    if (error instanceof SlackUnauthorizedError) {
+      await markRevoked(
+        db,
+        ctx,
+        integrationId,
+        'Slack no longer accepts this connection — the app may have been removed from the workspace. Reconnect to resume syncing.',
+      );
+      return { ok: false, fetched, written, tombstoned, rejected, reason: 'revoked' };
+    }
+    const transient = error instanceof SlackTransientError;
+    await saveProgress(db, ctx, integrationId, cursors, {
+      status: transient ? 'connected' : 'error',
+      errorReason: transient
+        ? null
+        : 'Kloyya could not read this Slack workspace. It will try again; reconnect if this persists.',
     });
     return { ok: false, fetched, written, tombstoned, rejected, reason: transient ? 'transient' : 'failed' };
   }

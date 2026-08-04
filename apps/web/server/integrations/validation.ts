@@ -3,6 +3,7 @@ import type { RawGmailMessage } from './gmail';
 import type { RawGoogleEvent } from './google-calendar';
 import type { RawGraphItem } from './graph';
 import type { RawNotionItem } from './notion-client';
+import type { RawSlackMessage } from './slack-client';
 
 /**
  * Phase 8.5 — validation before storage.
@@ -250,6 +251,38 @@ export function validateNotionItems(items: RawNotionItem[]): ValidatedBatch<RawN
     }
     seen.add(id);
     valid.push(item);
+  }
+
+  return { valid, rejected };
+}
+
+/**
+ * Validate a batch of raw Slack messages (already scoped to one conversation).
+ *
+ * A Slack message's `ts` is its id — unique within a conversation, which is
+ * exactly the scope this batch is called at, so the duplicate check is sound
+ * even though `ts` is not unique workspace-wide (the composite key the sync
+ * path lands with is `${channelId}:${ts}`, built by the caller). Whether a
+ * message is a system subtype worth keeping is a product decision the sync
+ * path makes, not a storability question this function answers.
+ */
+export function validateSlackMessages(messages: RawSlackMessage[]): ValidatedBatch<RawSlackMessage> {
+  const valid: RawSlackMessage[] = [];
+  const rejected: ValidationFailure[] = [];
+  const seen = new Set<string>();
+
+  for (const message of messages) {
+    const ts = message?.ts;
+    if (typeof ts !== 'string' || ts.trim().length === 0) {
+      rejected.push({ externalId: null, reason: 'missing or invalid ts' });
+      continue;
+    }
+    if (seen.has(ts)) {
+      rejected.push({ externalId: ts, reason: 'duplicate identifier in batch' });
+      continue;
+    }
+    seen.add(ts);
+    valid.push(message);
   }
 
   return { valid, rejected };

@@ -7,18 +7,21 @@ import type {
 /**
  * The integration catalogue — PRIVATE BETA.
  *
- * Six tools, not fifty. Kloyya Core Integrations (Private Beta) picks the set
- * that carries the most context per connection — email, calendar, and the two
- * places their documents live.
+ * A small set, not fifty. Kloyya Core Integrations (Private Beta) picks the
+ * tools that carry the most context per connection — email, calendar, the two
+ * places documents live, and team chat.
  *
  * WhatsApp Business is deliberately ABSENT despite being a headline beta
  * integration: the WhatsApp Cloud API cannot read message history at all.
  * Messages arrive only by webhook, forward-only, from the moment you connect. A
  * card promising to "summarize customer conversations" would summarize nothing
  * on the day it was clicked. It returns when it can keep that promise.
- * The long tail (Slack, Teams, Jira, Salesforce, GitHub, …) is documented as a
- * post-beta expansion and is deliberately absent: a catalogue is a promise that
- * each card works, and a card we cannot sync is a promise we are not keeping.
+ * The rest of the long tail (Teams, Jira, Salesforce, GitHub, …) is documented
+ * as a post-beta expansion and is deliberately absent, for the same reason:
+ * a catalogue is a promise that each card works, and a card we cannot sync is
+ * a promise we are not keeping. Slack graduated out of that list once its
+ * connector — a real OAuth install and a real `conversations.history` sync —
+ * actually existed to back the promise.
  *
  * Every id here is one the backend either syncs today (Google Calendar) or is
  * next to build. Adding a card is cheap; adding a card that does nothing costs a
@@ -116,6 +119,8 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
   // Documents & knowledge.
   define('google_drive', 'Google Drive', 'documents', 'Indexes the documents your decisions depend on.', 25),
   define('notion', 'Notion', 'documents', 'Turns your workspace pages into organizational memory.', 15),
+  // Team chat.
+  define('slack', 'Slack', 'communication', 'Reads the channels it is invited into, so decisions made in chat are not lost to it.', 10),
 ];
 
 
