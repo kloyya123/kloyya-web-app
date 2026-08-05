@@ -8,7 +8,7 @@ import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, PRICING_FOOTNOTE, ROLES, TOOLS, T
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { WaitlistForm } from './waitlist-form';
-import { HeroBriefing, ProductScreens } from './product-screens';
+import { HeroBriefing, HomeScreen, ProductScreens } from './product-screens';
 import { SocialLinks } from './social-links';
 
 /**
@@ -282,9 +282,28 @@ export function SiteHeader() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
+      {/* The Linear-hero trick: the real product, bleeding off the top of the
+          page right where the translucent sticky header floats over it, then
+          dissolving into the page's own cream before the headline begins —
+          not a separate "see it work" screenshot further down, but the thing
+          itself, glimpsed before you've even started reading. Scaled up and
+          cropped, the way a hero screenshot is always cropped tighter than the
+          real window. Hidden from assistive tech: HomeScreen is rendered again,
+          legibly, in the "See it work" section below. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-[28rem] overflow-hidden opacity-80 [mask-image:linear-gradient(to_bottom,black_35%,transparent)]"
+      >
+        <div className="mx-auto w-full max-w-2xl scale-110 px-6 pt-4">
+          <HomeScreen />
+        </div>
+      </div>
+
       {/* A quiet vignette in the same warm neutrals — depth without the
           product's blue/purple gradient, which has no place on this page
-          anymore (see tokens.css: the marketing page is not KDS). */}
+          anymore (see tokens.css: the marketing page is not KDS). Also what
+          keeps the backdrop above from reading as too sharp against the
+          headline: it settles the screenshot back into the page. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
@@ -369,10 +388,22 @@ function ToolStrip() {
 }
 
 /** Lifts a screenshot mockup off the page with a stronger shadow than the KDS default. */
+/**
+ * The soft ambient glow behind a screenshot — the Linear-hero trick of a
+ * blurred color bloom under the window, rather than the window sitting flat
+ * on the page. In Kloyya's own theme: Intelligence Blue, low opacity, not
+ * Linear's own gradient.
+ */
 function Lifted({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl shadow-[var(--landing-shadow-lifted)]" style={{ borderRadius: '1rem' }}>
-      {children}
+    <div className="relative">
+      <div
+        aria-hidden="true"
+        className="absolute -inset-6 -z-10 rounded-[2rem] bg-[var(--color-intelligence-blue)]/10 blur-3xl"
+      />
+      <div className="rounded-2xl shadow-[var(--landing-shadow-lifted)]" style={{ borderRadius: '1rem' }}>
+        {children}
+      </div>
     </div>
   );
 }

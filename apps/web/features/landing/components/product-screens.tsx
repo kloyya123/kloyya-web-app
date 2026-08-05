@@ -1,5 +1,6 @@
 'use client';
 
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { AppWindow, BriefRow, Flag, PanelHead, TitleBar } from './app-chrome';
@@ -20,6 +21,7 @@ const TABS: { id: ScreenId; label: string; caption: string }[] = [
 
 export function ProductScreens() {
   const [active, setActive] = useState<ScreenId>('home');
+  const prefersReducedMotion = useReducedMotion();
   const caption = TABS.find((tab) => tab.id === active)?.caption;
 
   return (
@@ -48,11 +50,21 @@ export function ProductScreens() {
         })}
       </div>
 
-      <div id={`screen-${active}`} role="tabpanel">
-        {active === 'home' ? <HomeScreen /> : null}
-        {active === 'inbox' ? <InboxScreen /> : null}
-        {active === 'calendar' ? <CalendarScreen /> : null}
-      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={active}
+          id={`screen-${active}`}
+          role="tabpanel"
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          {...(prefersReducedMotion ? {} : { exit: { opacity: 0, y: -8 } })}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+        >
+          {active === 'home' ? <HomeScreen /> : null}
+          {active === 'inbox' ? <InboxScreen /> : null}
+          {active === 'calendar' ? <CalendarScreen /> : null}
+        </motion.div>
+      </AnimatePresence>
 
       <p className="text-caption text-subtle mt-3 font-mono">{caption}</p>
     </div>
@@ -79,7 +91,8 @@ function Kpi({
   );
 }
 
-function HomeScreen() {
+/** Exported so the hero can use it as the backdrop behind the header — see Hero() in landing-page.tsx. */
+export function HomeScreen() {
   return (
     <AppWindow>
       <TitleBar label="kloyya — home" status="Tue 26" />
