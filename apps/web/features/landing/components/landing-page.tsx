@@ -8,7 +8,16 @@ import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, PRICING_FOOTNOTE, ROLES, TOOLS, T
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { WaitlistForm } from './waitlist-form';
-import { HeroBriefing, HomeScreen, ProductScreens } from './product-screens';
+import {
+  AskScreen,
+  CalendarScreen,
+  DocumentsScreen,
+  HeroBriefing,
+  HomeScreen,
+  InboxScreen,
+  ProductScreens,
+  ReplyScreen,
+} from './product-screens';
 import { SocialLinks } from './social-links';
 
 /**
@@ -63,11 +72,9 @@ export function LandingPage() {
           }
           lede="Kloyya does not ask for a new workflow. It reads the one you have."
         >
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-20 sm:gap-28">
             {FEATURES.map((feature, index) => (
-              <Reveal key={feature.title} delay={index * 70}>
-                <FeatureCard index={index} {...feature} />
-              </Reveal>
+              <FeatureRow key={feature.title} index={index} {...feature} />
             ))}
           </div>
         </Section>
@@ -445,20 +452,35 @@ function Section({
   );
 }
 
-function FeatureCard({ title, body, index }: { title: string; body: string; index: number }) {
+/** Each feature's real mockup, in FEATURES order — see product-screens.tsx. */
+const FEATURE_SCREENS = [InboxScreen, ReplyScreen, CalendarScreen, DocumentsScreen, AskScreen];
+
+/**
+ * Linear's alternating rhythm: text on one side, the real screen it describes
+ * on the other, flipping every row — not a card grid where every claim looks
+ * like every other claim, but each one paired with the screen that proves it.
+ */
+function FeatureRow({ title, body, index }: { title: string; body: string; index: number }) {
+  const Screen = FEATURE_SCREENS[index] ?? FEATURE_SCREENS[0]!;
+  const reversed = index % 2 === 1;
+
   return (
-    <article
-      className={cn(
-        'flex flex-col gap-2 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-card)]',
-        index === 0 && 'sm:col-span-2 lg:col-span-1',
-      )}
-    >
-      <span className="font-mono text-caption tracking-widest text-[var(--color-intelligence-blue)] uppercase">
-        {String(index + 1).padStart(2, '0')}
-      </span>
-      <h3 className="text-title font-semibold text-[var(--landing-ink)]">{title}</h3>
-      <p className="m-0 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">{body}</p>
-    </article>
+    <Reveal>
+      <div className={cn('flex flex-col items-center gap-10 lg:flex-row lg:gap-16', reversed && 'lg:flex-row-reverse')}>
+        <div className="w-full max-w-md text-center lg:w-1/2 lg:max-w-none lg:text-left">
+          <span className="font-mono text-caption tracking-widest text-[var(--color-intelligence-blue)] uppercase">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <h3 className="mt-2 text-heading-s font-semibold text-[var(--landing-ink)]">{title}</h3>
+          <p className="mt-3 text-body leading-relaxed text-[var(--landing-ink-soft)]">{body}</p>
+        </div>
+        <div className="w-full lg:w-1/2">
+          <Lifted>
+            <Screen />
+          </Lifted>
+        </div>
+      </div>
+    </Reveal>
   );
 }
 

@@ -128,7 +128,8 @@ export function HomeScreen() {
   );
 }
 
-function InboxScreen() {
+/** Exported for the "What it does" feature rows — see landing-page.tsx. */
+export function InboxScreen() {
   return (
     <AppWindow>
       <TitleBar label="kloyya — inbox" status="4 / 213" />
@@ -158,7 +159,8 @@ function InboxScreen() {
   );
 }
 
-function CalendarScreen() {
+/** Exported for the "What it does" feature rows — see landing-page.tsx. */
+export function CalendarScreen() {
   return (
     <AppWindow>
       <TitleBar label="kloyya — calendar" status="Tue 26 Jul" />
@@ -183,6 +185,80 @@ function CalendarScreen() {
           <Flag tone="handled">Held</Flag>
           Focus block
         </BriefRow>
+      </div>
+    </AppWindow>
+  );
+}
+
+/** For the "Replies on your behalf" feature row — landing-page.tsx. */
+export function ReplyScreen() {
+  return (
+    <AppWindow>
+      <TitleBar label="kloyya — draft" status="awaiting you" />
+      <div className="px-4 py-4">
+        <PanelHead left="Re: vendor contract" right="written from the thread" />
+        <p className="text-small text-foreground leading-relaxed">
+          Hi Amara — sorry for the delay. The redlines are attached; Legal signed off on sections 2
+          and 4, and flagged the liability cap in section 7 for your review. Let me know if Thursday
+          still works to close this out.
+        </p>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="bg-intelligence-blue text-on-intelligence-blue rounded-sm px-3 py-1.5 text-caption font-semibold">
+            Send
+          </span>
+          <span className="border-border text-subtle rounded-sm border px-3 py-1.5 text-caption font-semibold">
+            Edit first
+          </span>
+          <span className="text-caption text-subtle ml-auto font-mono">nothing sends without you</span>
+        </div>
+      </div>
+    </AppWindow>
+  );
+}
+
+/** For the "Remembers your documents" feature row — landing-page.tsx. */
+export function DocumentsScreen() {
+  return (
+    <AppWindow>
+      <TitleBar label="kloyya — documents" status="128 indexed" />
+      <div className="px-4 py-4">
+        <PanelHead left="Recently connected" right="synced from Drive + Notion" />
+
+        <BriefRow when="Now" meta="Q3 Forecast v9 · used in this morning’s briefing">
+          <Flag>Referenced</Flag>
+          Q3 Forecast v9.xlsx
+        </BriefRow>
+        <BriefRow when="2d" meta="linked to the vendor contract thread">
+          MSA redlines — Legal.docx
+        </BriefRow>
+        <BriefRow when="4d" meta="cross-checked against the deck Priya sent" last>
+          <Flag tone="handled">Cross-checked</Flag>
+          Hiring plan — Notion
+        </BriefRow>
+      </div>
+    </AppWindow>
+  );
+}
+
+/** For the "Answers in plain language" feature row — landing-page.tsx. */
+export function AskScreen() {
+  return (
+    <AppWindow>
+      <TitleBar label="kloyya — ask" status="answered in 2.8s" />
+      <div className="px-4 py-4">
+        <div className="border-border bg-background mb-3 flex items-center gap-3 rounded-sm border px-3 py-2.5">
+          <span className="text-small text-foreground flex-1">Who is blocked on the vendor contract?</span>
+        </div>
+        <p className="text-small text-foreground leading-relaxed">
+          Amara Osei — she is waiting on the redline you sent Legal two days ago. A reply is already
+          drafted and waiting for your approval.
+        </p>
+        <div className="border-border/60 mt-3 border-t pt-2">
+          <span className="text-caption text-subtle font-mono tracking-widest uppercase">Sources</span>
+          <p className="text-caption text-subtle mt-1 font-mono">
+            Vendor contract thread · MSA redlines.docx · Legal calendar hold
+          </p>
+        </div>
       </div>
     </AppWindow>
   );
