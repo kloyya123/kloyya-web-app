@@ -65,7 +65,9 @@ export function LandingPage() {
         >
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((feature, index) => (
-              <FeatureCard key={feature.title} index={index} {...feature} />
+              <Reveal key={feature.title} delay={index * 70}>
+                <FeatureCard index={index} {...feature} />
+              </Reveal>
             ))}
           </div>
         </Section>
@@ -80,18 +82,17 @@ export function LandingPage() {
           lede="Too much arriving, too little of it yours."
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ROLES.map((role) => (
-              <div
-                key={role.name}
-                className="rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-card)]"
-              >
-                <span className="text-caption font-mono tracking-widest text-[var(--color-intelligence-blue)] uppercase">
-                  {role.name}
-                </span>
-                <p className="mt-2 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">
-                  {role.body}
-                </p>
-              </div>
+            {ROLES.map((role, index) => (
+              <Reveal key={role.name} delay={index * 70}>
+                <div className="rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-card)]">
+                  <span className="text-caption font-mono tracking-widest text-[var(--color-intelligence-blue)] uppercase">
+                    {role.name}
+                  </span>
+                  <p className="mt-2 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">
+                    {role.body}
+                  </p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </Section>
