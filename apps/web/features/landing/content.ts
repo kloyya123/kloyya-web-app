@@ -93,30 +93,31 @@ export interface Plan {
   name: string;
   price: string;
   period?: string;
-  /** A yearly alternative to the price above, shown as a secondary line. */
+  /** A yearly alternative to the monthly price, shown as its own labeled row. */
   yearlyPrice?: string;
-  /** For a plan with no clean monthly/yearly split (Business scales with team
-   *  size), shown instead of a yearly line. */
-  priceNote?: string;
+  /** What the yearly price saves versus paying monthly all year, e.g. "$48". */
+  yearlySavings?: string;
   features: string[];
   featured?: boolean;
-  /** A short eligibility note shown under the features (e.g. Student verification). */
-  disclaimer?: string;
 }
 
 /**
- * Every plan starts with the same 30-day trial — full access, no card
- * required — so a visitor is choosing which tier fits them, not choosing
- * whether to pay yet. Shown once, above the cards, not repeated per plan.
+ * One plan for now. Student, Founder, and Business tiers are coming later —
+ * see the closing note under the card rather than half-building them here.
  */
-export const TRIAL_NOTE = 'Every plan starts with a 30-day free trial. Full access, no card required.';
+export const TRIAL_NOTE = 'Start with a 30-day free trial. Full access, no card required.';
+
+/** Shown once, under the pricing card — not a priced tier, just what's next. */
+export const PRICING_FOOTNOTE =
+  'Students get a discount — reach out once you’re signed in. Founder and Business plans are coming.';
 
 export const PLANS: Plan[] = [
   {
     name: 'Pro',
-    price: '$10',
+    price: '$20',
     period: '/mo',
-    yearlyPrice: '$100/yr',
+    yearlyPrice: '$192/yr',
+    yearlySavings: '$48',
     featured: true,
     features: [
       'Connect your core tools',
@@ -125,38 +126,6 @@ export const PLANS: Plan[] = [
       'Daily briefing',
       'Inbox triage',
       'Drafted replies, approved by you',
-    ],
-  },
-  {
-    name: 'Student',
-    price: '$5',
-    period: '/mo',
-    yearlyPrice: '$50/yr',
-    disclaimer: 'Requires student verification.',
-    features: ['Everything in Pro', 'Discounted student pricing'],
-  },
-  {
-    name: 'Founder',
-    price: '$25',
-    period: '/mo',
-    yearlyPrice: '$250/yr',
-    features: [
-      'Everything in Pro',
-      'Standing permissions for routine replies',
-      'Early access to new tools',
-      'Built for running a company, not just an inbox',
-    ],
-  },
-  {
-    name: 'Business',
-    price: '$99',
-    period: '/mo',
-    priceNote: 'Starting price — scales with team size',
-    features: [
-      'Everything in Founder',
-      'Multiple users',
-      'Shared workspace',
-      'Team knowledge organization',
     ],
   },
 ];
@@ -181,7 +150,7 @@ export const FAQS: Faq[] = [
   },
   {
     q: 'What happens after the 30-day trial?',
-    a: 'You choose the plan that fits — Pro, Student, Founder, or Business — and billing starts then, not before. Nothing is charged automatically at day 31; you pick a plan when you’re ready.',
+    a: 'You move to Pro at $20/mo (or $192/yr) if you’d like to keep going — nothing is charged automatically at day 31. Students get a discount; reach out once you’re signed in.',
   },
   {
     q: 'Is there a mobile app?',

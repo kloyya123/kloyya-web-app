@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Logo, LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, ROLES, TOOLS, TRIAL_NOTE, type Plan } from '../content';
+import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, PRICING_FOOTNOTE, ROLES, TOOLS, TRIAL_NOTE, type Plan } from '../content';
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { WaitlistForm } from './waitlist-form';
@@ -169,20 +169,18 @@ export function LandingPage() {
           eyebrow="Pricing"
           title={
             <>
-              Pick the plan that fits <Accent>you.</Accent>
+              One plan. That’s the whole <Accent>menu.</Accent>
             </>
           }
           lede={TRIAL_NOTE}
           id="pricing"
         >
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto grid max-w-sm gap-5">
             {PLANS.map((plan) => (
               <PricingCard key={plan.name} plan={plan} />
             ))}
           </div>
-          <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">
-            30 days, full access, no card required. Choose a plan when the trial ends.
-          </p>
+          <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">{PRICING_FOOTNOTE}</p>
         </Section>
 
         <Section
@@ -451,29 +449,40 @@ function PricingCard({ plan }: { plan: Plan }) {
           : 'border-[var(--landing-border)] bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]',
       )}
     >
-      <div>
-        <div className="flex items-baseline justify-between gap-4">
-          <span
-            className={cn(
-              'text-caption font-mono tracking-widest uppercase',
-              plan.featured ? 'text-[var(--color-intelligence-blue)]' : 'text-[var(--landing-ink-subtle)]',
-            )}
-          >
-            {plan.name}
+      <span
+        className={cn(
+          'text-caption font-mono tracking-widest uppercase',
+          plan.featured ? 'text-[var(--color-intelligence-blue)]' : 'text-[var(--landing-ink-subtle)]',
+        )}
+      >
+        {plan.name}
+      </span>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-[var(--landing-border)] px-4 py-3">
+          <span className="text-caption font-mono tracking-widest text-[var(--landing-ink-subtle)] uppercase">
+            Monthly
           </span>
-          <span className="text-2xl font-semibold text-[var(--landing-ink)]">
+          <span className="text-title font-semibold text-[var(--landing-ink)]">
             {plan.price}
             {plan.period ? (
               <span className="text-caption font-mono text-[var(--landing-ink-subtle)]">{plan.period}</span>
             ) : null}
           </span>
         </div>
+
         {plan.yearlyPrice ? (
-          <p className="mt-1 text-caption font-mono text-[var(--landing-ink-subtle)]">
-            or {plan.yearlyPrice} billed annually
-          </p>
-        ) : plan.priceNote ? (
-          <p className="mt-1 text-caption font-mono text-[var(--landing-ink-subtle)]">{plan.priceNote}</p>
+          <div className="flex items-center justify-between rounded-xl border border-[var(--color-intelligence-blue)]/40 bg-[var(--color-intelligence-blue)]/5 px-4 py-3">
+            <span className="text-caption font-mono tracking-widest text-[var(--color-intelligence-blue)] uppercase">
+              Yearly ⭐ Best value
+            </span>
+            <span className="text-right">
+              <span className="block text-title font-semibold text-[var(--landing-ink)]">{plan.yearlyPrice}</span>
+              {plan.yearlySavings ? (
+                <span className="text-caption text-[var(--landing-ink-subtle)]">Save {plan.yearlySavings}</span>
+              ) : null}
+            </span>
+          </div>
         ) : null}
       </div>
 
@@ -485,10 +494,6 @@ function PricingCard({ plan }: { plan: Plan }) {
           </li>
         ))}
       </ul>
-
-      {plan.disclaimer ? (
-        <p className="-mt-2 text-caption text-[var(--landing-ink-subtle)]">{plan.disclaimer}</p>
-      ) : null}
 
       <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg" className="rounded-full">
         <Link href="/signup">Start free trial</Link>

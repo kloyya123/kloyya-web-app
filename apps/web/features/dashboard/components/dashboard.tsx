@@ -32,6 +32,7 @@ import { DashboardTour } from './dashboard-tour';
 import { KloyyaTipCard, productivityTip } from './kloyya-tip-card';
 import { RecentActivityCard } from './recent-activity-card';
 import { RecentMessagesCard } from './recent-messages-card';
+import { TodaysBriefCard } from './todays-brief-card';
 import { TodaysPrioritiesCard } from './todays-priorities-card';
 import { UpcomingMeetingsCard } from './upcoming-meetings-card';
 
@@ -41,10 +42,11 @@ const WORKDAY_HOURS = 8;
 /**
  * Home.
  *
- * "Know what matters within five seconds" (Design Manifesto), reworked around
- * a single entry point: a stat row that answers "what's on today", Ask Kloyya
- * front and center, and a working overview of what's connected and what's
- * outstanding — instead of asking the user to read a full briefing first.
+ * "Know what matters within five seconds" (Design Manifesto). Today's Brief —
+ * an evidence-backed account of what actually happened, generated server-side
+ * by generateBriefing — is the first thing on the page; Ask Kloyya is real and
+ * stays reachable, but is no longer the entry point. A brief tells you what
+ * happened without being asked; a chat box waits to be asked something.
  */
 export function Dashboard() {
   const { session } = useAuth();
@@ -154,8 +156,11 @@ function DashboardBody() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Main column: the day at a glance, Ask Kloyya, then the working cards. */}
+      {/* Main column: today's brief first, then the day at a glance, the
+          working cards, and Ask Kloyya last — reachable, not the entry point. */}
       <div className="min-w-0 space-y-6 lg:col-span-2">
+        <TodaysBriefCard briefing={data.briefing} />
+
         <section aria-label="Today at a glance">
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <KpiCard
@@ -187,13 +192,13 @@ function DashboardBody() {
           </div>
         </section>
 
-        <AskBox />
-
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <RecentActivityCard />
           <TodaysPrioritiesCard tasks={data.priorities} />
           <ConnectedSourcesCard />
         </div>
+
+        <AskBox />
       </div>
 
       {/* Right rail: what's coming, who's reached out, and today's nudge. */}
@@ -216,6 +221,7 @@ function DashboardSkeleton() {
   return (
     <LoadingRegion label="Preparing your dashboard" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
+        <Skeleton className="h-28 w-full rounded-lg" />
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           {[0, 1, 2, 3].map((index) => (
             <Skeleton key={index} className="h-28 rounded-lg" />

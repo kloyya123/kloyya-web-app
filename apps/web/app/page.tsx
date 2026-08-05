@@ -65,12 +65,7 @@ const JSON_LD = {
   operatingSystem: 'Web',
   description:
     'An AI chief of staff that reads your mail, calendar, and documents, briefs you each morning, and drafts replies for your approval.',
-  offers: [
-    { '@type': 'Offer', name: 'Pro', price: '10', priceCurrency: 'USD' },
-    { '@type': 'Offer', name: 'Student', price: '5', priceCurrency: 'USD' },
-    { '@type': 'Offer', name: 'Founder', price: '25', priceCurrency: 'USD' },
-    { '@type': 'Offer', name: 'Business', price: '99', priceCurrency: 'USD' },
-  ],
+  offers: [{ '@type': 'Offer', name: 'Pro', price: '20', priceCurrency: 'USD' }],
 };
 
 export default function RootPage() {
