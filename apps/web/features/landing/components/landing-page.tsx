@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Logo, LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, ROLES, TOOLS } from '../content';
+import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, ROLES, TOOLS, TRIAL_NOTE, type Plan } from '../content';
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { WaitlistForm } from './waitlist-form';
@@ -169,19 +169,19 @@ export function LandingPage() {
           eyebrow="Pricing"
           title={
             <>
-              Two plans. That’s the whole <Accent>menu.</Accent>
+              Pick the plan that fits <Accent>you.</Accent>
             </>
           }
-          lede="Free is a real product, not a countdown to a paywall."
+          lede={TRIAL_NOTE}
           id="pricing"
         >
-          <div className="grid max-w-3xl gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {PLANS.map((plan) => (
               <PricingCard key={plan.name} plan={plan} />
             ))}
           </div>
           <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">
-            Free is free, and it stays free. Upgrade to Pro whenever you want more.
+            30 days, full access, no card required. Choose a plan when the trial ends.
           </p>
         </Section>
 
@@ -441,11 +441,7 @@ function TrustCard({ title, body }: { title: string; body: string }) {
   );
 }
 
-function PricingCard({
-  plan,
-}: {
-  plan: { name: string; price: string; period?: string; yearlyPrice?: string; features: string[]; featured?: boolean };
-}) {
+function PricingCard({ plan }: { plan: Plan }) {
   return (
     <div
       className={cn(
@@ -476,6 +472,8 @@ function PricingCard({
           <p className="mt-1 text-caption font-mono text-[var(--landing-ink-subtle)]">
             or {plan.yearlyPrice} billed annually
           </p>
+        ) : plan.priceNote ? (
+          <p className="mt-1 text-caption font-mono text-[var(--landing-ink-subtle)]">{plan.priceNote}</p>
         ) : null}
       </div>
 
@@ -488,8 +486,12 @@ function PricingCard({
         ))}
       </ul>
 
+      {plan.disclaimer ? (
+        <p className="-mt-2 text-caption text-[var(--landing-ink-subtle)]">{plan.disclaimer}</p>
+      ) : null}
+
       <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg" className="rounded-full">
-        <Link href="/signup">{plan.featured ? 'Get Pro' : 'Get started free'}</Link>
+        <Link href="/signup">Start free trial</Link>
       </Button>
     </div>
   );

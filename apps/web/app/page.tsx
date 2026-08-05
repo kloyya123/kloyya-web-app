@@ -53,8 +53,9 @@ export const metadata: Metadata = {
 
 /**
  * Structured data, so a search result can show the product rather than a title
- * and a grey line. Every field is verifiable from the page itself — the free
- * tier really is $0, and there are no rating counts here to invent.
+ * and a grey line. Every field is verifiable from the page itself — the prices
+ * match PLANS in features/landing/content.ts exactly, and there are no rating
+ * counts here to invent.
  */
 const JSON_LD = {
   '@context': 'https://schema.org',
@@ -65,8 +66,10 @@ const JSON_LD = {
   description:
     'An AI chief of staff that reads your mail, calendar, and documents, briefs you each morning, and drafts replies for your approval.',
   offers: [
-    { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD' },
-    { '@type': 'Offer', name: 'Pro', price: '20', priceCurrency: 'USD' },
+    { '@type': 'Offer', name: 'Pro', price: '10', priceCurrency: 'USD' },
+    { '@type': 'Offer', name: 'Student', price: '5', priceCurrency: 'USD' },
+    { '@type': 'Offer', name: 'Founder', price: '25', priceCurrency: 'USD' },
+    { '@type': 'Offer', name: 'Business', price: '99', priceCurrency: 'USD' },
   ],
 };
 

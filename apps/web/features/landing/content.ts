@@ -93,43 +93,70 @@ export interface Plan {
   name: string;
   price: string;
   period?: string;
-  /** A yearly alternative to the price above, shown as a secondary line. Kept
-   *  optional and separate from `price` rather than a billing-cycle toggle:
-   *  there are still only two plans, and this is one of them shown two ways. */
+  /** A yearly alternative to the price above, shown as a secondary line. */
   yearlyPrice?: string;
+  /** For a plan with no clean monthly/yearly split (Business scales with team
+   *  size), shown instead of a yearly line. */
+  priceNote?: string;
   features: string[];
   featured?: boolean;
+  /** A short eligibility note shown under the features (e.g. Student verification). */
+  disclaimer?: string;
 }
 
 /**
- * Deliberately vague about the Free allowance ("limited asks per day") rather
- * than naming a number: the entitlement is still being tuned, and a landing
- * page that quotes a figure the product later changes is a promise broken.
+ * Every plan starts with the same 30-day trial — full access, no card
+ * required — so a visitor is choosing which tier fits them, not choosing
+ * whether to pay yet. Shown once, above the cards, not repeated per plan.
  */
+export const TRIAL_NOTE = 'Every plan starts with a 30-day free trial. Full access, no card required.';
+
 export const PLANS: Plan[] = [
   {
-    name: 'Free',
-    price: '$0',
+    name: 'Pro',
+    price: '$10',
+    period: '/mo',
+    yearlyPrice: '$100/yr',
+    featured: true,
     features: [
       'Connect your core tools',
-      'Limited asks per day',
+      'Unlimited asks',
+      'Unlimited documents',
       'Daily briefing',
       'Inbox triage',
       'Drafted replies, approved by you',
     ],
   },
   {
-    name: 'Pro',
-    price: '$20',
+    name: 'Student',
+    price: '$5',
     period: '/mo',
-    yearlyPrice: '$99/yr',
-    featured: true,
+    yearlyPrice: '$50/yr',
+    disclaimer: 'Requires student verification.',
+    features: ['Everything in Pro', 'Discounted student pricing'],
+  },
+  {
+    name: 'Founder',
+    price: '$25',
+    period: '/mo',
+    yearlyPrice: '$250/yr',
     features: [
-      'Everything in Free',
-      'Unlimited asks',
-      'Unlimited documents',
+      'Everything in Pro',
       'Standing permissions for routine replies',
       'Early access to new tools',
+      'Built for running a company, not just an inbox',
+    ],
+  },
+  {
+    name: 'Business',
+    price: '$99',
+    period: '/mo',
+    priceNote: 'Starting price — scales with team size',
+    features: [
+      'Everything in Founder',
+      'Multiple users',
+      'Shared workspace',
+      'Team knowledge organization',
     ],
   },
 ];
@@ -153,8 +180,8 @@ export const FAQS: Faq[] = [
     a: 'No. Your content is used to answer your questions and nothing else. It is never used to train models, never sold, and never shared with another customer.',
   },
   {
-    q: 'What does “limited asks per day” mean on Free?',
-    a: 'Free includes a daily allowance of questions — enough for normal daily use. If you reach it, Kloyya says so plainly and the allowance resets the next morning. Pro removes the limit.',
+    q: 'What happens after the 30-day trial?',
+    a: 'You choose the plan that fits — Pro, Student, Founder, or Business — and billing starts then, not before. Nothing is charged automatically at day 31; you pick a plan when you’re ready.',
   },
   {
     q: 'Is there a mobile app?',
