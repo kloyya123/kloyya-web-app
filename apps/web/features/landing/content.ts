@@ -77,16 +77,16 @@ export interface Tool {
  * Every `live: true` entry is connectable today; the flag is what keeps the
  * grid honest rather than aspirational — Outlook is hidden from the product's
  * own UI pending its Azure redirect URI, and stays off this list for the same
- * reason. Slack is listed on request but marked `live: false`: there is no
- * OAuth flow, no catalogue entry, and no sync for it yet, so showing it as
- * connectable would be the exact small dishonesty this file exists to avoid.
+ * reason. Slack has a real OAuth flow, a real events webhook, and a real
+ * connector now — see server/integrations/slack.ts and the events route — so
+ * it moved to `live: true` alongside the rest.
  */
 export const TOOLS: Tool[] = [
   { name: 'Gmail', live: true, id: 'gmail', category: 'communication' },
   { name: 'Google Calendar', live: true, id: 'google_calendar', category: 'calendar' },
   { name: 'Google Drive', live: true, id: 'google_drive', category: 'documents' },
   { name: 'Notion', live: true, id: 'notion', category: 'documents' },
-  { name: 'Slack', live: false, id: 'slack', category: 'communication' },
+  { name: 'Slack', live: true, id: 'slack', category: 'communication' },
 ];
 
 export interface Plan {

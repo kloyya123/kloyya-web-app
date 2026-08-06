@@ -357,23 +357,55 @@
  * dark/light — a distinct visual register belongs in its own scoped class, not
  * hardcoded at call sites.
  *
- * Warm neutrals, not the product's slate/blue-black. `--color-intelligence-blue`
- * and `--color-on-intelligence-blue` are reused as-is for accents and buttons —
+ * Clean white/blue-gray, not the earlier cream/serif register — a crisper,
+ * product-forward look. `--color-intelligence-blue` and
+ * `--color-on-intelligence-blue` are reused as-is for accents and buttons —
  * this adds a background and ink to put them on, not a second brand color.
  * Applied via the `.landing` class on the page's own root element, so nothing
  * here can reach the product.
  * ================================================================== */
 .landing {
-  --landing-bg: #faf4ea;
-  --landing-bg-soft: #f2e9da;
-  --landing-card: #fffdf8;
-  --landing-border: #e7dcc8;
-  --landing-ink: #211d17;
-  --landing-ink-soft: #6b6153;
-  --landing-ink-subtle: #a89b87;
+  --landing-bg: #ffffff;
+  --landing-bg-soft: #f5f7fb;
+  --landing-card: #ffffff;
+  --landing-border: #e6e9f0;
+  --landing-ink: #0f1420;
+  --landing-ink-soft: #57606f;
+  --landing-ink-subtle: #98a1b3;
 
-  --landing-shadow-card: 0 1px 2px 0 rgb(38 26 10 / 0.04), 0 8px 24px -8px rgb(38 26 10 / 0.1);
-  --landing-shadow-lifted: 0 24px 64px -24px rgb(38 26 10 / 0.28);
+  /* The hero's sky gradient — a bloom of Intelligence Blue fading through
+     near-white cloud tones, not a literal sky photo. */
+  --landing-sky-1: #eaf2ff;
+  --landing-sky-2: #cfe3ff;
+  --landing-sky-3: #a9cdff;
+
+  --landing-shadow-card: 0 1px 2px 0 rgb(15 20 32 / 0.04), 0 8px 24px -8px rgb(15 20 32 / 0.1);
+  --landing-shadow-lifted: 0 24px 64px -24px rgb(15 20 32 / 0.24);
+
+  color-scheme: light;
+}
+
+/* =====================================================================
+ * MOCKUP SCREENS — the product-screenshot palette, deliberately its own.
+ *
+ * Reusing the real KDS blue/white/slate made every screenshot on the page
+ * look identical to every other one, redesign after redesign. This is a
+ * genuinely different, still-light palette (violet, not blue) so the
+ * mockups read as their own visual moment rather than a re-skin of the
+ * product's own tokens. Scoped to `.mockup`, applied at AppWindow's root —
+ * nothing here reaches the real product's `.light`/`.dark` tokens above.
+ * ================================================================== */
+.mockup {
+  --mockup-bg: #f8f7ff;
+  --mockup-surface: #efebfc;
+  --mockup-card: #ffffff;
+  --mockup-border: #ded6f7;
+  --mockup-ink: #1c1633;
+  --mockup-ink-soft: #635d7a;
+  --mockup-accent: #7c5cff;
+  --mockup-on-accent: #ffffff;
+  --mockup-caution: #b45309;
+  --mockup-positive: #15803d;
 
   color-scheme: light;
 }

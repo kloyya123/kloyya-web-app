@@ -1,9 +1,54 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Logo } from '@/components/brand/logo';
+import { NAV_ITEMS } from '@/components/layout/nav-items';
+import { integrationIcon } from '@/features/connections/integration-meta';
 import { cn } from '@/lib/cn';
 import { AppWindow, BriefRow, Flag, PanelHead, TitleBar } from './app-chrome';
+
+/**
+ * The real desktop shell — actual nav items, actual icons, actual Kloyya
+ * wordmark, imported from the same file the signed-in sidebar reads. Only the
+ * data behind each screen is a mock; the chrome around it is not. Colors come
+ * from the `.mockup` palette (tokens.css), not the product's own KDS tokens —
+ * see AppWindow in app-chrome.tsx for why they're kept deliberately separate.
+ */
+const SHELL_NAV = NAV_ITEMS.slice(0, 8);
+
+function DesktopShell({ active, children }: { active: string; children: ReactNode }) {
+  return (
+    <AppWindow className="flex h-full">
+      <aside className="hidden w-44 shrink-0 flex-col border-r border-[var(--mockup-border)] bg-[var(--mockup-surface)] px-3 py-3 sm:flex">
+        <div className="mb-4 px-1">
+          <Logo className="h-4 w-auto" />
+        </div>
+        <nav className="flex flex-col gap-0.5">
+          {SHELL_NAV.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.label === active;
+            return (
+              <span
+                key={item.href}
+                className={cn(
+                  'flex items-center gap-2 rounded-sm px-2 py-1.5 text-caption',
+                  isActive
+                    ? 'bg-[var(--mockup-accent)]/12 font-medium text-[var(--mockup-accent)]'
+                    : 'text-[var(--mockup-ink-soft)]',
+                )}
+              >
+                <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </span>
+            );
+          })}
+        </nav>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+    </AppWindow>
+  );
+}
 
 /**
  * Three tabbed mockups of the product. Every row is a concrete example rather
@@ -26,7 +71,7 @@ export function ProductScreens() {
 
   return (
     <div>
-      <div role="tablist" aria-label="Kloyya screens" className="border-border mb-7 flex flex-wrap border-b">
+      <div role="tablist" aria-label="Kloyya screens" className="mb-7 flex flex-wrap border-b border-[var(--mockup-border)]">
         {TABS.map((tab) => {
           const selected = tab.id === active;
           return (
@@ -38,10 +83,10 @@ export function ProductScreens() {
               aria-controls={`screen-${tab.id}`}
               onClick={() => setActive(tab.id)}
               className={cn(
-                'text-caption -mb-px border-b-2 px-4 py-2.5 font-mono tracking-widest uppercase transition-colors first:pl-0',
+                '-mb-px border-b-2 px-4 py-2.5 text-caption font-mono tracking-widest uppercase transition-colors first:pl-0',
                 selected
-                  ? 'border-intelligence-blue text-link'
-                  : 'text-subtle hover:text-foreground border-transparent',
+                  ? 'border-[var(--mockup-accent)] text-[var(--mockup-accent)]'
+                  : 'border-transparent text-[var(--mockup-ink-soft)] hover:text-[var(--mockup-ink)]',
               )}
             >
               {tab.label}
@@ -66,7 +111,7 @@ export function ProductScreens() {
         </motion.div>
       </AnimatePresence>
 
-      <p className="text-caption text-subtle mt-3 font-mono">{caption}</p>
+      <p className="mt-3 text-caption font-mono text-[var(--mockup-ink-soft)]">{caption}</p>
     </div>
   );
 }
@@ -83,10 +128,17 @@ function Kpi({
   hot?: boolean;
 }) {
   return (
-    <div className="border-border/60 border-r px-4 py-3 last:border-r-0">
-      <div className="text-caption text-subtle font-mono tracking-widest uppercase">{label}</div>
-      <div className="text-heading-s text-foreground mt-1 font-semibold tabular-nums">{value}</div>
-      <div className={cn('text-caption font-mono', hot ? 'text-caution' : 'text-subtle')}>{note}</div>
+    <div className="border-r border-[var(--mockup-border)]/60 px-4 py-3 last:border-r-0">
+      <div className="text-caption font-mono tracking-widest text-[var(--mockup-ink-soft)] uppercase">{label}</div>
+      <div className="mt-1 text-heading-s font-semibold text-[var(--mockup-ink)] tabular-nums">{value}</div>
+      <div
+        className={cn(
+          'text-caption font-mono',
+          hot ? 'text-[var(--mockup-caution)]' : 'text-[var(--mockup-ink-soft)]',
+        )}
+      >
+        {note}
+      </div>
     </div>
   );
 }
@@ -94,10 +146,10 @@ function Kpi({
 /** Exported so the hero can use it as the backdrop behind the header — see Hero() in landing-page.tsx. */
 export function HomeScreen() {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — home" status="Tue 26" />
+    <DesktopShell active="Home">
+      <TitleBar label="kloyya.com/dashboard" status="Tue 26" />
 
-      <div className="border-border grid grid-cols-2 border-b sm:grid-cols-4">
+      <div className="grid grid-cols-2 border-b border-[var(--mockup-border)] sm:grid-cols-4">
         <Kpi label="Events" value="5" note="2 need prep" />
         <Kpi label="Tasks due" value="8" note="3 high priority" hot />
         <Kpi label="Unread" value="213" note="4 need you" />
@@ -105,9 +157,9 @@ export function HomeScreen() {
       </div>
 
       <div className="px-4 py-4">
-        <div className="border-border bg-background mb-3 flex items-center gap-3 rounded-sm border px-3 py-2.5">
-          <span className="text-small text-subtle flex-1">Ask Kloyya anything about your work…</span>
-          <span className="text-caption text-link border-link rounded-sm border px-2 py-0.5 font-mono">
+        <div className="mb-3 flex items-center gap-3 rounded-sm border border-[var(--mockup-border)] bg-[var(--mockup-bg)] px-3 py-2.5">
+          <span className="flex-1 text-small text-[var(--mockup-ink-soft)]">Ask Kloyya anything about your work…</span>
+          <span className="rounded-sm border border-[var(--mockup-accent)] px-2 py-0.5 text-caption font-mono text-[var(--mockup-accent)]">
             ↵ Ask
           </span>
         </div>
@@ -124,15 +176,15 @@ export function HomeScreen() {
           Atlas shipped two days early
         </BriefRow>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
 
-/** Exported for the "What it does" feature rows — see landing-page.tsx. */
+/** Exported for the "What it does" feature rows, and the hero — real inbox rows, not a condensed list. */
 export function InboxScreen() {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — inbox" status="4 / 213" />
+    <DesktopShell active="Inbox">
+      <TitleBar label="kloyya.com/inbox" status="4 / 213" />
       <div className="px-4 py-4">
         <PanelHead left="Needs you" right="209 held back" />
 
@@ -155,15 +207,15 @@ export function InboxScreen() {
           209 newsletters, CCs and receipts
         </BriefRow>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
 
 /** Exported for the "What it does" feature rows — see landing-page.tsx. */
 export function CalendarScreen() {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — calendar" status="Tue 26 Jul" />
+    <DesktopShell active="Calendar">
+      <TitleBar label="kloyya.com/calendar" status="Tue 26 Jul" />
       <div className="px-4 py-4">
         <PanelHead left="Today" right="4.5h unbooked" />
 
@@ -186,41 +238,41 @@ export function CalendarScreen() {
           Focus block
         </BriefRow>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
 
 /** For the "Replies on your behalf" feature row — landing-page.tsx. */
 export function ReplyScreen() {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — draft" status="awaiting you" />
+    <DesktopShell active="Drafts">
+      <TitleBar label="kloyya.com/drafts" status="awaiting you" />
       <div className="px-4 py-4">
         <PanelHead left="Re: vendor contract" right="written from the thread" />
-        <p className="text-small text-foreground leading-relaxed">
+        <p className="text-small leading-relaxed text-[var(--mockup-ink)]">
           Hi Amara — sorry for the delay. The redlines are attached; Legal signed off on sections 2
           and 4, and flagged the liability cap in section 7 for your review. Let me know if Thursday
           still works to close this out.
         </p>
         <div className="mt-4 flex items-center gap-2">
-          <span className="bg-intelligence-blue text-on-intelligence-blue rounded-sm px-3 py-1.5 text-caption font-semibold">
+          <span className="rounded-sm bg-[var(--mockup-accent)] px-3 py-1.5 text-caption font-semibold text-[var(--mockup-on-accent)]">
             Send
           </span>
-          <span className="border-border text-subtle rounded-sm border px-3 py-1.5 text-caption font-semibold">
+          <span className="rounded-sm border border-[var(--mockup-border)] px-3 py-1.5 text-caption font-semibold text-[var(--mockup-ink-soft)]">
             Edit first
           </span>
-          <span className="text-caption text-subtle ml-auto font-mono">nothing sends without you</span>
+          <span className="ml-auto text-caption font-mono text-[var(--mockup-ink-soft)]">nothing sends without you</span>
         </div>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
 
 /** For the "Remembers your documents" feature row — landing-page.tsx. */
 export function DocumentsScreen() {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — documents" status="128 indexed" />
+    <DesktopShell active="Documents">
+      <TitleBar label="kloyya.com/documents" status="128 indexed" />
       <div className="px-4 py-4">
         <PanelHead left="Recently connected" right="synced from Drive + Notion" />
 
@@ -236,59 +288,184 @@ export function DocumentsScreen() {
           Hiring plan — Notion
         </BriefRow>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
 
 /** For the "Answers in plain language" feature row — landing-page.tsx. */
 export function AskScreen() {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — ask" status="answered in 2.8s" />
+    <DesktopShell active="Ask Kloyya">
+      <TitleBar label="kloyya.com/ask" status="answered in 2.8s" />
       <div className="px-4 py-4">
-        <div className="border-border bg-background mb-3 flex items-center gap-3 rounded-sm border px-3 py-2.5">
-          <span className="text-small text-foreground flex-1">Who is blocked on the vendor contract?</span>
+        <div className="mb-3 flex items-center gap-3 rounded-sm border border-[var(--mockup-border)] bg-[var(--mockup-bg)] px-3 py-2.5">
+          <span className="flex-1 text-small text-[var(--mockup-ink)]">Who is blocked on the vendor contract?</span>
         </div>
-        <p className="text-small text-foreground leading-relaxed">
+        <p className="text-small leading-relaxed text-[var(--mockup-ink)]">
           Amara Osei — she is waiting on the redline you sent Legal two days ago. A reply is already
           drafted and waiting for your approval.
         </p>
-        <div className="border-border/60 mt-3 border-t pt-2">
-          <span className="text-caption text-subtle font-mono tracking-widest uppercase">Sources</span>
-          <p className="text-caption text-subtle mt-1 font-mono">
+        <div className="mt-3 border-t border-[var(--mockup-border)]/60 pt-2">
+          <span className="text-caption font-mono tracking-widest text-[var(--mockup-ink-soft)] uppercase">Sources</span>
+          <p className="mt-1 text-caption font-mono text-[var(--mockup-ink-soft)]">
             Vendor contract thread · MSA redlines.docx · Legal calendar hold
           </p>
         </div>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
 
-/** Re-exported so the hero can render a briefing without duplicating chrome. */
+/**
+ * The same Ask exchange as AskScreen, but played out step by step — the
+ * question lands, Kloyya searches the workspace, the sources it found appear
+ * one at a time, then the answer. Motion carrying the actual mechanism
+ * ("search your own data, then answer from it") rather than decoration on
+ * top of a static screen. Plays once when scrolled into view; reduced motion
+ * skips straight to the finished state.
+ */
+const ASK_SOURCES = ['Vendor contract thread', 'MSA redlines.docx', 'Legal calendar hold'];
+
+export function AskMotion() {
+  const prefersReducedMotion = useReducedMotion();
+  const [phase, setPhase] = useState<'question' | 'searching' | 'sources' | 'answer'>(
+    prefersReducedMotion ? 'answer' : 'question',
+  );
+  const [sourceCount, setSourceCount] = useState(prefersReducedMotion ? ASK_SOURCES.length : 0);
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => setPhase('searching'), 700));
+    timers.push(setTimeout(() => setPhase('sources'), 1500));
+    ASK_SOURCES.forEach((_, i) => {
+      timers.push(setTimeout(() => setSourceCount((n) => Math.max(n, i + 1)), 1900 + i * 450));
+    });
+    timers.push(setTimeout(() => setPhase('answer'), 1900 + ASK_SOURCES.length * 450 + 400));
+    return () => timers.forEach(clearTimeout);
+  }, [prefersReducedMotion]);
+
+  const GmailIcon = integrationIcon('gmail', 'communication');
+
+  return (
+    <DesktopShell active="Ask Kloyya">
+      <TitleBar label="kloyya.com/ask" status={phase === 'answer' ? 'answered in 2.8s' : 'thinking…'} />
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1 px-4 py-4">
+          <motion.div
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-3 flex items-center gap-3 rounded-sm border border-[var(--mockup-border)] bg-[var(--mockup-bg)] px-3 py-2.5"
+          >
+            <span className="flex-1 text-small text-[var(--mockup-ink)]">Who is blocked on the vendor contract?</span>
+          </motion.div>
+
+          <AnimatePresence>
+            {phase === 'searching' || phase === 'sources' ? (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="mb-2 text-caption font-mono text-[var(--mockup-ink-soft)]"
+              >
+                Searching your workspace…
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
+
+          {phase === 'sources' ? (
+            <ul className="mb-2 flex flex-col gap-1.5">
+              {ASK_SOURCES.slice(0, sourceCount).map((source) => (
+                <motion.li
+                  key={source}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="text-caption font-mono text-[var(--mockup-ink-soft)]"
+                >
+                  · {source}
+                </motion.li>
+              ))}
+            </ul>
+          ) : null}
+
+          {phase === 'answer' ? (
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <p className="text-small leading-relaxed text-[var(--mockup-ink)]">
+                Amara Osei — she is waiting on the redline you sent Legal two days ago. A reply is
+                already drafted and waiting for your approval.
+              </p>
+              <div className="mt-3 border-t border-[var(--mockup-border)]/60 pt-2">
+                <span className="text-caption font-mono tracking-widest text-[var(--mockup-ink-soft)] uppercase">Sources</span>
+                <p className="mt-1 text-caption font-mono text-[var(--mockup-ink-soft)]">{ASK_SOURCES.join(' · ')}</p>
+              </div>
+            </motion.div>
+          ) : null}
+        </div>
+
+        {/* The source itself, previewed — not just named. Real icon, real
+            provider, so the answer's citation is something you can check. */}
+        <AnimatePresence>
+          {phase === 'sources' || phase === 'answer' ? (
+            <motion.div
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+              className="hidden w-48 shrink-0 border-l border-[var(--mockup-border)] bg-[var(--mockup-surface)] p-3 sm:block"
+            >
+              <div className="flex items-center gap-2 rounded-sm border border-[var(--mockup-border)] bg-[var(--mockup-card)] p-2">
+                <GmailIcon aria-hidden="true" className="size-4 shrink-0 text-[var(--mockup-accent)]" />
+                <span className="truncate text-caption font-medium text-[var(--mockup-ink)]">Gmail</span>
+              </div>
+              <p className="mt-2 text-caption leading-snug text-[var(--mockup-ink-soft)]">
+                Re: vendor contract — Amara Osei, 2 days ago
+              </p>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </DesktopShell>
+  );
+}
+
+/**
+ * The hero's own screen — a centered Ask, and the real Inbox underneath it
+ * (the same rows InboxScreen shows, not a condensed stand-in), the way
+ * opening a new tab shows what's already in motion rather than a blank page.
+ */
 export function HeroBriefing(): ReactNode {
   return (
-    <AppWindow>
-      <TitleBar label="kloyya — this morning" status="07:42" />
-      <div className="px-4 py-4">
-        <PanelHead left="Your briefing" right="4 of 213 reviewed" />
+    <DesktopShell active="Home">
+      <TitleBar label="kloyya.com" status="07:42" />
+      <div className="flex flex-col items-center px-6 pt-8 pb-2">
+        <div className="flex w-full max-w-md items-center gap-2 rounded-full border border-[var(--mockup-border)] bg-[var(--mockup-bg)] px-4 py-2.5 shadow-sm">
+          <span className="flex-1 text-left text-small text-[var(--mockup-ink-soft)]">Ask Kloyya anything about your work…</span>
+          <span className="rounded-full bg-[var(--mockup-accent)] px-3 py-1 text-caption font-semibold text-[var(--mockup-on-accent)]">
+            Ask
+          </span>
+        </div>
+      </div>
 
-        <BriefRow when="09:00" meta="3 threads · 1 doc revised yesterday 22:14">
-          <Flag>Prep</Flag>
-          Board sync — the Q3 forecast changed since you last read it
-        </BriefRow>
-        <BriefRow when="11:30" meta="waiting 2 days · review and send">
+      <div className="px-4 pt-4 pb-4">
+        <PanelHead left="Inbox" right="4 of 213 reviewed" />
+
+        <BriefRow when="2d" meta="approve to send, or edit first">
           <Flag>Draft ready</Flag>
-          Amara is blocked on the vendor contract — reply written
+          Amara Osei — vendor contract, reply written
         </BriefRow>
-        <BriefRow when="14:00" meta="detected from calendar and project docs">
-          <b className="font-semibold">Atlas milestone</b> slipped to Friday — nobody has told the
-          customer
+        <BriefRow when="4d" meta="she is on today’s 09:00 invite">
+          <Flag>Owed</Flag>
+          Dana Whitfield — “what is our hiring pace looking like?”
         </BriefRow>
-        <BriefRow when="rest" meta="out of your view, still searchable" last>
-          <Flag tone="handled">Quiet</Flag>
-          209 messages need nothing from you today
+        <BriefRow when="9h" meta="deck not updated · Kloyya cross-checked" last>
+          Priya Raman — Q3 forecast v9 is final
         </BriefRow>
       </div>
-    </AppWindow>
+    </DesktopShell>
   );
 }
