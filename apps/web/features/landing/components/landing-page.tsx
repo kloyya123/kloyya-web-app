@@ -1,11 +1,11 @@
-import { ArrowRight, Check, Eye, KeyRound, Layers, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Eye, KeyRound, Layers, Lock, ShieldCheck, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Logo, LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui';
 import { integrationIcon } from '@/features/connections/integration-meta';
 import { cn } from '@/lib/cn';
-import { CONTACT_EMAIL, FAQS, FEATURES, PLANS, PRICING_FOOTNOTE, ROLES, TOOLS, TRIAL_NOTE, type Plan } from '../content';
+import { CONTACT_EMAIL, FAQS, FEATURES, ROLES, TOOLS } from '../content';
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { WaitlistForm } from './waitlist-form';
@@ -203,24 +203,6 @@ export function LandingPage() {
         </Section>
 
         <Section
-          eyebrow="Pricing"
-          title={
-            <>
-              One plan. That’s the whole <Accent>menu.</Accent>
-            </>
-          }
-          lede={TRIAL_NOTE}
-          id="pricing"
-        >
-          <div className="mx-auto grid max-w-sm gap-5">
-            {PLANS.map((plan) => (
-              <PricingCard key={plan.name} plan={plan} />
-            ))}
-          </div>
-          <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">{PRICING_FOOTNOTE}</p>
-        </Section>
-
-        <Section
           eyebrow="Questions"
           title={
             <>
@@ -274,9 +256,6 @@ export function SiteHeader() {
           </a>
           <a href="#tools" className="rounded-sm hover:text-[var(--landing-ink)]">
             Integrations
-          </a>
-          <a href="#pricing" className="rounded-sm hover:text-[var(--landing-ink)]">
-            Pricing
           </a>
           <Link href="/trust" className="rounded-sm hover:text-[var(--landing-ink)]">
             Trust
@@ -689,69 +668,6 @@ function TrustIcon({
   );
 }
 
-function PricingCard({ plan }: { plan: Plan }) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col gap-5 rounded-2xl border p-7',
-        plan.featured
-          ? 'border-[var(--color-intelligence-blue)]/40 bg-[var(--landing-card)] shadow-[var(--landing-shadow-lifted)]'
-          : 'border-[var(--landing-border)] bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]',
-      )}
-    >
-      <span
-        className={cn(
-          'text-caption font-mono tracking-widest uppercase',
-          plan.featured ? 'text-[var(--color-intelligence-blue)]' : 'text-[var(--landing-ink-subtle)]',
-        )}
-      >
-        {plan.name}
-      </span>
-
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between rounded-xl border border-[var(--landing-border)] px-4 py-3">
-          <span className="text-caption font-mono tracking-widest text-[var(--landing-ink-subtle)] uppercase">
-            Monthly
-          </span>
-          <span className="text-title font-semibold text-[var(--landing-ink)]">
-            {plan.price}
-            {plan.period ? (
-              <span className="text-caption font-mono text-[var(--landing-ink-subtle)]">{plan.period}</span>
-            ) : null}
-          </span>
-        </div>
-
-        {plan.yearlyPrice ? (
-          <div className="flex items-center justify-between rounded-xl border border-[var(--color-intelligence-blue)]/40 bg-[var(--color-intelligence-blue)]/5 px-4 py-3">
-            <span className="text-caption font-mono tracking-widest text-[var(--color-intelligence-blue)] uppercase">
-              Yearly ⭐ Best value
-            </span>
-            <span className="text-right">
-              <span className="block text-title font-semibold text-[var(--landing-ink)]">{plan.yearlyPrice}</span>
-              {plan.yearlySavings ? (
-                <span className="text-caption text-[var(--landing-ink-subtle)]">Save {plan.yearlySavings}</span>
-              ) : null}
-            </span>
-          </div>
-        ) : null}
-      </div>
-
-      <ul className="m-0 flex flex-1 list-none flex-col gap-2.5 p-0">
-        {plan.features.map((item) => (
-          <li key={item} className="flex gap-2.5 text-small text-[var(--landing-ink-soft)]">
-            <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--color-intelligence-blue)]" />
-            {item}
-          </li>
-        ))}
-      </ul>
-
-      <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg" className="rounded-full">
-        <Link href="/signup">Start free trial</Link>
-      </Button>
-    </div>
-  );
-}
-
 /**
  * The closing band. Get Started is the primary action; the waitlist is kept —
  * on request — as the path for someone who would rather be notified than open
@@ -810,7 +726,6 @@ export function SiteFooter() {
       links: [
         { label: 'Overview', href: '#product' },
         { label: 'Integrations', href: '#tools' },
-        { label: 'Pricing', href: '#pricing' },
       ],
     },
     {
