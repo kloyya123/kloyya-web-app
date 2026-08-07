@@ -22,7 +22,6 @@ import {
   Switch,
   toast,
 } from '@/components/ui';
-import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { useConnectionSummary } from '@/hooks/use-integrations';
 import {
   BRIEFING_TIME_OPTIONS,
@@ -288,16 +287,6 @@ export function SettingsView() {
       </Card>
 
       <ConnectedToolsCard />
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between gap-4">
-          <div className="space-y-1">
-            <CardTitle as="h2">Appearance</CardTitle>
-            <CardDescription>Dark by default. Switch whenever.</CardDescription>
-          </div>
-          <ThemeToggle />
-        </CardHeader>
-      </Card>
 
       <div className="flex items-center justify-end gap-3">
         {isSaved && !isDirty ? (

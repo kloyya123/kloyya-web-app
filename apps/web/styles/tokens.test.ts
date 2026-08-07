@@ -36,7 +36,8 @@ function readBlock(selector: string): Record<string, string> {
 }
 
 const theme = readBlock('@theme');
-const dark = readBlock(':root {');
+// The app has one theme now — :root and .light are the same block by design
+// (see tokens.css); reading either gives the same values.
 const light = readBlock('.light');
 
 function token(block: Record<string, string>, name: string): string {
@@ -93,10 +94,9 @@ const INK_TOKENS = [
 
 const TEXT_TOKENS = ['--kds-text-primary', '--kds-text-secondary'] as const;
 
-describe.each([
-  ['dark', dark],
-  ['light', light],
-])('%s theme', (_themeName, block) => {
+describe('light theme', () => {
+  const block = light;
+
   describe('ink meets AA for normal text on every surface', () => {
     for (const ink of INK_TOKENS) {
       for (const surface of SURFACE_TOKENS) {
@@ -121,8 +121,8 @@ describe.each([
 
   it('--kds-muted is NOT used for readable text', () => {
     // Documents the trap rather than hiding it. KDS's Muted fails AA on its own
-    // surfaces in both themes, so it is reserved for decorative and disabled
-    // affordances. Readable de-emphasized text uses `--kds-ink-subtle`.
+    // surface, so it is reserved for decorative and disabled affordances.
+    // Readable de-emphasized text uses `--kds-ink-subtle`.
     const ratio = contrastRatio(token(block, '--kds-muted'), token(block, '--kds-card'));
     expect(ratio).toBeLessThan(AA_NORMAL_TEXT);
   });

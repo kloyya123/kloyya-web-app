@@ -254,44 +254,20 @@
 }
 
 /* =====================================================================
- * DARK MODE — KDS: "Dark mode is the default experience."
- * Applied at :root so dark is what you get before any JS runs.
- * Goal, per KDS: "Maintain contrast, Avoid pure black." #0B1020 is not black.
+ * LIGHT — the app's only theme now. Dark mode (previously KDS's stated
+ * default) has been removed by request; ThemeProvider forces "light" and
+ * there is no toggle left to reach anything else. Applied at :root so this
+ * is what renders before any JS runs — no flash of a since-removed theme.
+ *
+ * KDS: "Optimized for print, bright environments, enterprise users,
+ * presentations, accessibility."
+ *
+ * `.light` is kept as an identical alias, not a second definition: the
+ * marketing site's `.landing` wrapper still stacks `.light` explicitly (see
+ * features/landing/components/landing-page.tsx), and removing the class
+ * would break that rather than the theme system this file actually owns.
  * ================================================================== */
-:root {
-  --kds-background: #0b1020;
-  --kds-surface: #111827;
-  --kds-card: #1a2332;
-  --kds-border: #273244;
-  --kds-hover: #1e293b;
-  --kds-text-primary: #f8fafc;
-  --kds-text-secondary: #cbd5e1;
-  --kds-muted: #64748b;
-
-  /* Ink: verified >= 4.5:1 on #0B1020 / #111827 / #1A2332 / #1E293B. */
-  --kds-ink-link: #60a5fa;
-  --kds-ink-ai: #a78bfa;
-  --kds-ink-positive: #4ade80;
-  --kds-ink-caution: #fbbf24;
-  --kds-ink-critical: #f87171;
-  --kds-ink-notice: #38bdf8;
-  --kds-ink-subtle: #94a3b8;
-
-  /* On dark surfaces, elevation reads through a darker, deeper shadow. */
-  --kds-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.24);
-  --kds-shadow-2: 0 2px 8px -2px rgb(0 0 0 / 0.32);
-  --kds-shadow-3: 0 8px 24px -4px rgb(0 0 0 / 0.4);
-  --kds-shadow-4: 0 4px 16px -2px rgb(0 0 0 / 0.36);
-  --kds-shadow-5: 0 16px 48px -8px rgb(0 0 0 / 0.52);
-
-  color-scheme: dark;
-}
-
-/* =====================================================================
- * LIGHT MODE — KDS: "Optimized for print, bright environments, enterprise
- * users, presentations, accessibility. Theme switching should be instantaneous."
- * next-themes sets .light / .dark on <html>.
- * ================================================================== */
+:root,
 .light {
   --kds-background: #ffffff;
   --kds-surface: #f8fafc;
@@ -318,34 +294,6 @@
   --kds-shadow-5: 0 16px 48px -8px rgb(15 23 42 / 0.14);
 
   color-scheme: light;
-}
-
-.dark {
-  --kds-background: #0b1020;
-  --kds-surface: #111827;
-  --kds-card: #1a2332;
-  --kds-border: #273244;
-  --kds-hover: #1e293b;
-  --kds-text-primary: #f8fafc;
-  --kds-text-secondary: #cbd5e1;
-  --kds-muted: #64748b;
-
-  /* Ink: verified >= 4.5:1 on #0B1020 / #111827 / #1A2332 / #1E293B. */
-  --kds-ink-link: #60a5fa;
-  --kds-ink-ai: #a78bfa;
-  --kds-ink-positive: #4ade80;
-  --kds-ink-caution: #fbbf24;
-  --kds-ink-critical: #f87171;
-  --kds-ink-notice: #38bdf8;
-  --kds-ink-subtle: #94a3b8;
-
-  --kds-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.24);
-  --kds-shadow-2: 0 2px 8px -2px rgb(0 0 0 / 0.32);
-  --kds-shadow-3: 0 8px 24px -4px rgb(0 0 0 / 0.4);
-  --kds-shadow-4: 0 4px 16px -2px rgb(0 0 0 / 0.36);
-  --kds-shadow-5: 0 16px 48px -8px rgb(0 0 0 / 0.52);
-
-  color-scheme: dark;
 }
 
 /* =====================================================================

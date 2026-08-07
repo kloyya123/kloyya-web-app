@@ -13,7 +13,6 @@ import {
 import type { User, Workspace } from '@/types/domain';
 import { CommandPaletteTrigger } from './command-palette';
 import { NotificationCenter } from './notification-center';
-import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
 
 export interface TopBarProps {
@@ -47,7 +46,6 @@ export function TopBar({
 
       <div className="flex items-center gap-1">
         <NotificationCenter />
-        <ThemeToggle />
         <UserMenu user={user} />
       </div>
     </header>
