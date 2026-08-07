@@ -50,12 +50,12 @@ export function SignUpForm() {
   });
 
   return (
-    <Card>
-      <CardHeader className="flex-col items-start gap-1">
-        <CardTitle as="h1">Create your workspace</CardTitle>
-        <CardDescription>
-          Kloyya learns your work, then prepares your day around it.
-        </CardDescription>
+    <Card className="border-none shadow-none">
+      <CardHeader className="flex-col items-center gap-1.5 text-center">
+        <CardTitle as="h1" className="font-serif text-heading-l font-normal">
+          Welcome to Kloyya
+        </CardTitle>
+        <CardDescription>Kloyya learns your work, then prepares your day around it.</CardDescription>
       </CardHeader>
 
       <CardContent>

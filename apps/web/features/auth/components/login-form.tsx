@@ -59,12 +59,12 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
   });
 
   return (
-    <Card>
-      <CardHeader className="flex-col items-start gap-1">
-        <CardTitle as="h1">Sign in to Kloyya</CardTitle>
-        <CardDescription>
-          Your workspace is waiting, with today&rsquo;s briefing prepared.
-        </CardDescription>
+    <Card className="border-none shadow-none">
+      <CardHeader className="flex-col items-center gap-1.5 text-center">
+        <CardTitle as="h1" className="font-serif text-heading-l font-normal">
+          Welcome back
+        </CardTitle>
+        <CardDescription>Sign in to your workspace.</CardDescription>
       </CardHeader>
 
       <CardContent>

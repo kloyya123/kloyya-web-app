@@ -30,11 +30,9 @@ export const metadata: Metadata = {
   applicationName: 'Kloyya',
 };
 
+/** Light only — the app has no dark theme to answer prefers-color-scheme: dark with. */
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0B1020' },
-    { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
-  ],
+  themeColor: '#FFFFFF',
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

@@ -248,44 +248,20 @@
 }
 
 /* =====================================================================
- * DARK MODE — KDS: "Dark mode is the default experience."
- * Applied at :root so dark is what you get before any JS runs.
- * Goal, per KDS: "Maintain contrast, Avoid pure black." #0B1020 is not black.
+ * LIGHT — the app's only theme now. Dark mode (previously KDS's stated
+ * default) has been removed by request; ThemeProvider forces "light" and
+ * there is no toggle left to reach anything else. Applied at :root so this
+ * is what renders before any JS runs — no flash of a since-removed theme.
+ *
+ * KDS: "Optimized for print, bright environments, enterprise users,
+ * presentations, accessibility."
+ *
+ * `.light` is kept as an identical alias, not a second definition: the
+ * marketing site's `.landing` wrapper still stacks `.light` explicitly (see
+ * features/landing/components/landing-page.tsx), and removing the class
+ * would break that rather than the theme system this file actually owns.
  * ================================================================== */
-:root {
-  --kds-background: #0b1020;
-  --kds-surface: #111827;
-  --kds-card: #1a2332;
-  --kds-border: #273244;
-  --kds-hover: #1e293b;
-  --kds-text-primary: #f8fafc;
-  --kds-text-secondary: #cbd5e1;
-  --kds-muted: #64748b;
-
-  /* Ink: verified >= 4.5:1 on #0B1020 / #111827 / #1A2332 / #1E293B. */
-  --kds-ink-link: #60a5fa;
-  --kds-ink-ai: #a78bfa;
-  --kds-ink-positive: #4ade80;
-  --kds-ink-caution: #fbbf24;
-  --kds-ink-critical: #f87171;
-  --kds-ink-notice: #38bdf8;
-  --kds-ink-subtle: #94a3b8;
-
-  /* On dark surfaces, elevation reads through a darker, deeper shadow. */
-  --kds-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.24);
-  --kds-shadow-2: 0 2px 8px -2px rgb(0 0 0 / 0.32);
-  --kds-shadow-3: 0 8px 24px -4px rgb(0 0 0 / 0.4);
-  --kds-shadow-4: 0 4px 16px -2px rgb(0 0 0 / 0.36);
-  --kds-shadow-5: 0 16px 48px -8px rgb(0 0 0 / 0.52);
-
-  color-scheme: dark;
-}
-
-/* =====================================================================
- * LIGHT MODE — KDS: "Optimized for print, bright environments, enterprise
- * users, presentations, accessibility. Theme switching should be instantaneous."
- * next-themes sets .light / .dark on <html>.
- * ================================================================== */
+:root,
 .light {
   --kds-background: #ffffff;
   --kds-surface: #f8fafc;
@@ -314,30 +290,64 @@
   color-scheme: light;
 }
 
-.dark {
-  --kds-background: #0b1020;
-  --kds-surface: #111827;
-  --kds-card: #1a2332;
-  --kds-border: #273244;
-  --kds-hover: #1e293b;
-  --kds-text-primary: #f8fafc;
-  --kds-text-secondary: #cbd5e1;
-  --kds-muted: #64748b;
+/* =====================================================================
+ * LANDING PAGE — NOT KDS.
+ *
+ * Everything above this line is governed: KDS is "the single source of truth"
+ * and the product must never step outside it. The marketing page is the one
+ * deliberate exception, on the same reasoning this file already accepts for
+ * dark/light — a distinct visual register belongs in its own scoped class, not
+ * hardcoded at call sites.
+ *
+ * Clean white/blue-gray, not the earlier cream/serif register — a crisper,
+ * product-forward look. `--color-intelligence-blue` and
+ * `--color-on-intelligence-blue` are reused as-is for accents and buttons —
+ * this adds a background and ink to put them on, not a second brand color.
+ * Applied via the `.landing` class on the page's own root element, so nothing
+ * here can reach the product.
+ * ================================================================== */
+.landing {
+  --landing-bg: #ffffff;
+  --landing-bg-soft: #f5f7fb;
+  --landing-card: #ffffff;
+  --landing-border: #e6e9f0;
+  --landing-ink: #0f1420;
+  --landing-ink-soft: #57606f;
+  --landing-ink-subtle: #98a1b3;
 
-  /* Ink: verified >= 4.5:1 on #0B1020 / #111827 / #1A2332 / #1E293B. */
-  --kds-ink-link: #60a5fa;
-  --kds-ink-ai: #a78bfa;
-  --kds-ink-positive: #4ade80;
-  --kds-ink-caution: #fbbf24;
-  --kds-ink-critical: #f87171;
-  --kds-ink-notice: #38bdf8;
-  --kds-ink-subtle: #94a3b8;
+  /* The hero's sky gradient — a bloom of Intelligence Blue fading through
+     near-white cloud tones, not a literal sky photo. */
+  --landing-sky-1: #eaf2ff;
+  --landing-sky-2: #cfe3ff;
+  --landing-sky-3: #a9cdff;
 
-  --kds-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.24);
-  --kds-shadow-2: 0 2px 8px -2px rgb(0 0 0 / 0.32);
-  --kds-shadow-3: 0 8px 24px -4px rgb(0 0 0 / 0.4);
-  --kds-shadow-4: 0 4px 16px -2px rgb(0 0 0 / 0.36);
-  --kds-shadow-5: 0 16px 48px -8px rgb(0 0 0 / 0.52);
+  --landing-shadow-card: 0 1px 2px 0 rgb(15 20 32 / 0.04), 0 8px 24px -8px rgb(15 20 32 / 0.1);
+  --landing-shadow-lifted: 0 24px 64px -24px rgb(15 20 32 / 0.24);
 
-  color-scheme: dark;
+  color-scheme: light;
+}
+
+/* =====================================================================
+ * MOCKUP SCREENS — the product-screenshot palette, deliberately its own.
+ *
+ * Reusing the real KDS blue/white/slate made every screenshot on the page
+ * look identical to every other one, redesign after redesign. This is a
+ * genuinely different, still-light palette (violet, not blue) so the
+ * mockups read as their own visual moment rather than a re-skin of the
+ * product's own tokens. Scoped to `.mockup`, applied at AppWindow's root —
+ * nothing here reaches the real product's `.light`/`.dark` tokens above.
+ * ================================================================== */
+.mockup {
+  --mockup-bg: #f8f7ff;
+  --mockup-surface: #efebfc;
+  --mockup-card: #ffffff;
+  --mockup-border: #ded6f7;
+  --mockup-ink: #1c1633;
+  --mockup-ink-soft: #635d7a;
+  --mockup-accent: #7c5cff;
+  --mockup-on-accent: #ffffff;
+  --mockup-caution: #b45309;
+  --mockup-positive: #15803d;
+
+  color-scheme: light;
 }

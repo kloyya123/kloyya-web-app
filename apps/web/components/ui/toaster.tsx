@@ -1,6 +1,5 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { Toaster as Sonner } from 'sonner';
 
 /**
@@ -15,11 +14,9 @@ import { Toaster as Sonner } from 'sonner';
  * "components never hardcode styles."
  */
 export function Toaster() {
-  const { resolvedTheme } = useTheme();
-
   return (
     <Sonner
-      theme={resolvedTheme === 'light' ? 'light' : 'dark'}
+      theme="light"
       position="bottom-right"
       // Long enough to read a sentence, short enough not to nag.
       duration={5000}
