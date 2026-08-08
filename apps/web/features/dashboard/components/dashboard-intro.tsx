@@ -42,6 +42,11 @@ const QUICK_LINKS: QuickLink[] = [
 export function DashboardIntro({ onDismiss }: { onDismiss: () => void }) {
   const [isVisible, setIsVisible] = useState(true);
 
+  function dismiss() {
+    setIsVisible(false);
+    onDismiss();
+  }
+
   if (!isVisible) return null;
 
   return (
@@ -63,7 +68,7 @@ export function DashboardIntro({ onDismiss }: { onDismiss: () => void }) {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setIsVisible(false)}
+                onClick={dismiss}
                 className="group relative flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-link hover:bg-card/80 active:scale-95"
               >
                 <div className="text-link">
@@ -83,13 +88,7 @@ export function DashboardIntro({ onDismiss }: { onDismiss: () => void }) {
           </div>
 
           <div className="flex flex-col items-center gap-3 pt-4">
-            <Button
-              size="lg"
-              onClick={() => {
-                setIsVisible(false);
-                onDismiss();
-              }}
-            >
+            <Button size="lg" onClick={dismiss}>
               Go to Dashboard
             </Button>
             <p className="text-caption text-muted-foreground">

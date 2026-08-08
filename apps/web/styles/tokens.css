@@ -354,6 +354,7 @@
   --mockup-on-accent: #ffffff;
   --mockup-caution: #b45309;
   --mockup-positive: #15803d;
+  --mockup-critical: #dc2626;
 
   color-scheme: light;
 }

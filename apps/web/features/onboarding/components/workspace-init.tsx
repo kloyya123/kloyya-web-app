@@ -41,6 +41,10 @@ export function WorkspaceInit() {
     // All stages done: hand off to the dashboard. `replace` so Back does not
     // walk the user back into a loading screen that would run again.
     if (!stage) {
+      // The one real signal that this is a brand-new workspace, not just a
+      // browser that has never visited /dashboard before. The dashboard reads
+      // and clears this itself — see useDashboardIntroState.
+      sessionStorage.setItem('kloyya:just-onboarded', 'true');
       router.replace('/dashboard');
       return;
     }

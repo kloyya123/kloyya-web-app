@@ -38,7 +38,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'create',
     title: 'Create anything',
     description: 'New tasks, drafts, projects, and meetings from one place.',
-    targetSelector: 'button:has-text("New")',
+    targetSelector: '[data-tour="new-button"]',
     position: 'bottom',
   },
   {
@@ -76,9 +76,20 @@ export function DashboardTour({ isVisible, onComplete }: DashboardTourProps) {
   useEffect(() => {
     if (!isVisible || !currentStep) return;
 
-    // Find the target element
-    const target = document.querySelector(currentStep.targetSelector);
-    if (!target) return;
+    // Find the target element. A selector that matches nothing — or, if a
+    // future step ever uses invalid syntax again, one the browser rejects —
+    // must not leave the previous step's tooltip frozen in the wrong place.
+    let target: Element | null = null;
+    try {
+      target = document.querySelector(currentStep.targetSelector);
+    } catch {
+      target = null;
+    }
+    if (!target) {
+      setOverlay(null);
+      setTooltip(null);
+      return;
+    }
 
     const rect = target.getBoundingClientRect();
     const gap = 16;

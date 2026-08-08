@@ -158,6 +158,7 @@ export function CommandPaletteTrigger() {
     <button
       type="button"
       onClick={open}
+      data-tour="search"
       className={cn(
         'bg-surface border-border text-subtle flex h-9 items-center gap-2 rounded-sm border px-3',
         'hover:border-muted hover:text-foreground transition-colors duration-150',

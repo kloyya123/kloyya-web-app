@@ -14,10 +14,10 @@ import {
   AskScreen,
   CalendarScreen,
   DocumentsScreen,
-  HeroBriefing,
   InboxScreen,
   ProductScreens,
   ReplyScreen,
+  TodayMotion,
 } from './product-screens';
 import { SocialLinks } from './social-links';
 
@@ -348,7 +348,7 @@ function Hero() {
 
         <Reveal delay={120} className="mx-auto mt-16 max-w-3xl">
           <Lifted>
-            <HeroBriefing />
+            <TodayMotion />
           </Lifted>
         </Reveal>
       </div>

@@ -30,7 +30,7 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
  */
 export function ProjectHealthCard({ projects }: { projects: Project[] }) {
   return (
-    <SidebarCard title="Project health">
+    <SidebarCard title="Projects to watch">
       {projects.length === 0 ? (
         <EmptyState
           icon={FolderKanban}

@@ -1,6 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { CircleCheck, Flag as FlagIcon, TrendingUp } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Logo } from '@/components/brand/logo';
 import { NAV_ITEMS } from '@/components/layout/nav-items';
@@ -59,7 +60,7 @@ function DesktopShell({ active, children }: { active: string; children: ReactNod
 type ScreenId = 'home' | 'inbox' | 'calendar';
 
 const TABS: { id: ScreenId; label: string; caption: string }[] = [
-  { id: 'home', label: 'Home', caption: 'The day ranked, drafts waiting, one box to ask anything.' },
+  { id: 'home', label: 'Home', caption: 'What changed, why it matters, and what still needs you.' },
   { id: 'inbox', label: 'Inbox', caption: 'Sorted by who is waiting on you, not by what arrived last.' },
   { id: 'calendar', label: 'Calendar', caption: 'Every meeting arrives with its context already gathered.' },
 ];
@@ -105,7 +106,7 @@ export function ProductScreens() {
           {...(prefersReducedMotion ? {} : { exit: { opacity: 0, y: -8 } })}
           transition={{ duration: 0.25, ease: 'easeOut' }}
         >
-          {active === 'home' ? <HomeScreen /> : null}
+          {active === 'home' ? <TodayScreen /> : null}
           {active === 'inbox' ? <InboxScreen /> : null}
           {active === 'calendar' ? <CalendarScreen /> : null}
         </motion.div>
@@ -116,65 +117,182 @@ export function ProductScreens() {
   );
 }
 
-function Kpi({
-  label,
-  value,
-  note,
-  hot,
-}: {
+type ChangeTone = 'customer' | 'risk' | 'team';
+
+const CHANGE_TONE_STYLES: Record<ChangeTone, { border: string; text: string }> = {
+  customer: { border: 'border-[var(--mockup-critical)]', text: 'text-[var(--mockup-critical)]' },
+  risk: { border: 'border-[var(--mockup-caution)]', text: 'text-[var(--mockup-caution)]' },
+  team: { border: 'border-[var(--mockup-accent)]', text: 'text-[var(--mockup-accent)]' },
+};
+
+const CHANGE_ITEMS: {
+  tone: ChangeTone;
   label: string;
+  title: string;
+  body: string;
+  sources: string;
+}[] = [
+  {
+    tone: 'customer',
+    label: 'Customer',
+    title: 'Acme requirements changed',
+    body: 'Acme added SSO as a requirement yesterday. Your current proposal doesn’t include it.',
+    sources: 'Email · Meeting · Proposal',
+  },
+  {
+    tone: 'risk',
+    label: 'Risk',
+    title: 'Launch risk detected',
+    body: 'The API dependency remains unresolved. This could impact the launch timeline.',
+    sources: 'Jira · Slack · Doc',
+  },
+  {
+    tone: 'team',
+    label: 'Team',
+    title: 'Ling joined the team',
+    body: 'Ling Z. joined as Product Designer. Say hi and help them get started.',
+    sources: 'Directory',
+  },
+];
+
+function StatTile({
+  icon: Icon,
+  value,
+  label,
+  tone,
+}: {
+  icon: typeof TrendingUp;
   value: string;
-  note: string;
-  hot?: boolean;
+  label: string;
+  tone: 'critical' | 'caution' | 'positive';
 }) {
   return (
-    <div className="border-r border-[var(--mockup-border)]/60 px-4 py-3 last:border-r-0">
-      <div className="text-caption font-mono tracking-widest text-[var(--mockup-ink-soft)] uppercase">{label}</div>
-      <div className="mt-1 text-heading-s font-semibold text-[var(--mockup-ink)] tabular-nums">{value}</div>
-      <div
+    <div className="flex items-center gap-3 border-r border-[var(--mockup-border)]/60 px-4 py-3 last:border-r-0">
+      <span
         className={cn(
-          'text-caption font-mono',
-          hot ? 'text-[var(--mockup-caution)]' : 'text-[var(--mockup-ink-soft)]',
+          'flex size-9 shrink-0 items-center justify-center rounded-full',
+          tone === 'critical' && 'bg-[var(--mockup-critical)]/12 text-[var(--mockup-critical)]',
+          tone === 'caution' && 'bg-[var(--mockup-caution)]/12 text-[var(--mockup-caution)]',
+          tone === 'positive' && 'bg-[var(--mockup-accent)]/12 text-[var(--mockup-accent)]',
         )}
       >
-        {note}
+        <Icon aria-hidden="true" className="size-4" />
+      </span>
+      <div>
+        <div className="text-heading-s leading-none font-semibold text-[var(--mockup-ink)] tabular-nums">
+          {value}
+        </div>
+        <div className="mt-1 text-caption text-[var(--mockup-ink-soft)]">{label}</div>
       </div>
     </div>
   );
 }
 
-/** Exported so the hero can use it as the backdrop behind the header — see Hero() in landing-page.tsx. */
-export function HomeScreen() {
+/**
+ * The Today screen — what changed, why it matters, ranked, with the source
+ * evidence named inline. Kloyya's actual home screen, not a stand-in: the
+ * same three widgets (change feed, ranked by tone) that ship in the product.
+ */
+export function TodayScreen() {
   return (
     <DesktopShell active="Home">
-      <TitleBar label="kloyya.com/dashboard" status="Tue 26" />
+      <TitleBar label="kloyya.com/today" status="Tue 26" />
 
-      <div className="grid grid-cols-2 border-b border-[var(--mockup-border)] sm:grid-cols-4">
-        <Kpi label="Events" value="5" note="2 need prep" />
-        <Kpi label="Tasks due" value="8" note="3 high priority" hot />
-        <Kpi label="Unread" value="213" note="4 need you" />
-        <Kpi label="Focus left" value="4.5h" note="56% of day" />
+      <div className="grid grid-cols-3 border-b border-[var(--mockup-border)]">
+        <StatTile icon={TrendingUp} value="3" label="Things changed" tone="critical" />
+        <StatTile icon={FlagIcon} value="2" label="Need attention" tone="caution" />
+        <StatTile icon={CircleCheck} value="1" label="Decision waiting" tone="positive" />
       </div>
 
       <div className="px-4 py-4">
-        <div className="mb-3 flex items-center gap-3 rounded-sm border border-[var(--mockup-border)] bg-[var(--mockup-bg)] px-3 py-2.5">
-          <span className="flex-1 text-small text-[var(--mockup-ink-soft)]">Ask Kloyya anything about your work…</span>
-          <span className="rounded-sm border border-[var(--mockup-accent)] px-2 py-0.5 text-caption font-mono text-[var(--mockup-accent)]">
-            ↵ Ask
-          </span>
+        <PanelHead left="What's changed" right="View all" />
+        <div className="flex flex-col gap-3">
+          {CHANGE_ITEMS.map((item) => (
+            <div
+              key={item.title}
+              className={cn('border-l-2 pl-3', CHANGE_TONE_STYLES[item.tone].border)}
+            >
+              <span
+                className={cn(
+                  'text-caption font-mono tracking-widest uppercase',
+                  CHANGE_TONE_STYLES[item.tone].text,
+                )}
+              >
+                {item.label}
+              </span>
+              <p className="mt-0.5 text-small font-medium text-[var(--mockup-ink)]">{item.title}</p>
+              <p className="mt-0.5 text-caption leading-relaxed text-[var(--mockup-ink-soft)]">{item.body}</p>
+              <p className="mt-1 text-caption font-mono text-[var(--mockup-ink-soft)]">{item.sources}</p>
+            </div>
+          ))}
         </div>
+      </div>
+    </DesktopShell>
+  );
+}
 
-        <BriefRow when="Now" meta="written from your hiring plan">
-          <Flag>Draft ready</Flag>
-          Reply to Dana on hiring pace — review and send
-        </BriefRow>
-        <BriefRow when="Today" meta="Q3 Forecast v9 · edited 22:14">
-          Slide 7 contradicts the current forecast
-        </BriefRow>
-        <BriefRow when="Today" meta="no action needed" last>
-          <Flag tone="handled">Good</Flag>
-          Atlas shipped two days early
-        </BriefRow>
+/**
+ * Same content as `TodayScreen`, played out: the stat row settles in, then
+ * each change card arrives one at a time, ranked. Used where a static
+ * screenshot undersells the point — the hero, and the auth screens.
+ */
+export function TodayMotion() {
+  const prefersReducedMotion = useReducedMotion();
+  const [statsIn, setStatsIn] = useState(prefersReducedMotion);
+  const [visibleCount, setVisibleCount] = useState(prefersReducedMotion ? CHANGE_ITEMS.length : 0);
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => setStatsIn(true), 300));
+    CHANGE_ITEMS.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleCount((n) => Math.max(n, i + 1)), 800 + i * 500));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [prefersReducedMotion]);
+
+  return (
+    <DesktopShell active="Home">
+      <TitleBar label="kloyya.com/today" status="Tue 26" />
+
+      <motion.div
+        initial={prefersReducedMotion ? false : { opacity: 0 }}
+        animate={{ opacity: statsIn ? 1 : 0 }}
+        transition={{ duration: 0.4 }}
+        className="grid grid-cols-3 border-b border-[var(--mockup-border)]"
+      >
+        <StatTile icon={TrendingUp} value="3" label="Things changed" tone="critical" />
+        <StatTile icon={FlagIcon} value="2" label="Need attention" tone="caution" />
+        <StatTile icon={CircleCheck} value="1" label="Decision waiting" tone="positive" />
+      </motion.div>
+
+      <div className="px-4 py-4">
+        <PanelHead left="What's changed" right="View all" />
+        <div className="flex flex-col gap-3">
+          <AnimatePresence>
+            {CHANGE_ITEMS.slice(0, visibleCount).map((item) => (
+              <motion.div
+                key={item.title}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className={cn('border-l-2 pl-3', CHANGE_TONE_STYLES[item.tone].border)}
+              >
+                <span
+                  className={cn(
+                    'text-caption font-mono tracking-widest uppercase',
+                    CHANGE_TONE_STYLES[item.tone].text,
+                  )}
+                >
+                  {item.label}
+                </span>
+                <p className="mt-0.5 text-small font-medium text-[var(--mockup-ink)]">{item.title}</p>
+                <p className="mt-0.5 text-caption leading-relaxed text-[var(--mockup-ink-soft)]">{item.body}</p>
+                <p className="mt-1 text-caption font-mono text-[var(--mockup-ink-soft)]">{item.sources}</p>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
       </div>
     </DesktopShell>
   );
@@ -433,39 +551,3 @@ export function AskMotion() {
   );
 }
 
-/**
- * The hero's own screen — a centered Ask, and the real Inbox underneath it
- * (the same rows InboxScreen shows, not a condensed stand-in), the way
- * opening a new tab shows what's already in motion rather than a blank page.
- */
-export function HeroBriefing(): ReactNode {
-  return (
-    <DesktopShell active="Home">
-      <TitleBar label="kloyya.com" status="07:42" />
-      <div className="flex flex-col items-center px-6 pt-8 pb-2">
-        <div className="flex w-full max-w-md items-center gap-2 rounded-full border border-[var(--mockup-border)] bg-[var(--mockup-bg)] px-4 py-2.5 shadow-sm">
-          <span className="flex-1 text-left text-small text-[var(--mockup-ink-soft)]">Ask Kloyya anything about your work…</span>
-          <span className="rounded-full bg-[var(--mockup-accent)] px-3 py-1 text-caption font-semibold text-[var(--mockup-on-accent)]">
-            Ask
-          </span>
-        </div>
-      </div>
-
-      <div className="px-4 pt-4 pb-4">
-        <PanelHead left="Inbox" right="4 of 213 reviewed" />
-
-        <BriefRow when="2d" meta="approve to send, or edit first">
-          <Flag>Draft ready</Flag>
-          Amara Osei — vendor contract, reply written
-        </BriefRow>
-        <BriefRow when="4d" meta="she is on today’s 09:00 invite">
-          <Flag>Owed</Flag>
-          Dana Whitfield — “what is our hiring pace looking like?”
-        </BriefRow>
-        <BriefRow when="9h" meta="deck not updated · Kloyya cross-checked" last>
-          Priya Raman — Q3 forecast v9 is final
-        </BriefRow>
-      </div>
-    </DesktopShell>
-  );
-}
