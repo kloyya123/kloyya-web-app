@@ -53,9 +53,10 @@ export const metadata: Metadata = {
 
 /**
  * Structured data, so a search result can show the product rather than a title
- * and a grey line. Every field is verifiable from the page itself — the prices
- * match PLANS in features/landing/content.ts exactly, and there are no rating
- * counts here to invent.
+ * and a grey line. Every field is verifiable from the page itself. No `offers`
+ * block: pricing isn't shown on the site while there is no live payment
+ * provider, and a search result advertising a price nobody can actually pay
+ * is worse than no price at all.
  */
 const JSON_LD = {
   '@context': 'https://schema.org',
@@ -65,7 +66,6 @@ const JSON_LD = {
   operatingSystem: 'Web',
   description:
     'An AI chief of staff that reads your mail, calendar, and documents, briefs you each morning, and drafts replies for your approval.',
-  offers: [{ '@type': 'Offer', name: 'Pro', price: '20', priceCurrency: 'USD' }],
 };
 
 export default function RootPage() {

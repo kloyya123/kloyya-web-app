@@ -89,47 +89,6 @@ export const TOOLS: Tool[] = [
   { name: 'Slack', live: true, id: 'slack', category: 'communication' },
 ];
 
-export interface Plan {
-  name: string;
-  price: string;
-  period?: string;
-  /** A yearly alternative to the monthly price, shown as its own labeled row. */
-  yearlyPrice?: string;
-  /** What the yearly price saves versus paying monthly all year, e.g. "$48". */
-  yearlySavings?: string;
-  features: string[];
-  featured?: boolean;
-}
-
-/**
- * One plan for now. Student, Founder, and Business tiers are coming later —
- * see the closing note under the card rather than half-building them here.
- */
-export const TRIAL_NOTE = 'Start with a 30-day free trial. Full access, no card required.';
-
-/** Shown once, under the pricing card — not a priced tier, just what's next. */
-export const PRICING_FOOTNOTE =
-  'Students get a discount — reach out once you’re signed in. Founder and Business plans are coming.';
-
-export const PLANS: Plan[] = [
-  {
-    name: 'Pro',
-    price: '$20',
-    period: '/mo',
-    yearlyPrice: '$192/yr',
-    yearlySavings: '$48',
-    featured: true,
-    features: [
-      'Connect your core tools',
-      'Unlimited asks',
-      'Unlimited documents',
-      'Daily briefing',
-      'Inbox triage',
-      'Drafted replies, approved by you',
-    ],
-  },
-];
-
 export interface Faq {
   q: string;
   a: string;
@@ -150,7 +109,7 @@ export const FAQS: Faq[] = [
   },
   {
     q: 'What happens after the 30-day trial?',
-    a: 'You move to Pro at $20/mo (or $192/yr) if you’d like to keep going — nothing is charged automatically at day 31. Students get a discount; reach out once you’re signed in.',
+    a: 'Nothing is charged automatically at day 31 — Kloyya has no way to charge a card yet. Pricing will be shared, and you’ll be asked before anything changes.',
   },
   {
     q: 'Is there a mobile app?',

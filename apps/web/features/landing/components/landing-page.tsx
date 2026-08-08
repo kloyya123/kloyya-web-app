@@ -507,7 +507,7 @@ function PillarBand() {
 
 const SHIPPED: { date: string; title: string; body: string }[] = [
   { date: 'This week', title: 'Slack, live', body: 'Messages sync as they arrive, not just once a day.' },
-  { date: 'This week', title: 'Plans for how you actually work', body: 'Pro, Student, Founder and Business — pick the one that fits.' },
+  { date: 'This week', title: 'Desktop notifications', body: 'A real alert on your desktop for the rare thing that truly can’t wait.' },
   { date: 'This week', title: 'Trust Centre, Compliance and Help', body: 'What Kloyya can see, how it handles data, and how to reach us — all public now.' },
 ];
 

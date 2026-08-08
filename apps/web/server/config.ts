@@ -20,7 +20,6 @@ const schema = z.object({
 
   DATABASE_URL: z.string().url().optional(),
   DIRECT_URL: z.string().url().optional(),
-  REDIS_URL: z.string().optional(),
 
   // Supabase. NEXT_PUBLIC_SUPABASE_URL is also read by browser code; validated
   // here too so a misconfigured deployment fails at boot, not at first request.
