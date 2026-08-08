@@ -16,9 +16,12 @@ import {
   FormField,
 } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
+import { pwnedPasswordCount } from '@/lib/pwned-password';
+import { breachedPasswordError } from '../breached-password-error';
 import { resetPasswordSchema, type ResetPasswordValues } from '../schemas';
 import { FormError } from './form-error';
 import { PasswordInput } from './password-input';
+import { PasswordStrengthMeter } from './password-strength-meter';
 
 /**
  * Set a new password, after following the emailed reset link.
@@ -42,6 +45,7 @@ export function ResetPasswordForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -53,12 +57,20 @@ export function ResetPasswordForm() {
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
     try {
+      const breachCount = await pwnedPasswordCount(values.password).catch(() => 0);
+      if (breachCount > 0) {
+        setSubmitError(breachedPasswordError(breachCount));
+        return;
+      }
+
       await updatePassword(values.password);
       setDone(true);
     } catch (error) {
       setSubmitError(error);
     }
   });
+
+  const password = watch('password');
 
   if (done) {
     return (
@@ -100,17 +112,20 @@ export function ResetPasswordForm() {
 
           <FormField
             label="New password"
-            description="At least 12 characters. Length matters more than symbols."
+            description="At least 12 characters, with a mix of letters and numbers."
             error={errors.password?.message}
             isRequired
           >
             {(field) => (
-              <PasswordInput
-                {...field}
-                {...register('password')}
-                autoComplete="new-password"
-                isInvalid={Boolean(errors.password)}
-              />
+              <>
+                <PasswordInput
+                  {...field}
+                  {...register('password')}
+                  autoComplete="new-password"
+                  isInvalid={Boolean(errors.password)}
+                />
+                <PasswordStrengthMeter password={password ?? ''} />
+              </>
             )}
           </FormField>
 

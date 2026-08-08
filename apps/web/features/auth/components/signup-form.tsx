@@ -17,9 +17,12 @@ import {
   Input,
 } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
+import { pwnedPasswordCount } from '@/lib/pwned-password';
+import { breachedPasswordError } from '../breached-password-error';
 import { signUpSchema, type SignUpValues } from '../schemas';
 import { FormError } from './form-error';
 import { PasswordInput } from './password-input';
+import { PasswordStrengthMeter } from './password-strength-meter';
 
 export function SignUpForm() {
   const router = useRouter();
@@ -29,6 +32,7 @@ export function SignUpForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -40,6 +44,16 @@ export function SignUpForm() {
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
     try {
+      // Re-checked here rather than trusted from the live meter: the meter's
+      // check is debounced and can still be in flight when the button is
+      // clicked. A failed lookup (network, API down) does not block sign-up —
+      // only a confirmed breach does.
+      const breachCount = await pwnedPasswordCount(values.password).catch(() => 0);
+      if (breachCount > 0) {
+        setSubmitError(breachedPasswordError(breachCount));
+        return;
+      }
+
       await signUp(values);
       // A new account is unverified. Middleware would force this anyway; going
       // there directly avoids a redirect the user can see.
@@ -48,6 +62,8 @@ export function SignUpForm() {
       setSubmitError(error);
     }
   });
+
+  const password = watch('password');
 
   return (
     <Card className="border-none shadow-none">
@@ -91,17 +107,20 @@ export function SignUpForm() {
 
           <FormField
             label="Password"
-            description="At least 12 characters. Length matters more than symbols."
+            description="At least 12 characters, with a mix of letters and numbers."
             error={errors.password?.message}
             isRequired
           >
             {(field) => (
-              <PasswordInput
-                {...field}
-                {...register('password')}
-                autoComplete="new-password"
-                isInvalid={Boolean(errors.password)}
-              />
+              <>
+                <PasswordInput
+                  {...field}
+                  {...register('password')}
+                  autoComplete="new-password"
+                  isInvalid={Boolean(errors.password)}
+                />
+                <PasswordStrengthMeter password={password ?? ''} />
+              </>
             )}
           </FormField>
 

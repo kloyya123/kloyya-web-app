@@ -16,16 +16,18 @@ const email = z
   .transform((value) => value.trim().toLowerCase());
 
 /**
- * 12 characters, no composition rules.
+ * 12 characters minimum, plus at least one letter and one digit.
  *
- * NIST SP 800-63B recommends length over character-class requirements: forced
- * symbols produce `Password1!` and a sticky note. KESM mandates passkeys and
- * MFA, which is where real strength comes from.
+ * NIST SP 800-63B still argues against forced symbol/case rules — they push
+ * people toward `Password1!` and a sticky note, not real strength. A single
+ * repeated character or an all-numeric string does pass length alone, though,
+ * so a light floor (one letter, one digit) stays without going further.
  */
 const password = z
   .string()
   .min(12, 'Use at least 12 characters.')
-  .max(128, 'That password is too long.');
+  .max(128, 'That password is too long.')
+  .regex(/(?=.*[A-Za-z])(?=.*\d)/, 'Use a mix of letters and numbers.');
 
 export const signInSchema = z.object({
   email,
