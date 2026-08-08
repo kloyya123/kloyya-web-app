@@ -23,6 +23,7 @@ import {
   toast,
 } from '@/components/ui';
 import { useConnectionSummary } from '@/hooks/use-integrations';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 import {
   BRIEFING_TIME_OPTIONS,
   GOAL_OPTIONS,
@@ -263,6 +264,8 @@ export function SettingsView() {
         </CardContent>
       </Card>
 
+      <DesktopNotificationsCard />
+
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-4">
           <div className="space-y-1">
@@ -302,6 +305,43 @@ export function SettingsView() {
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Desktop push — a real OS notification, not the in-app bell. Kept separate
+ * from the "Notifications" select above (which governs the in-app list):
+ * that field controls what gets *recorded*, this controls whether the
+ * highest tier of it also interrupts the desktop. Per KDSE, only a Critical
+ * item ever triggers a push regardless of this toggle — turning it on
+ * cannot make Kloyya noisier, only reachable when something truly does.
+ */
+function DesktopNotificationsCard() {
+  const { support, isBusy, enable, disable } = usePushNotifications();
+
+  if (support === 'unsupported') return null;
+
+  const isOn = support === 'granted';
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between gap-4">
+        <div className="space-y-1">
+          <CardTitle as="h2">Desktop notifications</CardTitle>
+          <CardDescription>
+            {support === 'denied'
+              ? 'Blocked in your browser. Allow notifications for Kloyya in your browser settings to turn this on.'
+              : 'Get a desktop alert for the rare thing that truly can’t wait — everything else stays in the notification list.'}
+          </CardDescription>
+        </div>
+        <Switch
+          checked={isOn}
+          onCheckedChange={(checked) => void (checked ? enable() : disable())}
+          disabled={isBusy || support === 'denied'}
+          aria-label="Desktop notifications"
+        />
+      </CardHeader>
+    </Card>
   );
 }
 

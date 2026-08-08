@@ -150,6 +150,20 @@ const schema = z.object({
    * does not run at all.
    */
   CRON_SECRET: z.string().min(1).optional(),
+
+  /**
+   * Web Push (desktop notifications). Optional, same reasoning as the OAuth
+   * pairs above: the app boots without them, and push delivery no-ops with a
+   * clear log line rather than crashing whatever triggered it. The public key
+   * is also read client-side (as NEXT_PUBLIC_VAPID_PUBLIC_KEY) for
+   * `PushManager.subscribe()` — kept as two separate env vars rather than one,
+   * since only the public half is safe in a browser bundle.
+   */
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  /** The `mailto:` or URL a push service can use to contact us about this key, per the VAPID spec. */
+  VAPID_SUBJECT: z.string().min(1).default('mailto:contactsupport@kloyya.com'),
 });
 
 export type Config = z.infer<typeof schema>;

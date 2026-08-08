@@ -7,7 +7,7 @@ import {
 import { API_STATUS } from '@/types/api';
 import type { AppNotification } from '@/types/domain';
 import { mockError, mockRespond } from '../http/mock-transport';
-import type { NotificationService } from './types';
+import type { NotificationService, PushSubscriptionInput } from './types';
 
 /**
  * Mock notifications.
@@ -44,5 +44,15 @@ export class MockNotificationService implements NotificationService {
     const changed = markAllNotificationsRead();
     const { data } = await mockRespond(changed);
     return data;
+  }
+
+  // The mock backend has no push service to register with — these resolve
+  // immediately rather than pretending a subscription was stored anywhere.
+  async subscribePush(_subscription: PushSubscriptionInput): Promise<void> {
+    await mockRespond(undefined);
+  }
+
+  async unsubscribePush(_endpoint: string): Promise<void> {
+    await mockRespond(undefined);
   }
 }

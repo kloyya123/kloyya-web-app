@@ -1,5 +1,12 @@
 import type { AppNotification } from '@/types/domain';
 
+/** What the browser's `PushManager.subscribe()` returns, trimmed to what the server stores. */
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  userAgent?: string | undefined;
+}
+
 /**
  * The notifications contract.
  *
@@ -17,4 +24,10 @@ export interface NotificationService {
 
   /** Marks everything read. Resolves with how many changed. */
   markAllRead(): Promise<number>;
+
+  /** Registers a browser's Web Push subscription for desktop notifications. */
+  subscribePush(subscription: PushSubscriptionInput): Promise<void>;
+
+  /** Removes a browser's subscription — called when the user turns notifications off. */
+  unsubscribePush(endpoint: string): Promise<void>;
 }

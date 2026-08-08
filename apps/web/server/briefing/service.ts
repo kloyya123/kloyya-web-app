@@ -7,6 +7,8 @@ import { AiError, type AiProvider } from '../ai/provider';
 import { describe } from '../ask/retrieval';
 import { fenceUntrusted, UNTRUSTED_DATA_RULES } from '../ask/untrusted';
 import type { StartContext } from '../integrations/connect';
+import { createNotification } from '../notifications/service';
+import { sendWorkspacePush } from '../notifications/push';
 
 /**
  * The morning briefing — the one thing Kloyya promises on its own landing page.
@@ -285,6 +287,31 @@ export async function generateBriefing(
       // equally true, and one account of the morning is the point.
       .onConflictDoNothing({ target: [briefings.workspaceId, briefings.day] });
   });
+
+  // Fire-and-forget: a notification failure must never take down the briefing
+  // that triggered it. Decision score is the same `confidence` shown on the
+  // briefing itself — the one real signal this pipeline has for "how much
+  // corroborating evidence is this built from" — so an unusually well-evidenced
+  // morning is the only kind that can clear the Critical bar and reach a
+  // desktop push (see server/notifications/push.ts); a routine one only ever
+  // lands in the in-app list.
+  void createNotification(db, {
+    organizationId: ctx.organizationId,
+    workspaceId: ctx.workspaceId,
+    category: 'ai',
+    title: parsed.headline,
+    body: parsed.narrative,
+    href: '/dashboard',
+    decisionScore: confidence,
+  })
+    .then((notification) =>
+      sendWorkspacePush(db, ctx.workspaceId, confidence, {
+        title: 'Your morning briefing is ready',
+        body: parsed.headline,
+        href: notification.href ?? '/dashboard',
+      }),
+    )
+    .catch((error) => console.error('[briefing] notification failed', { workspaceId: ctx.workspaceId, error }));
 
   return {
     // Stable per workspace per day, and identical to the id rebuilt from the

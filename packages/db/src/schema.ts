@@ -140,6 +140,17 @@ export const notificationLevel = pgEnum('notification_level', [
   'critical_only',
 ]);
 
+/** Mirrors NOTIFICATION_CATEGORIES in packages/core/src/domain.ts. */
+export const notificationCategory = pgEnum('notification_category', [
+  'ai',
+  'important',
+  'mentions',
+  'meetings',
+  'tasks',
+  'projects',
+  'system',
+]);
+
 export const goal = pgEnum('goal', [
   'reduce_meeting_load',
   'stay_on_top_of_email',
@@ -490,6 +501,72 @@ export const briefings = pgTable(
   (t) => [
     primaryKey({ columns: [t.workspaceId, t.day] }),
     index('briefings_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * In-app notifications — workspace-wide, not per-user, matching
+ * apps/web/types/domain.ts's `AppNotification` (no `userId` field). Ranked by
+ * `decisionScore`, not `createdAt`, per KDSE: a Critical alert from an hour ago
+ * outranks a routine one from a minute ago.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    category: notificationCategory('category').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    href: text('href'),
+    decisionScore: integer('decision_score').notNull().default(0),
+    isRead: boolean('is_read').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('notifications_workspace_id_idx').on(t.workspaceId),
+    index('notifications_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
+ * A browser's Web Push subscription for one user. Per-user (unlike
+ * `notifications` above) — a push has to land on a specific person's device,
+ * not a shared workspace feed. `endpoint` is unique: resubscribing the same
+ * browser updates its keys rather than accumulating duplicate rows.
+ *
+ * Per KDSE (see lib/decision-score.ts `isAllowedOnChannel`), only a Critical
+ * (90-100) decision score may trigger a push — that policy is enforced where
+ * a push is sent, not here; this table only stores where to send it.
+ */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint),
+    index('push_subscriptions_user_id_idx').on(t.userId),
+    index('push_subscriptions_workspace_id_idx').on(t.workspaceId),
   ],
 ).enableRLS();
 

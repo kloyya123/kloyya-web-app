@@ -39,6 +39,7 @@ import { MockIntelligenceService } from './intelligence/mock-intelligence-servic
 import { HttpIntelligenceService } from './intelligence/http-intelligence-service';
 import type { IntelligenceService } from './intelligence/types';
 import { MockNotificationService } from './notifications/mock-notification-service';
+import { HttpNotificationService } from './notifications/http-notification-service';
 import type { NotificationService } from './notifications/types';
 import { MockOrganizationService } from './organization/mock-organization-service';
 import { HttpOrganizationService } from './organization/http-organization-service';
@@ -93,9 +94,9 @@ export interface Services {
  * layer — the 527 tests stay green because they never touch this branch.
  *
  * Only the services with a real backend are switched; the rest (calendar,
- * meetings, knowledge, search, notifications, sources) have no API yet and
- * stay on the mock until their phases land. Mixing is fine on purpose: a page
- * reading real auth and mock calendar is exactly the incremental cut-over the
+ * meetings, knowledge, search, sources) have no API yet and stay on the mock
+ * until their phases land. Mixing is fine on purpose: a page reading real
+ * auth and mock calendar is exactly the incremental cut-over the
  * frontend-first architecture was built to allow.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
@@ -122,13 +123,13 @@ export const services: Services = {
   projects: USE_REAL_API ? new HttpProjectService() : new MockProjectService(),
   intelligence: USE_REAL_API ? new HttpIntelligenceService() : new MockIntelligenceService(),
   inbox: USE_REAL_API ? new HttpInboxService() : new MockInboxService(),
+  notifications: USE_REAL_API ? new HttpNotificationService() : new MockNotificationService(),
   // No backend yet — these land with their roadmap phases.
   sources: new MockSourcesService(),
   calendar: new MockCalendarService(),
   meetings: new MockMeetingService(),
   knowledge: new MockKnowledgeService(),
   search: new MockSearchService(),
-  notifications: new MockNotificationService(),
 };
 
 export type { AuthService } from './auth/types';
