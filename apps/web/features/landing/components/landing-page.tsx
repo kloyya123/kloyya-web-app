@@ -68,11 +68,12 @@ export function SiteHeader() {
           </Link>
         </nav>
 
-        {/* Join Waitlist, not Get started, is the primary action here — the app
-            is beta-gated to a handful of accounts, and everyone else lands on
-            the waitlist regardless. Leading with a CTA the visitor can actually
-            complete beats leading with one middleware will redirect away from.
-            Log in stays reachable for the few who already have access. */}
+        {/* Sign in / Get Started both lead straight to Supabase auth — the
+            beta gate in middleware.ts decides what happens next, not this
+            button. An allowed email lands in the product; anyone else is
+            redirected to /#waitlist the moment they'd otherwise reach the
+            app. That gate is the single source of truth for who gets in, so
+            this header never needs its own copy of that logic. */}
         <div className="flex items-center gap-3 sm:gap-5">
           <Link
             href="/login"
@@ -81,7 +82,7 @@ export function SiteHeader() {
             Sign in
           </Link>
           <Button asChild size="md" className="rounded-full">
-            <a href="#waitlist">Join Waitlist</a>
+            <Link href="/signup">Get Started</Link>
           </Button>
         </div>
       </div>
@@ -118,8 +119,14 @@ function Hero() {
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="rounded-full px-7" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <a href="#waitlist">Join the Waitlist</a>
+              <Link href="/signup">Get Started</Link>
             </Button>
+            <a
+              href="#waitlist"
+              className="text-small text-[var(--landing-ink-soft)] underline underline-offset-4 hover:text-[var(--landing-ink)]"
+            >
+              or join the waitlist
+            </a>
           </div>
         </div>
 
