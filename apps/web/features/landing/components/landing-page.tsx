@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn';
 import { CONTACT_EMAIL, TOOLS } from '../content';
 import { AskShowcaseCard } from './ask-showcase';
 import { ConnectHub } from './connect-hub';
+import { NavLinkLabel } from './nav-link-label';
 import { Reveal } from './reveal';
 import { SocialLinks } from './social-links';
 import { WaitlistForm } from './waitlist-form';
@@ -76,12 +77,14 @@ export function SiteHeader() {
         <div className="flex items-center gap-3 sm:gap-5">
           <Link
             href="/login"
-            className="text-small whitespace-nowrap text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)]"
+            className="inline-flex items-center gap-1.5 text-small whitespace-nowrap text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)]"
           >
-            Sign in
+            <NavLinkLabel>Sign in</NavLinkLabel>
           </Link>
           <Button asChild size="md" className="rounded-full">
-            <Link href="/signup">Get Started</Link>
+            <Link href="/signup">
+              <NavLinkLabel>Get Started</NavLinkLabel>
+            </Link>
           </Button>
         </div>
       </div>
@@ -117,8 +120,11 @@ function Hero() {
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg" className="rounded-full px-7" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <Link href="/signup">Get Started</Link>
+            <Button asChild size="lg" className="rounded-full px-7">
+              <Link href="/signup">
+                <NavLinkLabel>Get Started</NavLinkLabel>
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </Link>
             </Button>
             <a
               href="#waitlist"
