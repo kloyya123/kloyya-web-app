@@ -7,7 +7,6 @@ import { integrationIcon } from '@/features/connections/integration-meta';
 import { cn } from '@/lib/cn';
 import { CONTACT_EMAIL, TOOLS } from '../content';
 import { AskShowcaseCard } from './ask-showcase';
-import { BRAND_ICONS } from './brand-icons';
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
 import { SocialLinks } from './social-links';
@@ -230,7 +229,7 @@ function HeroDashboardMockup() {
             <p className="mb-2.5 text-caption font-medium text-[var(--mockup-ink-soft)]">Connected tools</p>
             <div className="flex items-center gap-2">
               {connectedTools.map((tool) => {
-                const Icon = BRAND_ICONS[tool.id] ?? integrationIcon(tool.id, tool.category);
+                const Icon = integrationIcon(tool.id, tool.category);
                 return (
                   <span
                     key={tool.id}
@@ -267,7 +266,7 @@ function ToolsStrip() {
         </p>
         <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-10 gap-y-4 p-0">
           {TOOLS.map((tool) => {
-            const Icon = BRAND_ICONS[tool.id] ?? integrationIcon(tool.id, tool.category);
+            const Icon = integrationIcon(tool.id, tool.category);
             return (
               <li
                 key={tool.name}

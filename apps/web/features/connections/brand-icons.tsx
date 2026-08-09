@@ -8,15 +8,16 @@ interface BrandIconProps {
 }
 
 /**
- * Real, brand-colored marks for the five tools the landing page names.
+ * Real, brand-colored marks for the tools Kloyya actually connects to today.
  *
- * The connections catalogue (`integration-meta.ts`) deliberately uses generic
- * outline icons instead of vendor logos — bundling ~50 brand SVGs would bloat
- * the app and raise licensing questions for tools most users never see. This
- * page names only five, all of them requested by name in the copy itself, so
- * a visitor reading "Gmail" or "Slack" sees the mark they already recognize
- * rather than a generic envelope. Scoped to the landing page; the product's
- * own UI keeps using `integrationIcon`.
+ * The rest of the catalogue in `integration-meta.ts` uses generic outline
+ * icons instead of vendor logos — bundling ~50 brand SVGs would bloat the app
+ * and raise licensing questions for tools most users never see. These five
+ * are different: they're the tools that are actually live, named by name
+ * throughout the product and the marketing page, so a user or visitor should
+ * see the mark they already recognize rather than a generic envelope.
+ * `integrationIcon()` reaches for one of these first; everything else in the
+ * catalogue still falls back to the generic set.
  */
 
 export function GmailIcon({ className }: BrandIconProps) {
@@ -80,7 +81,7 @@ export function SlackIcon({ className }: BrandIconProps) {
   );
 }
 
-/** Keyed the same way `TOOLS[i].id` is, so a lookup mirrors `integrationIcon`'s call shape. */
+/** Keyed by catalogue id — the same key `integrationIcon()` looks up by. */
 export const BRAND_ICONS: Record<string, ComponentType<BrandIconProps>> = {
   gmail: GmailIcon,
   google_calendar: GoogleCalendarIcon,
