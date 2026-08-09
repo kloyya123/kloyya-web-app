@@ -194,7 +194,7 @@ function HeroDashboardMockup() {
             <p className="text-caption font-medium text-[var(--mockup-ink-soft)]">Priorities</p>
             <ul className="mt-2.5 space-y-2">
               {[
-                { done: true, label: 'Reply to Acme proposal' },
+                { done: true, label: 'Reply to Jane' },
                 { done: false, label: 'Review Q3 forecast' },
                 { done: false, label: 'Prep 2pm client call' },
               ].map((item) => (
