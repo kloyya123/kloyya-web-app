@@ -194,9 +194,21 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   );
 
   // getUser (not getSession) revalidates the JWT and refreshes it if stale.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  //
+  // This runs on EVERY request, including public pages — /login and /signup
+  // hit this before `decide()` ever gets to its own `isPublic` check below.
+  // A transient network failure reaching Supabase's auth endpoint must not
+  // take down the entire site, so a failed call degrades to "unauthenticated"
+  // rather than throwing: public pages keep rendering, and a protected route
+  // correctly redirects to login instead of 500ing.
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
+  try {
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+  } catch (error) {
+    console.error('[middleware] supabase.auth.getUser() failed — treating request as unauthenticated', error);
+  }
 
   return withGateHeader(
     decide(
