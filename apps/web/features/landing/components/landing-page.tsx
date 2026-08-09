@@ -1,238 +1,41 @@
-import { ArrowRight, Eye, KeyRound, Layers, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Bell, Brain, Clock, Search, Share2, ShieldCheck, Split, Zap } from 'lucide-react';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { Logo, LogoMark } from '@/components/brand/logo';
+import { NAV_ITEMS } from '@/components/layout/nav-items';
 import { Button } from '@/components/ui';
 import { integrationIcon } from '@/features/connections/integration-meta';
 import { cn } from '@/lib/cn';
-import { CONTACT_EMAIL, FAQS, FEATURES, ROLES, TOOLS } from '../content';
+import { CONTACT_EMAIL, TOOLS } from '../content';
+import { AskShowcaseCard } from './ask-showcase';
+import { BRAND_ICONS } from './brand-icons';
 import { ConnectHub } from './connect-hub';
 import { Reveal } from './reveal';
-import { WaitlistForm } from './waitlist-form';
-import {
-  AskMotion,
-  AskScreen,
-  CalendarScreen,
-  DocumentsScreen,
-  InboxScreen,
-  ProductScreens,
-  ReplyScreen,
-  TodayMotion,
-} from './product-screens';
 import { SocialLinks } from './social-links';
+import { WaitlistForm } from './waitlist-form';
 
 /**
- * Kloyya's public front door.
- *
- * Visual language is deliberately not KDS: a warm, editorial register for the
- * marketing page (serif display type, cream background, soft rounded cards),
- * kept out of the product entirely. See the `.landing` block in tokens.css for
- * why that is a scoped exception rather than a rule change.
+ * Kloyya's public front door — rebuilt to the founder's own reference screens:
+ * a warm-white workspace app, a plain sans headline, and rounded outline
+ * buttons rather than the earlier serif/cream editorial register.
  *
  * `/` renders for everyone, signed in or not — this is the company's front
- * door, and forwarding a returning visitor to their dashboard would hide the
- * pricing and FAQ from the person most likely to look them up, and turn a
- * shared kloyya.com link into someone else's dashboard.
+ * door, and forwarding a returning visitor to their dashboard would hide it
+ * from the person most likely to share the link.
  */
 export function LandingPage() {
   return (
-    /* Two classes doing two different jobs. `.light` sets the standard KDS
-     * tokens (`bg-card`, `border-border`, `text-subtle`…) so every screenshot
-     * mockup and the Button component keep rendering exactly as they do in the
-     * product — a white "window" is part of the look, not a bug. `.landing`
-     * layers the warm cream background and ink on top, for the hand-written
-     * sections around those windows. Neither reaches into the product. */
     <div className="light landing bg-[var(--landing-bg)] text-[color:var(--landing-ink)] min-h-dvh">
       <SiteHeader />
 
       <main id="main">
         <Hero />
-        <ToolStrip />
-        <IntroBlock />
-        <PillarBand />
-        <PastelCardRow />
-
-        <Section
-          eyebrow="See it think"
-          title={
-            <>
-              Search, then <Accent>answer.</Accent>
-            </>
-          }
-          lede="Not a chatbot guessing — Kloyya reads your workspace first, and shows what it read."
-          id="how-it-works"
-        >
-          <Lifted>
-            <AskMotion />
-          </Lifted>
-        </Section>
-
-        <Section
-          eyebrow="See it work"
-          title={
-            <>
-              Kloyya, in <Accent>action.</Accent>
-            </>
-          }
-          lede="Three screens you'll live in. Nothing here is a placeholder."
-          id="product"
-        >
-          <Lifted>
-            <ProductScreens />
-          </Lifted>
-        </Section>
-
-        <Section
-          eyebrow="What it does"
-          title={
-            <>
-              Five jobs, done <Accent>quietly.</Accent>
-            </>
-          }
-          lede="Kloyya does not ask for a new workflow. It reads the one you have."
-        >
-          <div className="flex flex-col gap-20 sm:gap-28">
-            {FEATURES.map((feature, index) => (
-              <FeatureRow key={feature.title} index={index} {...feature} />
-            ))}
-          </div>
-        </Section>
-
-        <ShippedStrip />
-
-        <Section
-          eyebrow="Built for you"
-          title={
-            <>
-              However you <Accent>work.</Accent>
-            </>
-          }
-          lede="Too much arriving, too little of it yours."
-        >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ROLES.map((role, index) => (
-              <Reveal key={role.name} delay={index * 70}>
-                <div className="rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-card)]">
-                  <span className="text-caption font-mono tracking-widest text-[var(--color-intelligence-blue)] uppercase">
-                    {role.name}
-                  </span>
-                  <p className="mt-2 text-[15px] leading-relaxed text-[var(--landing-ink-soft)]">
-                    {role.body}
-                  </p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </Section>
-
-        <Section
-          eyebrow="Connects"
-          title={
-            <>
-              Bring your own <Accent>tools.</Accent>
-            </>
-          }
-          lede="Read access by default. Anything that acts — sending, declining, replying — stays off until you switch it on, and is revocable in one click."
-          id="tools"
-        >
-          <ConnectHub />
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {TOOLS.map((tool) => (
-              <div
-                key={tool.name}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-5 shadow-[var(--landing-shadow-card)]"
-              >
-                <span className="text-body text-[var(--landing-ink)]">{tool.name}</span>
-                <span
-                  className={cn(
-                    'text-caption inline-flex items-center gap-2 font-mono tracking-wider whitespace-nowrap uppercase',
-                    tool.live ? 'text-[var(--color-success)]' : 'text-[var(--landing-ink-subtle)]',
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'size-1.5 rounded-full',
-                      tool.live ? 'bg-[var(--color-success)]' : 'bg-[var(--landing-ink-subtle)]',
-                    )}
-                  />
-                  {tool.live ? 'Live' : 'Next'}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-5 text-small text-[var(--landing-ink-subtle)]">
-            Missing something you rely on?{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--color-intelligence-blue)] underline underline-offset-4">
-              Tell us and we will build it.
-            </a>
-          </p>
-        </Section>
-
-        <Section
-          eyebrow="Safe with us"
-          title={
-            <>
-              Private enough to use <Accent>real data.</Accent>
-            </>
-          }
-          lede="Connecting a tool should feel safe. Kloyya reads on a least-privilege basis and stays out of your way until you ask it something."
-        >
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            <TrustIcon
-              icon={ShieldCheck}
-              title="Read-only, always"
-              body="Kloyya can read what you connect. Sending, editing or deleting is a separate switch you turn on yourself."
-            />
-            <TrustIcon
-              icon={KeyRound}
-              title="Your login stays private"
-              body="Connections go through the provider's own sign-in — Google, Microsoft, Notion. Kloyya never sees your password."
-            />
-            <TrustIcon
-              icon={Lock}
-              title="Encrypted, and yours"
-              body="Every token is encrypted at rest. Disconnect a tool or delete your account and the access — and the data — goes with it."
-            />
-            <TrustIcon
-              icon={Eye}
-              title="Nothing hidden"
-              body="Every answer shows the sources it came from — mail, calendar, or a document — so you can check it yourself."
-            />
-          </div>
-        </Section>
-
-        <Section
-          eyebrow="Questions"
-          title={
-            <>
-              Fair <Accent>questions.</Accent>
-            </>
-          }
-          lede="Mostly about your data and what Kloyya is allowed to do, which is the right thing to ask about."
-          id="faq"
-        >
-          <div className="max-w-3xl divide-y divide-[var(--landing-border)] rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]">
-            {FAQS.map((faq, index) => (
-              <details key={faq.q} open={index === 0} className="group px-6">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-body text-[var(--landing-ink)] marker:content-none">
-                  {faq.q}
-                  <span
-                    aria-hidden="true"
-                    className="shrink-0 font-mono text-[var(--color-intelligence-blue)] transition-transform group-open:rotate-45"
-                  >
-                    +
-                  </span>
-                </summary>
-                <p className="max-w-[60ch] pb-5 text-small leading-relaxed text-[var(--landing-ink-soft)]">
-                  {faq.a}
-                </p>
-              </details>
-            ))}
-          </div>
-        </Section>
-
-        <FinalCta />
+        <ToolsStrip />
+        <ProblemSolution />
+        <FeatureTiles />
+        <IntegrationHubSection />
+        <HowItWorks />
+        <AskShowcase />
+        <ClosingCta />
       </main>
 
       <SiteFooter />
@@ -258,35 +61,27 @@ export function SiteHeader() {
             Integrations
           </a>
           <Link href="/trust" className="rounded-sm hover:text-[var(--landing-ink)]">
-            Trust
+            Trust Centre
+          </Link>
+          <Link href="/help" className="rounded-sm hover:text-[var(--landing-ink)]">
+            Resources
           </Link>
         </nav>
 
-        {/* Restored on request: Get Started leads straight to an account, and
-            Log in is one click away for a returning visitor. The waitlist is
-            not removed for it — it stays reachable from the hero and the
-            final section below, as its own path for someone who would rather
-            wait than sign up today.
-
-            Log in is deliberately NOT hidden below `sm` the way the nav links
-            above are: those are conveniences a mobile visitor can live
-            without, but log in is the one thing a returning user on a phone
-            has no other way to reach from this page. It was hidden here once
-            already and cost exactly that — fixed, not a style call. */}
+        {/* Join Waitlist, not Get started, is the primary action here — the app
+            is beta-gated to a handful of accounts, and everyone else lands on
+            the waitlist regardless. Leading with a CTA the visitor can actually
+            complete beats leading with one middleware will redirect away from.
+            Log in stays reachable for the few who already have access. */}
         <div className="flex items-center gap-3 sm:gap-5">
           <Link
             href="/login"
             className="text-small whitespace-nowrap text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)]"
           >
-            Log in
+            Sign in
           </Link>
-          <Button
-            asChild
-            size="md"
-            className="rounded-full"
-            trailingIcon={<ArrowRight aria-hidden="true" className="size-4" />}
-          >
-            <Link href="/signup">Get started</Link>
+          <Button asChild size="md" className="rounded-full">
+            <a href="#waitlist">Join Waitlist</a>
           </Button>
         </div>
       </div>
@@ -297,59 +92,47 @@ export function SiteHeader() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* The sky: a soft blue bloom fading to white, standing in for Aside's
-          literal cloud photo with a gradient in Kloyya's own accent instead of
-          a stock image. Two overlapping radial blooms read as depth rather
-          than a flat wash. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[30rem]"
         style={{
           background:
-            'radial-gradient(70% 60% at 30% -10%, var(--landing-sky-2), transparent 65%), radial-gradient(60% 50% at 80% 0%, var(--landing-sky-3), transparent 60%), linear-gradient(to bottom, var(--landing-sky-1), var(--landing-bg) 85%)',
+            'radial-gradient(60% 60% at 15% -10%, var(--landing-sky-2), transparent 65%), linear-gradient(to bottom, var(--landing-sky-1), var(--landing-bg) 85%)',
         }}
       />
 
-      <div className="mx-auto max-w-4xl px-6 pt-20 pb-16 text-center md:pt-28 md:pb-20">
-        <span className="text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
-          AI Chief of Staff
-        </span>
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-16 pb-24 md:grid-cols-2 md:pt-24 md:pb-32">
+        <div>
+          <span className="inline-flex items-center rounded-full bg-[var(--color-intelligence-blue)]/10 px-3 py-1 text-caption font-medium tracking-wide text-[var(--color-intelligence-blue)] uppercase">
+            AI Chief of Staff
+          </span>
 
-        <h1 className="mt-6 text-[2.5rem] leading-[1.1] font-semibold tracking-tight text-[var(--landing-ink)] text-balance sm:text-6xl lg:text-[4rem]">
-          Ask your work, anything.
-        </h1>
+          <h1 className="mt-6 text-[2.75rem] leading-[1.08] font-semibold tracking-tight text-[var(--landing-ink)] text-balance sm:text-6xl">
+            The Intelligence Layer for Work.
+          </h1>
 
-        <p className="mx-auto mt-6 max-w-xl text-body text-[var(--landing-ink-soft)]">
-          Kloyya reads your mail, calendar and documents overnight, then hands you the short list
-          each morning — what moved, what’s waiting on you, what can wait. Ask anything and get an
-          answer with its sources attached.
-        </p>
+          <p className="mt-6 max-w-md text-body leading-relaxed text-[var(--landing-ink-soft)]">
+            Kloyya connects your tools, understands your work, and helps you make better
+            decisions — faster.
+          </p>
 
-        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button
-            asChild
-            size="lg"
-            className="rounded-full px-8"
-            trailingIcon={<ArrowRight aria-hidden="true" />}
-          >
-            <Link href="/signup">Get started</Link>
-          </Button>
-          <a
-            href="#waitlist"
-            className="text-small text-[var(--landing-ink-soft)] underline underline-offset-4 hover:text-[var(--landing-ink)]"
-          >
-            or join the waitlist
-          </a>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Button asChild size="lg" className="rounded-full px-7" trailingIcon={<ArrowRight aria-hidden="true" />}>
+              <a href="#waitlist">Join the Waitlist</a>
+            </Button>
+          </div>
         </div>
 
-        <p className="mt-4 text-caption font-mono text-[var(--landing-ink-subtle)]">
-          30 days free. No card required.
-        </p>
-
-        <Reveal delay={120} className="mx-auto mt-16 max-w-3xl">
-          <Lifted>
-            <TodayMotion />
-          </Lifted>
+        <Reveal delay={100}>
+          <div className="relative mx-auto max-w-lg md:mx-0 md:ml-auto">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-8 -z-10 rounded-[2rem] bg-[var(--color-intelligence-blue)]/10 blur-3xl"
+            />
+            <div className="rotate-2 transition-transform duration-500 hover:rotate-0">
+              <HeroDashboardMockup />
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -357,37 +140,133 @@ function Hero() {
 }
 
 /**
- * The strip under the hero: the tools Kloyya connects to.
- *
- * The reference design puts customer logos here. Kloyya has no customers who
- * have agreed to be named, and borrowed logos are the fastest possible way to
- * lose the trust this whole product is selling — so this says the true version
- * of the same thing instead. Every name here is a connector that exists.
+ * The hero's dashboard mockup — a dark sidebar over a light workspace, per the
+ * founder's reference screens. A deliberate departure from the rest of the
+ * site's `.mockup` (light-sidebar) screens: decorative chrome on the marketing
+ * page, not a claim about the product's own theme, which stays light-only
+ * (see the app's `forcedTheme="light"`).
  */
+function HeroDashboardMockup() {
+  const sidebarItems = NAV_ITEMS.slice(0, 6);
+  const connectedTools = TOOLS.slice(0, 3);
+
+  return (
+    <div className="mockup flex overflow-hidden rounded-2xl border border-[var(--mockup-border)] shadow-[var(--landing-shadow-lifted)]">
+      <aside className="hidden w-40 shrink-0 flex-col bg-[#141221] px-3 py-4 sm:flex">
+        <div className="mb-5 flex items-center gap-2 px-1">
+          <LogoMark decorative className="size-5" />
+          <span className="text-small font-semibold text-white">kloyya</span>
+        </div>
+        <nav className="flex flex-col gap-0.5">
+          {sidebarItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <span
+                key={item.href}
+                className={cn(
+                  'flex items-center gap-2 rounded-sm px-2 py-1.5 text-caption',
+                  index === 0 ? 'bg-white/10 font-medium text-white' : 'text-white/55',
+                )}
+              >
+                <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </span>
+            );
+          })}
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col bg-[var(--mockup-bg)] p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-title font-semibold text-[var(--mockup-ink)]">Good morning</h2>
+          <span className="flex size-8 items-center justify-center rounded-full border border-[var(--mockup-border)] bg-[var(--mockup-card)]">
+            <Bell aria-hidden="true" className="size-3.5 text-[var(--mockup-ink-soft)]" />
+          </span>
+        </div>
+
+        <div className="mb-5 flex items-center gap-2 rounded-full border border-[var(--mockup-border)] bg-[var(--mockup-card)] px-3.5 py-2">
+          <Search aria-hidden="true" className="size-3.5 shrink-0 text-[var(--mockup-ink-soft)]" />
+          <span className="text-caption text-[var(--mockup-ink-soft)]">Ask Kloyya anything…</span>
+        </div>
+
+        <div className="grid flex-1 grid-cols-2 gap-3">
+          <div className="rounded-xl border border-[var(--mockup-border)] bg-[var(--mockup-card)] p-3">
+            <p className="text-caption font-medium text-[var(--mockup-ink-soft)]">Priorities</p>
+            <ul className="mt-2.5 space-y-2">
+              {[
+                { done: true, label: 'Reply to Acme proposal' },
+                { done: false, label: 'Review Q3 forecast' },
+                { done: false, label: 'Prep 2pm client call' },
+              ].map((item) => (
+                <li key={item.label} className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'size-3 shrink-0 rounded-full border',
+                      item.done
+                        ? 'border-[var(--mockup-positive)] bg-[var(--mockup-positive)]'
+                        : 'border-[var(--mockup-border)]',
+                    )}
+                  />
+                  <span className="truncate text-caption text-[var(--mockup-ink)]">{item.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-[var(--mockup-border)] bg-[var(--mockup-card)] p-3">
+            <p className="text-caption font-medium text-[var(--mockup-ink-soft)]">Focus</p>
+            <p className="mt-2.5 text-title font-semibold text-[var(--mockup-ink)]">2h 15m</p>
+            <p className="text-caption text-[var(--mockup-ink-soft)]">Deep work today</p>
+          </div>
+
+          <div className="col-span-2 rounded-xl border border-[var(--mockup-border)] bg-[var(--mockup-card)] p-3">
+            <p className="mb-2.5 text-caption font-medium text-[var(--mockup-ink-soft)]">Connected tools</p>
+            <div className="flex items-center gap-2">
+              {connectedTools.map((tool) => {
+                const Icon = BRAND_ICONS[tool.id] ?? integrationIcon(tool.id, tool.category);
+                return (
+                  <span
+                    key={tool.id}
+                    className="flex size-7 items-center justify-center rounded-full border border-[var(--mockup-border)] bg-[var(--mockup-bg)]"
+                  >
+                    <Icon aria-hidden="true" className="size-3.5" />
+                  </span>
+                );
+              })}
+              <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--mockup-border)] text-caption text-[var(--mockup-ink-soft)]">
+                +
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
- * The logo strip, Kloyya's way — Linear puts customer logos here; Kloyya has
- * none who have agreed to be named, so this says the true version of the same
- * thing: real icons for real, live connectors, from the exact lookup the
- * connections page itself uses. Not text names — an icon row, the way Linear's
- * own strip reads at a glance.
+ * The logo strip, honestly told: Linear's own version of this puts customer
+ * logos here. Kloyya has none who have agreed to be named, so this shows the
+ * true equivalent — real icons for real, live connectors — rather than
+ * borrowed marks. Every entry is `TOOLS`, the same catalogue the connections
+ * page reads.
  */
-function ToolStrip() {
-  const live = TOOLS.filter((tool) => tool.live);
+function ToolsStrip() {
   return (
     <div className="border-y border-[var(--landing-border)] bg-[var(--landing-bg-soft)]/60">
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <p className="mb-5 text-center text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
-          Works with what you already use
+        <p className="mb-5 text-center text-caption font-medium tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
+          Tools you can connect
         </p>
         <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-10 gap-y-4 p-0">
-          {live.map((tool) => {
-            const Icon = integrationIcon(tool.id, tool.category);
+          {TOOLS.map((tool) => {
+            const Icon = BRAND_ICONS[tool.id] ?? integrationIcon(tool.id, tool.category);
             return (
               <li
                 key={tool.name}
                 className="flex items-center gap-2 font-medium whitespace-nowrap text-[var(--landing-ink-soft)]"
               >
-                <Icon aria-hidden="true" className="size-5 text-[var(--landing-ink)]" />
+                <Icon aria-hidden="true" className="size-5" />
                 {tool.name}
               </li>
             );
@@ -398,104 +277,150 @@ function ToolStrip() {
   );
 }
 
-/** Aside's "Introducing X" two-column beat — a bold claim, then the reasoning behind it. */
-function IntroBlock() {
-  return (
-    <section className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
-      <p className="mb-6 text-caption font-mono tracking-[0.2em] text-[var(--color-intelligence-blue)] uppercase">
-        Introducing Kloyya
-      </p>
-      <div className="grid gap-8 sm:grid-cols-2">
-        <h2 className="text-heading-m font-semibold text-[var(--landing-ink)]">
-          Your day arrives as noise. Kloyya reads it before you do.
-        </h2>
-        <p className="text-body leading-relaxed text-[var(--landing-ink-soft)]">
-          Most mornings start by reading the same four tools in a row, guessing which thread
-          actually needs you. Kloyya reads them overnight instead, cross-checks what changed
-          against what you already know, and hands you a short list — not a longer inbox.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-const PASTEL_CARDS: { gradient: string; title: string; body: string; snippet: string }[] = [
+const PROBLEMS: { icon: typeof Split; title: string; body: string }[] = [
   {
-    gradient: 'from-[#ffdaed] to-[#ffb9dc]',
-    title: 'Signing in',
-    body: 'Kloyya connects through each provider’s own sign-in — Google, Microsoft, Notion. Never your password.',
-    snippet: 'Connected: Gmail, Calendar, Drive',
+    icon: Split,
+    title: 'Scattered across tools',
+    body: 'Mail, calendar and documents each hold half the picture. Nothing tells you what changed until you go looking.',
   },
   {
-    gradient: 'from-[#d8f6e0] to-[#b8ecc9]',
-    title: 'Every morning',
-    body: 'A ranked list waiting before you open anything — what moved, what’s owed, what can wait.',
-    snippet: '3 things need you today',
-  },
-  {
-    gradient: 'from-[#dce9ff] to-[#bcd6ff]',
-    title: 'Ask anything',
-    body: 'Plain-language questions, answered from your own connected work — sources attached.',
-    snippet: 'Who is blocked on the vendor contract?',
+    icon: Clock,
+    title: 'Mornings lost to catching up',
+    body: 'Twenty minutes reading the same four apps before you can even decide what today actually needs from you.',
   },
 ];
 
-/** Aside's pastel-gradient card row — real snippets of Kloyya's own copy, not stock UI. */
-function PastelCardRow() {
+const SOLUTIONS: { icon: typeof Brain; title: string; body: string }[] = [
+  {
+    icon: Brain,
+    title: 'One place that reads all of it',
+    body: 'Kloyya reads your mail, calendar and documents together, and cross-checks them against each other.',
+  },
+  {
+    icon: Zap,
+    title: 'A short list, already made',
+    body: 'What moved, what’s waiting on you, what can wait — ready before you open anything.',
+  },
+];
+
+/** The problem, then the solution — a plain before/after, no invented statistics. */
+function ProblemSolution() {
   return (
-    <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
-      <div className="grid gap-5 sm:grid-cols-3">
-        {PASTEL_CARDS.map((card, index) => (
-          <Reveal key={card.title} delay={index * 90}>
-            <div className="flex h-full flex-col">
-              <div className={cn('flex h-40 items-end rounded-2xl bg-gradient-to-br p-4', card.gradient)}>
-                <span className="rounded-full bg-white/90 px-3 py-1.5 text-caption font-medium text-[var(--landing-ink)] shadow-sm">
-                  {card.snippet}
-                </span>
-              </div>
-              <h3 className="mt-4 text-small font-semibold text-[var(--landing-ink)]">{card.title}</h3>
-              <p className="mt-1 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{card.body}</p>
+    <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+      <div className="grid gap-10 lg:grid-cols-2">
+        <Reveal>
+          <div className="h-full rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-8">
+            <p className="text-caption font-medium tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
+              The problem
+            </p>
+            <div className="mt-6 flex flex-col gap-6">
+              {PROBLEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--landing-bg-soft)]">
+                      <Icon aria-hidden="true" className="size-4 text-[var(--landing-ink-soft)]" />
+                    </span>
+                    <div>
+                      <p className="text-small font-medium text-[var(--landing-ink)]">{item.title}</p>
+                      <p className="mt-1 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{item.body}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </Reveal>
-        ))}
+          </div>
+        </Reveal>
+
+        <Reveal delay={90}>
+          <div className="h-full rounded-2xl border border-[var(--color-intelligence-blue)]/25 bg-[var(--color-intelligence-blue)]/5 p-8">
+            <p className="text-caption font-medium tracking-[0.2em] text-[var(--color-intelligence-blue)] uppercase">
+              Kloyya&rsquo;s solution
+            </p>
+            <div className="mt-6 flex flex-col gap-6">
+              {SOLUTIONS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]">
+                      <Icon aria-hidden="true" className="size-4 text-[var(--color-intelligence-blue)]" />
+                    </span>
+                    <div>
+                      <p className="text-small font-medium text-[var(--landing-ink)]">{item.title}</p>
+                      <p className="mt-1 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{item.body}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
 }
 
-const PILLARS: { icon: typeof Layers; title: string; body: string }[] = [
+const FEATURE_TILES: { icon: typeof Share2; title: string; body: string; href: string }[] = [
   {
-    icon: Layers,
-    title: 'Reads everything',
-    body: 'Connects to what you already use — mail, calendar, documents — nothing new to learn.',
+    icon: Share2,
+    title: 'Connect your world',
+    body: 'Bring the tools you already use into one place Kloyya can actually read.',
+    href: '#tools',
   },
   {
-    icon: Sparkles,
-    title: 'Understands context',
-    body: 'Cross-checks a thread against the calendar and the doc it references, not just one at a time.',
+    icon: Brain,
+    title: 'Understand your work',
+    body: 'Kloyya reads the signals across your mail, calendar and documents and surfaces what matters most.',
+    href: '#how-it-works',
+  },
+  {
+    icon: Zap,
+    title: 'Act, faster',
+    body: 'From your morning brief to a drafted reply, Kloyya moves the routine work along so you can decide on the rest.',
+    href: '#how-it-works',
   },
   {
     icon: ShieldCheck,
-    title: 'Acts only when told to',
-    body: 'Read access by default. Sending, replying or declining is a separate switch you turn on.',
+    title: 'Trust every answer',
+    body: 'Every answer shows the sources it came from — read access by default, nothing sent without you.',
+    href: '/trust',
   },
 ];
 
-/** Linear's "A new species of product tool" band, in Kloyya's own words. */
-function PillarBand() {
+/** Four tiles: what Kloyya actually does, each one true of the shipped product today. */
+function FeatureTiles() {
   return (
-    <section className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
-      <div className="grid gap-10 sm:grid-cols-3">
-        {PILLARS.map((pillar, index) => {
-          const Icon = pillar.icon;
+    <section id="product" className="scroll-mt-20 mx-auto max-w-6xl px-6 py-16 sm:py-20">
+      <p className="text-caption font-medium tracking-[0.2em] text-[var(--color-intelligence-blue)] uppercase">
+        Built for modern work
+      </p>
+      <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <h2 className="max-w-lg text-heading-m font-semibold text-[var(--landing-ink)] text-balance">
+          Everything you need. All in one intelligent workspace.
+        </h2>
+        <p className="max-w-sm text-small leading-relaxed text-[var(--landing-ink-soft)]">
+          Kloyya brings your work, tools and knowledge together so you can focus on what truly
+          matters.
+        </p>
+      </div>
+
+      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {FEATURE_TILES.map((tile, index) => {
+          const Icon = tile.icon;
           return (
-            <Reveal key={pillar.title} delay={index * 90}>
-              <div className="text-center sm:text-left">
-                <span className="inline-flex size-10 items-center justify-center rounded-full bg-[var(--color-intelligence-blue)]/10">
+            <Reveal key={tile.title} delay={index * 70}>
+              <div>
+                <span className="inline-flex size-11 items-center justify-center rounded-xl bg-[var(--color-intelligence-blue)]/10">
                   <Icon aria-hidden="true" className="size-5 text-[var(--color-intelligence-blue)]" />
                 </span>
-                <h3 className="mt-4 text-title font-semibold text-[var(--landing-ink)]">{pillar.title}</h3>
-                <p className="mt-2 text-small leading-relaxed text-[var(--landing-ink-soft)]">{pillar.body}</p>
+                <h3 className="mt-4 text-small font-semibold text-[var(--landing-ink)]">{tile.title}</h3>
+                <p className="mt-1.5 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{tile.body}</p>
+                <a
+                  href={tile.href}
+                  className="mt-3 inline-flex items-center gap-1 text-caption font-medium text-[var(--color-intelligence-blue)] hover:underline"
+                >
+                  Learn more <ArrowRight aria-hidden="true" className="size-3" />
+                </a>
               </div>
             </Reveal>
           );
@@ -505,26 +430,95 @@ function PillarBand() {
   );
 }
 
-const SHIPPED: { date: string; title: string; body: string }[] = [
-  { date: 'This week', title: 'Slack, live', body: 'Messages sync as they arrive, not just once a day.' },
-  { date: 'This week', title: 'Desktop notifications', body: 'A real alert on your desktop for the rare thing that truly can’t wait.' },
-  { date: 'This week', title: 'Trust Centre, Compliance and Help', body: 'What Kloyya can see, how it handles data, and how to reach us — all public now.' },
+const HUB_OUTCOMES: { icon: typeof Brain; title: string; body: string }[] = [
+  { icon: Brain, title: 'Understand', body: 'Kloyya reads and makes sense of your data.' },
+  { icon: Share2, title: 'Connect', body: 'Brings context together across all your tools.' },
+  { icon: Zap, title: 'Act', body: 'Surfaces the right insight at the right time.' },
 ];
 
-/** Linear's changelog rhythm — small, dated, and only things actually shipped. */
-function ShippedStrip() {
+/** Left: the claim. Right: the real diagram — tools flowing into one hub. */
+function IntegrationHubSection() {
+  const live = TOOLS.filter((tool) => tool.live);
+
   return (
-    <section className="mx-auto max-w-5xl px-6 py-10">
-      <p className="mb-6 text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
-        Recently shipped
+    <section id="tools" className="scroll-mt-20 border-t border-[var(--landing-border)] bg-[var(--landing-bg-soft)]/40">
+      <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 py-16 sm:py-24 lg:grid-cols-2">
+        <div>
+          <p className="text-caption font-medium tracking-[0.2em] text-[var(--color-intelligence-blue)] uppercase">
+            Integration system
+          </p>
+          <h2 className="mt-3 text-heading-m font-semibold text-[var(--landing-ink)] text-balance">
+            All your tools. One intelligent system.
+          </h2>
+          <p className="mt-4 max-w-md text-body leading-relaxed text-[var(--landing-ink-soft)]">
+            Kloyya connects the tools you use every day and turns scattered data into clear,
+            actionable intelligence.
+          </p>
+
+          <div className="mt-8 flex flex-col gap-5">
+            {HUB_OUTCOMES.map((outcome) => {
+              const Icon = outcome.icon;
+              return (
+                <div key={outcome.title} className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--landing-card)] shadow-[var(--landing-shadow-card)]">
+                    <Icon aria-hidden="true" className="size-4 text-[var(--color-intelligence-blue)]" />
+                  </span>
+                  <div>
+                    <p className="text-small font-medium text-[var(--landing-ink)]">{outcome.title}</p>
+                    <p className="text-caption text-[var(--landing-ink-soft)]">{outcome.body}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="mt-8 text-small text-[var(--landing-ink-subtle)]">
+            {live.length} tools connectable today.{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--color-intelligence-blue)] underline underline-offset-4">
+              Tell us what&rsquo;s missing.
+            </a>
+          </p>
+        </div>
+
+        <ConnectHub />
+      </div>
+    </section>
+  );
+}
+
+const HOW_IT_WORKS_STEPS: { title: string; body: string }[] = [
+  { title: 'Connect your tools', body: 'Securely connect the tools you already use to get started.' },
+  { title: 'Kloyya understands', body: 'It reads, organizes and understands your work in context.' },
+  { title: 'Intelligence in action', body: 'Kloyya surfaces the insights, priorities and answers that matter.' },
+  { title: 'You decide, faster', body: 'Every answer comes with its sources — you make the call.' },
+];
+
+/** Four numbered steps, left to right — the actual pipeline, not a metaphor for it. */
+function HowItWorks() {
+  return (
+    <section id="how-it-works" className="scroll-mt-20 mx-auto max-w-6xl px-6 py-16 sm:py-24">
+      <p className="text-caption font-medium tracking-[0.2em] text-[var(--color-intelligence-blue)] uppercase">
+        How it works
       </p>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {SHIPPED.map((item, index) => (
-          <Reveal key={item.title} delay={index * 70}>
-            <div className="h-full rounded-xl border border-[var(--landing-border)] bg-[var(--landing-card)] p-5">
-              <span className="text-caption font-mono text-[var(--landing-ink-subtle)]">{item.date}</span>
-              <h3 className="mt-1.5 text-small font-semibold text-[var(--landing-ink)]">{item.title}</h3>
-              <p className="mt-1.5 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{item.body}</p>
+      <h2 className="mt-3 max-w-lg text-heading-m font-semibold text-[var(--landing-ink)] text-balance">
+        From connected to understood, in four steps.
+      </h2>
+
+      <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {HOW_IT_WORKS_STEPS.map((step, index) => (
+          <Reveal key={step.title} delay={index * 80}>
+            <div className="relative">
+              <span className="flex size-9 items-center justify-center rounded-full bg-[var(--color-intelligence-blue)] text-small font-semibold text-white">
+                {index + 1}
+              </span>
+              {index < HOW_IT_WORKS_STEPS.length - 1 ? (
+                <ArrowRight
+                  aria-hidden="true"
+                  className="absolute top-2.5 -right-6 hidden size-4 text-[var(--landing-border)] lg:block"
+                />
+              ) : null}
+              <h3 className="mt-4 text-small font-semibold text-[var(--landing-ink)]">{step.title}</h3>
+              <p className="mt-1.5 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{step.body}</p>
             </div>
           </Reveal>
         ))}
@@ -533,185 +527,70 @@ function ShippedStrip() {
   );
 }
 
-/** Lifts a screenshot mockup off the page with a stronger shadow than the KDS default. */
 /**
- * The soft ambient glow behind a screenshot — the Linear-hero trick of a
- * blurred color bloom under the window, rather than the window sitting flat
- * on the page. In Kloyya's own theme: Intelligence Blue, low opacity, not
- * Linear's own gradient.
+ * Ask Kloyya, shown doing its actual job: searches, then answers from
+ * connected work and names its sources. See `AskShowcaseCard` for the
+ * animated sequence itself.
  */
-function Lifted({ children }: { children: ReactNode }) {
+function AskShowcase() {
   return (
-    <div className="relative">
-      <div
-        aria-hidden="true"
-        className="absolute -inset-6 -z-10 rounded-[2rem] bg-[var(--color-intelligence-blue)]/10 blur-3xl"
-      />
-      <div className="rounded-2xl shadow-[var(--landing-shadow-lifted)]" style={{ borderRadius: '1rem' }}>
-        <MacbookFrame>{children}</MacbookFrame>
-      </div>
-    </div>
-  );
-}
-
-/**
- * A screen shown the way it's actually seen — on a laptop, not floating free.
- * CSS only: no device-mockup asset to keep in sync with the real window chrome.
- */
-function MacbookFrame({ children }: { children: ReactNode }) {
-  return (
-    <div>
-      <div className="relative rounded-t-xl bg-[#1d1d1f] p-2 pb-0">
-        <div
-          aria-hidden="true"
-          className="absolute top-1.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-[#0a0a0a]"
-        />
-        <div className="overflow-hidden rounded-t-md">{children}</div>
-      </div>
-      <div
-        aria-hidden="true"
-        className="relative h-2.5 rounded-b-xl bg-gradient-to-b from-[#dcdcde] to-[#b7b7ba]"
-      >
-        <span className="absolute top-0 left-1/2 h-1 w-16 -translate-x-1/2 rounded-b-md bg-[#a5a5a8]" />
-      </div>
-    </div>
-  );
-}
-
-/** The italic serif emphasis word — the one technique borrowed directly from the reference. */
-function Accent({ children }: { children: ReactNode }) {
-  return <em className="font-serif text-[var(--color-intelligence-blue)] not-italic italic">{children}</em>;
-}
-
-/** A centered section: eyebrow label, serif headline with one accented word, lede, content. */
-function Section({
-  eyebrow,
-  title,
-  lede,
-  id,
-  children,
-}: {
-  eyebrow: string;
-  title: ReactNode;
-  lede: string;
-  id?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className="scroll-mt-20 border-b border-[var(--landing-border)] py-16 md:py-24">
-      <Reveal className="mx-auto max-w-6xl px-6">
-        <div className="mx-auto mb-12 max-w-2xl text-center">
-          <span className="text-caption font-mono tracking-[0.2em] text-[var(--landing-ink-subtle)] uppercase">
-            {eyebrow}
-          </span>
-          <h2 className="mt-3 font-serif text-3xl leading-tight font-normal text-[var(--landing-ink)] text-balance sm:text-4xl">
-            {title}
+    <section className="border-t border-[var(--landing-border)] bg-[var(--landing-bg-soft)]/40">
+      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
+        <div className="mx-auto mb-12 max-w-xl text-center">
+          <p className="text-caption font-medium tracking-[0.2em] text-[var(--color-intelligence-blue)] uppercase">
+            Ask Kloyya
+          </p>
+          <h2 className="mt-3 text-heading-m font-semibold text-[var(--landing-ink)] text-balance">
+            Not a chatbot guessing — an answer with its sources attached.
           </h2>
-          <p className="mt-4 text-body text-[var(--landing-ink-soft)]">{lede}</p>
         </div>
-        {children}
-      </Reveal>
+
+        <Reveal>
+          <div className="mx-auto max-w-4xl rounded-2xl shadow-[var(--landing-shadow-lifted)]">
+            <AskShowcaseCard />
+          </div>
+        </Reveal>
+      </div>
     </section>
   );
 }
 
-/** Each feature's real mockup, in FEATURES order — see product-screens.tsx. */
-const FEATURE_SCREENS = [InboxScreen, ReplyScreen, CalendarScreen, DocumentsScreen, AskScreen];
-
-/**
- * Linear's alternating rhythm: text on one side, the real screen it describes
- * on the other, flipping every row — not a card grid where every claim looks
- * like every other claim, but each one paired with the screen that proves it.
- */
-function FeatureRow({ title, body, index }: { title: string; body: string; index: number }) {
-  const Screen = FEATURE_SCREENS[index] ?? FEATURE_SCREENS[0]!;
-  const reversed = index % 2 === 1;
-
+/** Abstract translucent card silhouettes — CSS only, echoing the reference's stacked-cards motif. */
+function CardSilhouettes() {
   return (
-    <Reveal>
-      <div className={cn('flex flex-col items-center gap-10 lg:flex-row lg:gap-16', reversed && 'lg:flex-row-reverse')}>
-        <div className="w-full max-w-md text-center lg:w-1/2 lg:max-w-none lg:text-left">
-          <span className="font-mono text-caption tracking-widest text-[var(--color-intelligence-blue)] uppercase">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          <h3 className="mt-2 text-heading-s font-semibold text-[var(--landing-ink)]">{title}</h3>
-          <p className="mt-3 text-body leading-relaxed text-[var(--landing-ink-soft)]">{body}</p>
-        </div>
-        <div className="w-full lg:w-1/2">
-          <Lifted>
-            <Screen />
-          </Lifted>
-        </div>
-      </div>
-    </Reveal>
-  );
-}
-
-/** Aside's icon-grid privacy row — no card border, just an icon and two lines. */
-function TrustIcon({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: typeof ShieldCheck;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="text-center sm:text-left">
-      <span className="inline-flex size-9 items-center justify-center rounded-full bg-[var(--landing-bg-soft)]">
-        <Icon aria-hidden="true" className="size-4 text-[var(--landing-ink)]" />
-      </span>
-      <h3 className="mt-3 text-small font-semibold text-[var(--landing-ink)]">{title}</h3>
-      <p className="mt-1.5 text-caption leading-relaxed text-[var(--landing-ink-soft)]">{body}</p>
+    <div aria-hidden="true" className="pointer-events-none absolute top-1/2 right-8 hidden -translate-y-1/2 sm:block">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="absolute h-40 w-28 rounded-2xl border border-white/25 bg-white/10"
+          style={{ right: i * 26, top: -80 + i * 6, transform: `rotate(${(i - 1) * 6}deg)` }}
+        />
+      ))}
     </div>
   );
 }
 
-/**
- * The closing band. Get Started is the primary action; the waitlist is kept —
- * on request — as the path for someone who would rather be notified than open
- * an account today.
- */
-/** Aside's dramatic closing band, in Kloyya's own accent instead of theirs. */
-function FinalCta() {
+/** The closing band: one more chance to join the waitlist. */
+function ClosingCta() {
   return (
     <section
-      className="relative overflow-hidden py-20 md:py-28"
+      id="waitlist"
+      className="relative scroll-mt-24 overflow-hidden py-20 md:py-28"
       style={{
         background:
           'radial-gradient(60% 80% at 20% 0%, #4a86ff, transparent 60%), radial-gradient(70% 60% at 90% 100%, #2f6fe0, transparent 60%), linear-gradient(160deg, var(--color-intelligence-blue), #1d4fc4)',
       }}
     >
-      <Reveal className="relative mx-auto max-w-2xl px-6 text-center">
+      <CardSilhouettes />
+      <Reveal className="relative mx-auto max-w-lg px-6">
         <h2 className="text-3xl leading-tight font-semibold text-white text-balance sm:text-4xl">
-          Tomorrow morning, the list is already made.
+          Be the first to experience Kloyya.
         </h2>
-        <p className="mx-auto mt-4 max-w-md text-body text-white/85">
-          Create an account and connect one tool. Kloyya starts reading straight away.
+        <p className="mt-3 max-w-sm text-body text-white/85">
+          Join the waitlist and get early access when we launch.
         </p>
 
-        <div className="mt-8 flex justify-center">
-          <Button
-            asChild
-            size="lg"
-            className="rounded-full bg-white px-8 text-[var(--color-intelligence-blue)] hover:bg-white/90"
-            trailingIcon={<ArrowRight aria-hidden="true" />}
-          >
-            <Link href="/signup">Get started</Link>
-          </Button>
-        </div>
-        <p className="mt-3 text-caption font-mono text-white/70">30 days free, no card required.</p>
-
-        <div
-          id="waitlist"
-          className="light mx-auto mt-12 max-w-md scroll-mt-24 rounded-2xl bg-[var(--landing-card)] p-6 text-left shadow-[var(--landing-shadow-lifted)]"
-        >
-          <h3 className="text-title font-semibold text-[var(--landing-ink)]">Not ready for an account?</h3>
-          <p className="mt-1.5 mb-4 text-small text-[var(--landing-ink-soft)]">
-            Leave your address and we will email you when something worth knowing ships — new
-            integrations, or the mobile apps. Nothing else.
-          </p>
+        <div className="light mt-8 max-w-md rounded-2xl bg-[var(--landing-card)] p-6 shadow-[var(--landing-shadow-lifted)]">
           <WaitlistForm source="landing-final" />
         </div>
       </Reveal>
@@ -726,6 +605,7 @@ export function SiteFooter() {
       links: [
         { label: 'Overview', href: '#product' },
         { label: 'Integrations', href: '#tools' },
+        { label: 'How it works', href: '#how-it-works' },
       ],
     },
     {
@@ -736,7 +616,6 @@ export function SiteFooter() {
       heading: 'Resources',
       links: [
         { label: 'Help', href: '/help' },
-        { label: 'FAQ', href: '#faq' },
         { label: 'Trust Centre', href: '/trust-center' },
       ],
     },
@@ -789,3 +668,4 @@ export function SiteFooter() {
     </footer>
   );
 }
+

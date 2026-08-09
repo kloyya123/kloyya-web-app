@@ -19,48 +19,6 @@ import type { IntegrationCategory } from '@/types/integrations';
  */
 export const CONTACT_EMAIL = 'contactsupport@kloyya.com';
 
-export interface Feature {
-  title: string;
-  body: string;
-}
-
-export const FEATURES: Feature[] = [
-  {
-    title: 'Reads your mail',
-    body: 'Finds the threads where someone is genuinely waiting on you, and holds back the ones that are not. Nothing is deleted — it is moved out of the way and stays searchable.',
-  },
-  {
-    title: 'Replies on your behalf',
-    body: 'Kloyya writes the response in your voice and holds it for approval. Send, edit, or discard. Grant standing permission for the routine ones and revoke it at any time.',
-  },
-  {
-    title: 'Knows your schedule',
-    body: 'Every meeting arrives with a briefing built from the threads and documents behind it, so you walk in already caught up.',
-  },
-  {
-    title: 'Remembers your documents',
-    body: 'Indexes what is in Drive and Notion and connects it to the decisions it belongs to. When a number changes, Kloyya notices what still shows the old one.',
-  },
-  {
-    title: 'Answers in plain language',
-    body: 'Ask anything about your own work and get an answer with its sources attached — not a results page you have to read yourself.',
-  },
-];
-
-export interface Role {
-  name: string;
-  body: string;
-}
-
-export const ROLES: Role[] = [
-  { name: 'Founders', body: 'Investor threads, board prep, and the three decisions actually worth your Tuesday.' },
-  { name: 'Executives', body: 'One briefing each morning covering what your teams changed while you were asleep.' },
-  { name: 'Managers', body: 'One-to-one prep written from the week’s real threads, and the promises you owe people.' },
-  { name: 'Makers', body: 'Focus blocks defended, interruptions batched, nothing critical missed.' },
-  { name: 'Students', body: 'Readings, deadlines, and lecture notes gathered into something you can revise from.' },
-  { name: 'Freelancers', body: 'Every client in one place, with the file and the deadline attached to each one.' },
-];
-
 export interface Tool {
   name: string;
   /** Connectable today, or on the roadmap. */
@@ -87,36 +45,4 @@ export const TOOLS: Tool[] = [
   { name: 'Google Drive', live: true, id: 'google_drive', category: 'documents' },
   { name: 'Notion', live: true, id: 'notion', category: 'documents' },
   { name: 'Slack', live: true, id: 'slack', category: 'communication' },
-];
-
-export interface Faq {
-  q: string;
-  a: string;
-}
-
-export const FAQS: Faq[] = [
-  {
-    q: 'Will Kloyya send email as me?',
-    a: 'Only when you allow it. Out of the box Kloyya drafts and stops — every reply waits for you to send, edit, or discard. If you would rather it handled the routine traffic itself, you can grant standing permission per category and see a log of everything it sent. Revoke any of it in one click.',
-  },
-  {
-    q: 'What can Kloyya see?',
-    a: 'Only the tools you connect. Read access is the default and the minimum; anything that writes is a separate, explicit switch. Everything is encrypted in transit and at rest, and disconnecting a tool stops access immediately.',
-  },
-  {
-    q: 'Do you train models on my work?',
-    a: 'No. Your content is used to answer your questions and nothing else. It is never used to train models, never sold, and never shared with another customer.',
-  },
-  {
-    q: 'What happens after the 30-day trial?',
-    a: 'Nothing is charged automatically at day 31 — Kloyya has no way to charge a card yet. Pricing will be shared, and you’ll be asked before anything changes.',
-  },
-  {
-    q: 'Is there a mobile app?',
-    a: 'The web app works on your phone today. Native iOS and Android apps are in development, and people already using Kloyya get them first.',
-  },
-  {
-    q: 'What happens if I delete my account?',
-    a: 'Your connections are revoked immediately and all stored content is permanently deleted within 30 days. You can export everything first from Settings.',
-  },
 ];
