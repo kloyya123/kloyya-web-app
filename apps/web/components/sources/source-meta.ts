@@ -30,7 +30,6 @@ import type { BadgeTone } from '@/components/ui';
  */
 const PROVIDER_ICON: Record<SourceProvider, LucideIcon> = {
   gmail: Mail,
-  outlook: Mail,
   google_calendar: Calendar,
   microsoft_calendar: Calendar,
   google_drive: HardDrive,

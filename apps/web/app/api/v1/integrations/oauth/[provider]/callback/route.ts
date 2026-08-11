@@ -6,14 +6,12 @@ import type { AppDb } from '@kloyya/db/client';
 import {
   failConnection,
   storeGoogleTokens,
-  storeMicrosoftTokens,
   storeNotionTokens,
   storeSlackTokens,
   type StartContext,
   type StoreResult,
 } from '@server/integrations/connect';
 import { exchangeGoogleCode } from '@server/integrations/google';
-import { exchangeMicrosoftCode } from '@server/integrations/microsoft';
 import { exchangeNotionCode } from '@server/integrations/notion';
 import type { ProviderTokens } from '@server/integrations/oauth';
 import { exchangeSlackCode } from '@server/integrations/slack';
@@ -32,7 +30,7 @@ import { decodeState } from '@server/integrations/state';
  * The caller is a browser, so failures redirect to /connections?status=… rather
  * than returning a JSON envelope.
  */
-type Provider = 'google' | 'microsoft' | 'notion' | 'slack';
+type Provider = 'google' | 'notion' | 'slack';
 
 interface ProviderAdapter {
   label: string;
@@ -61,21 +59,6 @@ function adapterFor(provider: Provider): ProviderAdapter | null {
             redirectUri: config.GOOGLE_OAUTH_REDIRECT_URI,
           }),
         store: storeGoogleTokens,
-      };
-    case 'microsoft':
-      return {
-        label: 'Microsoft',
-        configured: Boolean(
-          config.MICROSOFT_OAUTH_CLIENT_ID && config.MICROSOFT_OAUTH_CLIENT_SECRET,
-        ),
-        exchange: (code) =>
-          exchangeMicrosoftCode({
-            code,
-            clientId: config.MICROSOFT_OAUTH_CLIENT_ID!,
-            clientSecret: config.MICROSOFT_OAUTH_CLIENT_SECRET!,
-            redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI,
-          }),
-        store: storeMicrosoftTokens,
       };
     case 'notion':
       return {
@@ -119,9 +102,7 @@ export async function GET(
 ): Promise<Response> {
   const { provider } = await route.params;
   const adapter =
-    provider === 'google' || provider === 'microsoft' || provider === 'notion' || provider === 'slack'
-      ? adapterFor(provider)
-      : null;
+    provider === 'google' || provider === 'notion' || provider === 'slack' ? adapterFor(provider) : null;
   if (!adapter) return NextResponse.redirect(back('invalid'));
 
   const params = req.nextUrl.searchParams;

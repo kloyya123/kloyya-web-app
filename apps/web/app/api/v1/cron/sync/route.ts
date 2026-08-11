@@ -82,8 +82,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     crypto: createTokenCrypto(config.TOKEN_ENCRYPTION_KEY),
     googleClientId: config.GOOGLE_OAUTH_CLIENT_ID,
     googleClientSecret: config.GOOGLE_OAUTH_CLIENT_SECRET,
-    microsoftClientId: config.MICROSOFT_OAUTH_CLIENT_ID,
-    microsoftClientSecret: config.MICROSOFT_OAUTH_CLIENT_SECRET,
     aiProvider: provider,
   });
 

@@ -33,11 +33,9 @@ export interface Tool {
  * What a visitor is told they can connect.
  *
  * Every `live: true` entry is connectable today; the flag is what keeps the
- * grid honest rather than aspirational — Outlook is hidden from the product's
- * own UI pending its Azure redirect URI, and stays off this list for the same
- * reason. Slack has a real OAuth flow, a real events webhook, and a real
- * connector now — see server/integrations/slack.ts and the events route — so
- * it moved to `live: true` alongside the rest.
+ * grid honest rather than aspirational. Slack has a real OAuth flow, a real
+ * events webhook, and a real connector now — see server/integrations/slack.ts
+ * and the events route — so it moved to `live: true` alongside the rest.
  */
 export const TOOLS: Tool[] = [
   { name: 'Gmail', live: true, id: 'gmail', category: 'communication' },

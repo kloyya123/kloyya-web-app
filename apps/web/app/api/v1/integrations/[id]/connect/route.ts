@@ -8,11 +8,6 @@ import { assertPermission } from '@server/auth/permission';
 import { markConnecting } from '@server/integrations/connect';
 import { resolveStartContext } from '@server/tenant';
 import { buildGoogleAuthUrl, GOOGLE_SCOPES, isGoogleIntegration } from '@server/integrations/google';
-import {
-  buildMicrosoftAuthUrl,
-  isMicrosoftIntegration,
-  MICROSOFT_SCOPES,
-} from '@server/integrations/microsoft';
 import { buildNotionAuthUrl, isNotionIntegration } from '@server/integrations/notion';
 import { buildSlackAuthUrl, isSlackIntegration } from '@server/integrations/slack';
 import { encodeState } from '@server/integrations/state';
@@ -41,13 +36,11 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
 
   const provider = isGoogleIntegration(id)
     ? 'google'
-    : isMicrosoftIntegration(id)
-      ? 'microsoft'
-      : isNotionIntegration(id)
-        ? 'notion'
-        : isSlackIntegration(id)
-          ? 'slack'
-          : null;
+    : isNotionIntegration(id)
+      ? 'notion'
+      : isSlackIntegration(id)
+        ? 'slack'
+        : null;
 
   if (!provider) {
     throw new ApiError({
@@ -55,7 +48,7 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
       errorCode: 'connector_unavailable',
       message: 'That integration cannot be connected yet.',
       description: `Kloyya has a card for "${id}" but no connector for it yet.`,
-      suggestedResolution: 'Connect a Google, Microsoft, Notion or Slack app, or check back as more land.',
+      suggestedResolution: 'Connect a Google, Notion or Slack app, or check back as more land.',
     });
   }
   if (!config.TOKEN_ENCRYPTION_KEY) throw errors.unauthorized();
@@ -83,20 +76,6 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
       clientId: config.GOOGLE_OAUTH_CLIENT_ID,
       redirectUri: config.GOOGLE_OAUTH_REDIRECT_URI,
       scopes: GOOGLE_SCOPES[id]!,
-      state,
-    });
-  } else if (provider === 'microsoft') {
-    if (!config.MICROSOFT_OAUTH_CLIENT_ID || !config.MICROSOFT_OAUTH_CLIENT_SECRET) {
-      throw oauthUnconfigured(
-        'Microsoft',
-        'MICROSOFT_OAUTH_CLIENT_ID and MICROSOFT_OAUTH_CLIENT_SECRET',
-      );
-    }
-    await markConnecting(ctx.db, start, id);
-    authUrl = buildMicrosoftAuthUrl({
-      clientId: config.MICROSOFT_OAUTH_CLIENT_ID,
-      redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI,
-      scopes: MICROSOFT_SCOPES[id]!,
       state,
     });
   } else if (provider === 'notion') {

@@ -17,9 +17,10 @@ import type { StartContext } from '../tenant';
  *
  * Threaded by Gmail's own `threadId` — one row per conversation, matching what
  * Gmail itself shows, not one row per message. Only Gmail's metadata shape is
- * parsed: Outlook mail lands under the same `message` resourceType but a
- * different (Microsoft Graph) shape, and stays out of the inbox until it has
- * its own parser — better an absent row than a garbled one.
+ * parsed — any future mail connector lands under the same `message`
+ * resourceType but would need its own parser for a different provider shape,
+ * and stays out of the inbox until it has one — better an absent row than a
+ * garbled one.
  *
  * WHAT IS REAL: subject, sender, received time, unread state — read straight
  * off the synced message. WHAT IS NOT YET: `aiSummary` is Gmail's own snippet

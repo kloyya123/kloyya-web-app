@@ -60,7 +60,6 @@ export const PRIVACY_POLICY: LegalDoc = {
           'Gmail',
           'Google Calendar',
           'Google Drive',
-          'Microsoft Outlook',
           'OneDrive',
           'Notion',
           'Slack (if connected)',
@@ -526,7 +525,7 @@ export const HELP_CENTER: LegalDoc = {
       heading: 'Connecting Your Tools',
       blocks: [
         p('You can securely connect supported services, including:'),
-        list(['Gmail', 'Google Calendar', 'Google Drive', 'Microsoft Outlook', 'OneDrive', 'Notion']),
+        list(['Gmail', 'Google Calendar', 'Google Drive', 'OneDrive', 'Notion']),
         p('Additional integrations will be added over time.'),
       ],
     },

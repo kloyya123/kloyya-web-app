@@ -130,16 +130,16 @@ describe('runScheduledSync', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('skips Microsoft connectors when no Microsoft credentials are configured, without marking a failure', async () => {
+  it('skips Google connectors when no Google credentials are configured, without marking a failure', async () => {
     const identity = await createTestIdentity(db, { email: 'a@example.com' });
     const ctx = await startContextFor(db, identity);
-    await insertConnection(db, ctx, 'outlook', { lastSyncedAt: null });
+    await insertConnection(db, ctx, 'gmail', { lastSyncedAt: null });
 
     const { syncer, calls } = fakeSyncer(EMPTY_OUTCOME);
     const summary = await runScheduledSync(db, {
       crypto,
-      // No microsoftClientId/Secret supplied.
-      syncers: { outlook: syncer },
+      // No googleClientId/Secret supplied.
+      syncers: { gmail: syncer },
       now: () => now.getTime(),
     });
 

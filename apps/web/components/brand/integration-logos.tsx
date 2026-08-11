@@ -78,26 +78,11 @@ export function SlackLogo(props: IconProps) {
   );
 }
 
-export function OutlookLogo(props: IconProps) {
-  return (
-    <svg {...BASE} {...props}>
-      <rect x="22" y="12" width="18" height="24" rx="1.5" fill="#0A2767" />
-      <rect x="24" y="14" width="14" height="6" fill="#0364B8" />
-      <rect x="24" y="21" width="14" height="6" fill="#0078D4" />
-      <rect x="24" y="28" width="14" height="6" fill="#28A8EA" />
-      <rect x="6" y="14" width="22" height="20" rx="3" fill="#0364B8" />
-      <text x="17" y="29" fontSize="15" fontFamily="Arial, sans-serif" fontWeight="700" fill="#fff" textAnchor="middle">O</text>
-    </svg>
-  );
-}
-
 /** The integrations Kloyya has a real brand mark for, by catalogue id. */
 const BRAND_LOGOS: Record<string, (props: IconProps) => React.JSX.Element> = {
   gmail: GmailLogo,
   google_calendar: GoogleCalendarLogo,
   google_drive: GoogleDriveLogo,
-  outlook: OutlookLogo,
-  outlook_calendar: OutlookLogo,
   notion: NotionLogo,
   slack: SlackLogo,
 };

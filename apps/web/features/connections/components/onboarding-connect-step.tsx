@@ -37,17 +37,9 @@ import { IntegrationCard } from './integration-card';
 /**
  * What a brand-new user is offered on their first run. Order is display order.
  *
- * This is deliberately narrower than the catalogue. Outlook and Outlook Calendar
- * are fully built — catalogue entry, Microsoft OAuth, and a working delta sync in
- * server/integrations/sync.ts — but their Azure redirect URI has not been
- * confirmed registered, and Microsoft (unlike Google) does not reject an
- * unregistered redirect at the authorize endpoint. It fails *after* the user has
- * signed in, which is the worst possible moment: they have already handed over
- * credentials before anything breaks.
- *
- * So they stay reachable at /connections, where a user is deliberately going
- * looking, but are kept out of the first-run flow until that is verified. Add
- * them back to `Email` and `Calendar` below once Azure is confirmed.
+ * This is deliberately narrower than the catalogue — a new user staring at
+ * every connector at once is a new user who clicks Skip. The full catalogue
+ * stays one click away at /connections for the rest of the product's life.
  */
 const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> = [
   { label: 'Email', ids: ['gmail'] },

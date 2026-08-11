@@ -10,9 +10,9 @@ import { ConnectDialog } from './connect-dialog';
 
 configureMockTransport({ instant: true, failureRate: 0 });
 
-const outlook = INTEGRATION_CATALOG.find((d) => d.id === 'outlook')!;
+const slackDef = INTEGRATION_CATALOG.find((d) => d.id === 'slack')!;
 const available: IntegrationConnection = {
-  definition: outlook,
+  definition: slackDef,
   status: 'not_connected',
   lastSyncedAt: null,
 };
@@ -40,11 +40,11 @@ describe('ConnectDialog', () => {
     renderDialog();
 
     // "Kloyya will" — granted scopes.
-    for (const scope of outlook.permissions.granted) {
+    for (const scope of slackDef.permissions.granted) {
       expect(screen.getByText(scope)).toBeInTheDocument();
     }
     // "Kloyya will never" — withheld scopes.
-    for (const scope of outlook.permissions.notGranted) {
+    for (const scope of slackDef.permissions.notGranted) {
       expect(screen.getByText(scope)).toBeInTheDocument();
     }
     vi.useRealTimers();
@@ -57,7 +57,7 @@ describe('ConnectDialog', () => {
     // The review is showing; the sync stages must not be.
     expect(screen.queryByText('Creating embeddings')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Connect Outlook/ }));
+    await user.click(screen.getByRole('button', { name: /Connect Slack/ }));
 
     // After confirming, the sync progress appears.
     await waitFor(() => {
@@ -76,7 +76,7 @@ describe('ConnectDialog', () => {
   it('names the first-sync estimate so the wait is not a surprise', () => {
     renderDialog();
     expect(
-      screen.getByText(new RegExp(`about ${outlook.estimatedSyncMinutes} minute`)),
+      screen.getByText(new RegExp(`about ${slackDef.estimatedSyncMinutes} minute`)),
     ).toBeInTheDocument();
     vi.useRealTimers();
   });

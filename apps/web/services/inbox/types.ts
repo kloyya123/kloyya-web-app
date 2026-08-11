@@ -12,8 +12,8 @@ export interface InboxList {
 /**
  * The inbox contract.
  *
- * A real backend feeds this from the mail connectors (Gmail / Outlook via the
- * Connection Manager): threads sync in, the triage agent scores importance and
+ * A real backend feeds this from the mail connectors (Gmail via the Connection
+ * Manager): threads sync in, the triage agent scores importance and
  * writes the reason, and per-thread insights — suggested replies, extracted
  * tasks, detected meetings — are generated on read. The shape here is that end
  * state; only the transport changes.

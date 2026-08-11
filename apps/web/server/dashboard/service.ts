@@ -21,7 +21,7 @@ import type { StartContext } from '../tenant';
  *
  * Real, because the data exists:
  *   priorities      — the workspace's own tasks, ranked by AI priority score
- *   upcomingMeetings— calendar events landed by the Google/Outlook connectors
+ *   upcomingMeetings— calendar events landed by the Google Calendar connector
  *   metrics         — counted from those two
  *   briefing        — written from what actually landed in the last day
  *

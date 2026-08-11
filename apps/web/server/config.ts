@@ -69,15 +69,6 @@ const schema = z.object({
     .url()
     .default('http://localhost:3000/api/v1/integrations/oauth/google/callback'),
 
-  // Microsoft OAuth (Outlook mail + calendar via Graph). One Azure app, common
-  // authority. Optional for the same reason as Google's.
-  MICROSOFT_OAUTH_CLIENT_ID: z.string().min(1).optional(),
-  MICROSOFT_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  MICROSOFT_OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .default('http://localhost:3000/api/v1/integrations/oauth/microsoft/callback'),
-
   // Notion OAuth (pages + databases via search). Its tokens never expire, so
   // there is no refresh secret to rotate — just the client pair. The callback
   // lives under /oauth/ so it can't collide with the `notion` integration id.

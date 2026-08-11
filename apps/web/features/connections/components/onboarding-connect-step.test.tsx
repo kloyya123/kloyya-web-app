@@ -7,11 +7,7 @@ import { expectNoA11yViolations } from '@/test/a11y';
 import { renderWithProviders } from '@/test/render';
 import { OnboardingConnectStep } from './onboarding-connect-step';
 
-const CURATED_IDS = [
-  'gmail', 'outlook',
-  'google_calendar', 'outlook_calendar',
-  'google_drive', 'notion',
-];
+const CURATED_IDS = ['gmail', 'google_calendar', 'google_drive', 'notion'];
 
 /**
  * The Northwind mock pre-connects every curated tool (that story powers the

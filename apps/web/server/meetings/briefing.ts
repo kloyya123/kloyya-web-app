@@ -64,9 +64,7 @@ const SYSTEM_PROMPT = [
 function sourceName(integrationId: string): string {
   const known: Record<string, string> = {
     gmail: 'Gmail',
-    outlook: 'Outlook',
     google_calendar: 'Google Calendar',
-    outlook_calendar: 'Outlook Calendar',
     google_drive: 'Google Drive',
     notion: 'Notion',
     slack: 'Slack',
@@ -77,7 +75,7 @@ function sourceName(integrationId: string): string {
 
 function sourceType(integrationId: string, resourceType: string): EvidenceSourceType {
   if (resourceType === 'calendar_event') return 'calendar';
-  if (integrationId === 'gmail' || integrationId === 'outlook') return 'email';
+  if (integrationId === 'gmail') return 'email';
   if (integrationId === 'slack') return 'chat';
   if (integrationId === 'uploaded_documents' || integrationId === 'google_drive' || integrationId === 'notion') {
     return 'document';

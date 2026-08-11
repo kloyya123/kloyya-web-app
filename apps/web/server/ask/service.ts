@@ -94,9 +94,7 @@ const SYSTEM_PROMPT = [
 function sourceName(integrationId: string): string {
   const known: Record<string, string> = {
     gmail: 'Gmail',
-    outlook: 'Outlook',
     google_calendar: 'Google Calendar',
-    outlook_calendar: 'Outlook Calendar',
     google_drive: 'Google Drive',
     notion: 'Notion',
     uploaded_documents: 'Uploaded Documents',

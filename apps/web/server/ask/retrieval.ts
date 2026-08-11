@@ -105,7 +105,7 @@ export async function retrieveContext(
 /**
  * A one-line label for a raw provider object.
  *
- * Every provider names the human-facing thing differently — Gmail/Outlook use
+ * Every provider names the human-facing thing differently — Gmail uses
  * `subject`, Drive/Notion use `name`/`title`, calendars use `summary`/`subject`.
  * We try the common keys and fall back to the resource type, never dumping raw
  * JSON at a person.

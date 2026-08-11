@@ -10,10 +10,10 @@ export interface MeetingList {
 /**
  * The meetings contract.
  *
- * A real backend feeds this from the calendar connectors (Google Calendar /
- * Outlook via the Connection Manager): events sync in, the meeting-intelligence
- * agent attaches agendas, briefings, and — after the fact — summaries, action
- * items, and decisions. The shape here is that end state; only the transport
+ * A real backend feeds this from the calendar connector (Google Calendar via
+ * the Connection Manager): events sync in, the meeting-intelligence agent
+ * attaches agendas, briefings, and — after the fact — summaries, action items,
+ * and decisions. The shape here is that end state; only the transport
  * changes.
  */
 export interface MeetingService {

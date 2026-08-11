@@ -31,16 +31,6 @@ import { IntegrationCard } from './integration-card';
  * connections are pulled to the top: a broken integration is the thing most
  * worth the user's attention.
  */
-/**
- * Integrations kept out of the UI without removing them from the catalogue.
- *
- * The catalogue is the contract between the card and the connector, and the
- * mock fixtures and tests are built on it — deleting an entry to hide a card
- * breaks all three. Filtering at the display layer hides the card and leaves
- * everything else intact.
- */
-const HIDDEN_INTEGRATION_IDS = new Set(['outlook', 'outlook_calendar']);
-
 export function ConnectionManager() {
   const { data, isPending, isError, error, refetch } = useConnections();
 
@@ -49,18 +39,9 @@ export function ConnectionManager() {
   useFirstSync(data);
   const [activeCategory, setActiveCategory] = useState<IntegrationCategory | 'all'>('all');
 
-  // Hidden until their Azure redirect URI is confirmed registered. They stay in
-  // the catalogue — the connector, OAuth and sync are all built — but Microsoft
-  // does not reject an unregistered redirect at the authorize endpoint the way
-  // Google does. It fails only AFTER sign-in, so a card shown now would take a
-  // user's Microsoft credentials and then break. Delete this filter to restore.
-  const visible = useMemo(
-    () => (data ?? []).filter((c) => !HIDDEN_INTEGRATION_IDS.has(c.definition.id)),
-    [data],
-  );
-
-  const grouped = useMemo(() => groupByCategory(visible), [visible]);
-  const stats = useMemo(() => summarize(visible), [visible]);
+  const connections = useMemo(() => data ?? [], [data]);
+  const grouped = useMemo(() => groupByCategory(connections), [connections]);
+  const stats = useMemo(() => summarize(connections), [connections]);
 
   if (isPending) return <ConnectionManagerSkeleton />;
 

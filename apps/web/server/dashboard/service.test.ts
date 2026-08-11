@@ -130,7 +130,7 @@ describe('getDashboard', () => {
     expect(meeting.summary).toBeNull();
   });
 
-  it('reads a Microsoft Graph event, which names things differently', async () => {
+  it('reads an event that names its fields differently than Google does', async () => {
     await landEvent('evt-graph', {
       subject: 'Vendor call',
       start: { dateTime: '2026-07-27T12:00:00.000Z', timeZone: 'UTC' },

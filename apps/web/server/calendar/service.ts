@@ -110,12 +110,11 @@ export async function getSchedule(db: AppDb, ctx: StartContext, query: GetSchedu
 
 /**
  * Committing a suggested slot as held focus time means writing a new event
- * back to the user's actual Google/Microsoft calendar — there is no such
- * write path in the connectors yet (server/integrations/google-calendar.ts
- * and -outlook.ts are read/sync only). Rather than silently no-op or fake a
- * local-only "held" event that vanishes on the next sync, this says so
- * plainly: a 501 the client can render as "not available yet", not a 500 that
- * reads as broken.
+ * back to the user's actual Google Calendar — there is no such write path in
+ * the connector yet (server/integrations/google-calendar.ts is read/sync
+ * only). Rather than silently no-op or fake a local-only "held" event that
+ * vanishes on the next sync, this says so plainly: a 503 the client can
+ * render as "not available yet", not a 500 that reads as broken.
  */
 export async function holdFocusTime(_slot: FreeSlot): Promise<never> {
   throw new ApiError({
@@ -123,6 +122,6 @@ export async function holdFocusTime(_slot: FreeSlot): Promise<never> {
     errorCode: 'focus_time_not_supported',
     message: 'Holding focus time is not available yet.',
     description: 'Kloyya can read your calendar, but cannot write a new event to it yet.',
-    suggestedResolution: 'Block the time directly in Google Calendar or Outlook for now.',
+    suggestedResolution: 'Block the time directly in Google Calendar for now.',
   });
 }

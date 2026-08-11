@@ -18,7 +18,6 @@ import type { EvidenceSourceType, IsoTimestamp, Score } from './domain.js';
 export const SOURCE_PROVIDERS = [
   // Personal
   'gmail',
-  'outlook',
   'google_calendar',
   'microsoft_calendar',
   // Organization / files

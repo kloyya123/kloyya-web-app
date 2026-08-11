@@ -9,8 +9,6 @@ import {
   syncGoogleCalendar,
   syncGoogleDrive,
   syncNotion,
-  syncOutlookCalendar,
-  syncOutlookMail,
   syncSlack,
   type SyncDeps,
   type SyncOutcome,
@@ -49,8 +47,6 @@ const DEFAULT_SYNCERS: Record<string, Syncer> = {
   google_calendar: syncGoogleCalendar,
   gmail: syncGmail,
   google_drive: syncGoogleDrive,
-  outlook: syncOutlookMail,
-  outlook_calendar: syncOutlookCalendar,
   notion: syncNotion,
   slack: syncSlack,
 };
@@ -101,9 +97,6 @@ export interface SchedulerDeps {
   /** Google's client pair. Absent, Google connectors are skipped rather than failed. */
   googleClientId?: string | undefined;
   googleClientSecret?: string | undefined;
-  /** Microsoft's client pair, same treatment. */
-  microsoftClientId?: string | undefined;
-  microsoftClientSecret?: string | undefined;
   /** Writes the morning briefing. Null skips briefing generation entirely. */
   aiProvider?: AiProvider | null;
   fetchImpl?: typeof fetch;
@@ -111,7 +104,7 @@ export interface SchedulerDeps {
   /** Test seam: cap the work without waiting on a real clock. */
   maxConnections?: number;
   /**
-   * Test seam: replace the real Gmail/Calendar/Drive/Notion/Graph syncers with
+   * Test seam: replace the real Gmail/Calendar/Drive/Notion syncers with
    * stubs. Merged over the defaults, so a test can override just one
    * integration id and every other connection is simply skipped rather than
    * hitting a real provider.
@@ -127,12 +120,11 @@ function credentialsFor(
   // Notion and Slack tokens never expire, so neither needs a client pair to refresh with.
   if (integrationId === 'notion' || integrationId === 'slack') return { clientId: '', clientSecret: '' };
 
-  const microsoft = integrationId === 'outlook' || integrationId === 'outlook_calendar';
-  const clientId = microsoft ? deps.microsoftClientId : deps.googleClientId;
-  const clientSecret = microsoft ? deps.microsoftClientSecret : deps.googleClientSecret;
+  const clientId = deps.googleClientId;
+  const clientSecret = deps.googleClientSecret;
 
-  // Unconfigured is not the same as broken. A deployment without Microsoft
-  // credentials should quietly not sync Outlook, not mark every Outlook
+  // Unconfigured is not the same as broken. A deployment without Google
+  // credentials should quietly not sync Google connectors, not mark every
   // connection as failed on the hour, every hour.
   if (!clientId || !clientSecret) return null;
   return { clientId, clientSecret };

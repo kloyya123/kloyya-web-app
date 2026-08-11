@@ -112,10 +112,8 @@ function define(
 export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
   // Email — "the central communication hub for nearly every organization".
   define('gmail', 'Gmail', 'communication', 'Understands your email threads, priorities, and follow-ups.', 12),
-  define('outlook', 'Outlook', 'communication', 'Understands your email threads, priorities, and follow-ups.', 12),
   // Calendar — "understand the user's schedule".
   define('google_calendar', 'Google Calendar', 'calendar', 'Knows your schedule, attendees, and preparation windows.', 3),
-  define('outlook_calendar', 'Outlook Calendar', 'calendar', 'Knows your schedule, attendees, and preparation windows.', 3),
   // Documents & knowledge.
   define('google_drive', 'Google Drive', 'documents', 'Indexes the documents your decisions depend on.', 25),
   define('notion', 'Notion', 'documents', 'Turns your workspace pages into organizational memory.', 15),
