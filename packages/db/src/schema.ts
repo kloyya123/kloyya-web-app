@@ -505,6 +505,41 @@ export const briefings = pgTable(
 ).enableRLS();
 
 /**
+ * Pre-meeting briefings — "walk into meetings prepared" (packages/core's
+ * `MeetingBriefing`), generated once per meeting and cached, same reasoning
+ * as `briefings` above: two page loads must produce one account of a
+ * meeting, not two differently-worded ones from two model calls.
+ *
+ * `meetingId` is the calendar event's own external id (see
+ * server/meetings/service.ts — a "meeting" is a shaped `sync_records` row,
+ * not its own entity), so it is text, not a uuid.
+ */
+export const meetingBriefings = pgTable(
+  'meeting_briefings',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    meetingId: text('meeting_id').notNull(),
+    headline: text('headline').notNull(),
+    objective: text('objective').notNull(),
+    talkingPoints: text('talking_points').array().notNull().default(sql`'{}'::text[]`),
+    risks: text('risks').array().notNull().default(sql`'{}'::text[]`),
+    confidence: integer('confidence').notNull(),
+    /** Serialized `NonEmpty<Evidence>` — structured, so kept as jsonb rather than parallel arrays. */
+    evidence: jsonb('evidence').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.meetingId] }),
+    index('meeting_briefings_organization_id_idx').on(t.organizationId),
+  ],
+).enableRLS();
+
+/**
  * In-app notifications — workspace-wide, not per-user, matching
  * apps/web/types/domain.ts's `AppNotification` (no `userId` field). Ranked by
  * `decisionScore`, not `createdAt`, per KDSE: a Critical alert from an hour ago

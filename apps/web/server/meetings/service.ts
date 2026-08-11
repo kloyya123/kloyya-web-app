@@ -2,9 +2,11 @@ import { and, eq, isNull } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db/client';
 import { withTenantScope } from '@kloyya/db/scope';
 import { connections, syncRecords } from '@kloyya/db/schema';
-import type { Meeting, MeetingParticipant } from '@kloyya/core';
+import type { Meeting, MeetingBriefing, MeetingParticipant } from '@kloyya/core';
+import type { AiProvider } from '../ai/provider';
 import { readEventTime, readEventTitle, readParticipants } from '../integrations/calendar-parse';
 import { ApiError, API_STATUS } from '../http/errors';
+import { generateMeetingBriefing } from './briefing';
 import type { StartContext } from '../tenant';
 
 export interface MeetingList {
@@ -21,11 +23,12 @@ export interface MeetingList {
  * client's contract.
  *
  * `summary`, `agenda`, `actionItems`, `decisions` and `followUps` are always
- * empty/null: no meeting-intelligence pipeline exists yet to fill them in.
- * Same discipline as server/dashboard/service.ts's `toMeeting` — a null here
- * is honest; a fabricated agenda is the exact failure this module exists to
- * avoid. `getBriefing` always 404s for the same reason: nothing generates a
- * pre-meeting briefing yet, and that is a real "not yet", not a bug.
+ * empty/null: no post-meeting summarization pipeline exists yet to fill them
+ * in. Same discipline as server/dashboard/service.ts's `toMeeting` — a null
+ * here is honest; a fabricated summary is the exact failure this module
+ * exists to avoid. `getBriefing` is real (see ./briefing.ts): it retrieves
+ * genuine evidence for the meeting and asks the model to reason over it, or
+ * 404s when there is nothing yet to build one from.
  */
 
 const EVENT_ROW_LIMIT = 500;
@@ -140,13 +143,40 @@ export async function getMeeting(db: AppDb, ctx: StartContext, id: string): Prom
   return rows[0] ? toMeeting(rows[0], ctx) : null;
 }
 
-/** Always throws: no meeting-intelligence pipeline generates briefings yet. */
-export async function getBriefing(_meetingId: string): Promise<never> {
-  throw new ApiError({
-    httpStatus: API_STATUS.NotFound,
-    errorCode: 'briefing_not_available',
-    message: 'No briefing exists for this meeting.',
-    description: 'Kloyya does not generate pre-meeting briefings yet.',
-    suggestedResolution: 'Check back once meeting briefings ship.',
-  });
+/**
+ * The pre-meeting briefing, generated (or read from cache) from genuine
+ * evidence about this specific meeting. Throws 404 both for an unknown
+ * meeting and for a real one with nothing yet to build a briefing from — the
+ * client cannot and should not tell those apart; either way there is nothing
+ * to show.
+ */
+export async function getBriefing(
+  db: AppDb,
+  ctx: StartContext,
+  provider: AiProvider | null,
+  meetingId: string,
+  now: Date = new Date(),
+): Promise<MeetingBriefing> {
+  const meeting = await getMeeting(db, ctx, meetingId);
+  if (!meeting) {
+    throw new ApiError({
+      httpStatus: API_STATUS.NotFound,
+      errorCode: 'meeting_not_found',
+      message: 'That meeting no longer exists.',
+      description: 'It may have been cancelled, or the link may be out of date.',
+      suggestedResolution: 'Go back to your meetings list for the current schedule.',
+    });
+  }
+
+  const briefing = await generateMeetingBriefing(db, ctx, provider, meeting, now);
+  if (!briefing) {
+    throw new ApiError({
+      httpStatus: API_STATUS.NotFound,
+      errorCode: 'briefing_not_available',
+      message: 'No briefing exists for this meeting.',
+      description: 'Briefings are prepared for upcoming meetings that need one, from evidence Kloyya has actually seen.',
+      suggestedResolution: 'Past meetings carry a summary instead.',
+    });
+  }
+  return briefing;
 }
