@@ -19,6 +19,7 @@ import { MockDraftService } from './drafts/mock-drafts-service';
 import { HttpDraftService } from './drafts/http-drafts-service';
 import type { DraftService } from './drafts/types';
 import { MockCalendarService } from './calendar/mock-calendar-service';
+import { HttpCalendarService } from './calendar/http-calendar-service';
 import type { CalendarService } from './calendar/types';
 import { MockInboxService } from './inbox/mock-inbox-service';
 import { HttpInboxService } from './inbox/http-inbox-service';
@@ -31,6 +32,7 @@ import type { ProjectService } from './projects/types';
 import { MockSearchService } from './search/mock-search-service';
 import type { SearchService } from './search/types';
 import { MockMeetingService } from './meetings/mock-meeting-service';
+import { HttpMeetingService } from './meetings/http-meeting-service';
 import type { MeetingService } from './meetings/types';
 import { MockIntegrationsService } from './integrations/mock-integrations-service';
 import { HttpIntegrationsService } from './integrations/http-integrations-service';
@@ -93,11 +95,11 @@ export interface Services {
  * so the demo, the test suite, and anyone without a running API keep the mock
  * layer — the 527 tests stay green because they never touch this branch.
  *
- * Only the services with a real backend are switched; the rest (calendar,
- * meetings, knowledge, search, sources) have no API yet and stay on the mock
- * until their phases land. Mixing is fine on purpose: a page reading real
- * auth and mock calendar is exactly the incremental cut-over the
- * frontend-first architecture was built to allow.
+ * Only the services with a real backend are switched; the rest (knowledge,
+ * search, sources) have no API yet and stay on the mock until their phases
+ * land. Mixing is fine on purpose: a page reading real auth and mock search
+ * is exactly the incremental cut-over the frontend-first architecture was
+ * built to allow.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
@@ -124,10 +126,10 @@ export const services: Services = {
   intelligence: USE_REAL_API ? new HttpIntelligenceService() : new MockIntelligenceService(),
   inbox: USE_REAL_API ? new HttpInboxService() : new MockInboxService(),
   notifications: USE_REAL_API ? new HttpNotificationService() : new MockNotificationService(),
+  calendar: USE_REAL_API ? new HttpCalendarService() : new MockCalendarService(),
+  meetings: USE_REAL_API ? new HttpMeetingService() : new MockMeetingService(),
   // No backend yet — these land with their roadmap phases.
   sources: new MockSourcesService(),
-  calendar: new MockCalendarService(),
-  meetings: new MockMeetingService(),
   knowledge: new MockKnowledgeService(),
   search: new MockSearchService(),
 };
