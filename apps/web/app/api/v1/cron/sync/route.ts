@@ -76,6 +76,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     anthropicModel: config.ANTHROPIC_MODEL,
     perplexityApiKey: config.PERPLEXITY_API_KEY,
     perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
+    nvidiaApiKey: config.NVIDIA_API_KEY,
+    nvidiaModel: config.NVIDIA_MODEL,
   });
 
   const summary = await runScheduledSync(deps.db, {

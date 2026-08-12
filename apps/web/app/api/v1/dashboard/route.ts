@@ -30,6 +30,8 @@ export const GET = kasRoute('verified', async (_req, ctx) => {
     anthropicModel: config.ANTHROPIC_MODEL,
     perplexityApiKey: config.PERPLEXITY_API_KEY,
     perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
+    nvidiaApiKey: config.NVIDIA_API_KEY,
+    nvidiaModel: config.NVIDIA_MODEL,
   });
 
   const dashboard = await getDashboard(ctx.db, start, new Date(), provider);

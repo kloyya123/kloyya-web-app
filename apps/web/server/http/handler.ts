@@ -42,6 +42,22 @@ export function kasRoute(
   return async (req: NextRequest, route?: RouteParams): Promise<Response> => {
     const correlationId = newCorrelationId();
     try {
+      // The kill switch. Checked first, before any DB or auth work, so an
+      // outage severe enough to flip this doesn't also need those to be
+      // working. The cron route doesn't go through kasRoute, so a daily sync
+      // already in flight isn't affected by this — deliberately: it has its
+      // own bearer-token auth and running it is lower-risk than leaving the
+      // whole interactive API open during whatever this switch is for.
+      if (config.MAINTENANCE_MODE) {
+        throw new ApiError({
+          httpStatus: API_STATUS.ServiceUnavailable,
+          errorCode: 'maintenance_mode',
+          message: 'Kloyya is down for maintenance.',
+          description: 'This should only take a few minutes.',
+          suggestedResolution: 'Try again shortly.',
+        });
+      }
+
       const deps = await getDeps();
       const identity = await deps.getIdentity();
       if (!identity) throw errors.unauthorized();

@@ -172,7 +172,42 @@ export function decide(request: NextRequest, state: AuthState, carry: NextRespon
   return carry;
 }
 
+/**
+ * The kill switch. `MAINTENANCE_MODE=true` in Vercel's env vars takes the
+ * whole site down with one flip, no redeploy — env vars are read fresh on the
+ * next invocation. Checked before anything else, including the Supabase call
+ * below, because a real outage severe enough to need this may well be
+ * Supabase itself being down, and this must not depend on the thing that's
+ * broken. Read directly from `process.env`, not the validated server config
+ * in server/config.ts: that module targets the Node runtime and this file
+ * runs on the Edge, where pulling in a whole config module for one boolean
+ * is the wrong tool.
+ */
+function maintenanceResponse(): NextResponse {
+  return new NextResponse(
+    `<!doctype html><html><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kloyya — Down for maintenance</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #fafafa; color: #1a1a1a;
+    display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
+  main { max-width: 28rem; padding: 2rem; text-align: center; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  p { color: #555; line-height: 1.5; }
+</style></head>
+<body><main>
+  <h1>Kloyya is down for maintenance</h1>
+  <p>We&rsquo;re making a quick fix. This should only take a few minutes — try again shortly.</p>
+</main></body></html>`,
+    {
+      status: 503,
+      headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '120' },
+    },
+  );
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+  if (process.env['MAINTENANCE_MODE'] === 'true') return maintenanceResponse();
   if (!USE_REAL_API) return mockMiddleware(request);
 
   // Build the response first so the Supabase client can write refreshed cookies

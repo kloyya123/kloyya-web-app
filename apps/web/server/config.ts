@@ -18,6 +18,20 @@ import { z } from 'zod';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
+  /**
+   * The kill switch. Flip to `"true"` in Vercel's env vars (no redeploy
+   * needed — it's read fresh on the next invocation) to take the API down
+   * cleanly with a 503 rather than whatever a real outage would otherwise do.
+   * The site-wide half of this lives in middleware.ts, read directly from
+   * `process.env` there rather than through this module — middleware runs in
+   * the Edge runtime, where pulling in this file's full validated config
+   * (server-only, Node-targeted) is the wrong tool for one boolean.
+   */
+  MAINTENANCE_MODE: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   DATABASE_URL: z.string().url().optional(),
   DIRECT_URL: z.string().url().optional(),
 
@@ -114,11 +128,18 @@ const schema = z.object({
    */
   PERPLEXITY_CHAT_MODEL: z.string().min(1).default('sonar'),
 
-  AI_PROVIDER: z.enum(['openai', 'anthropic', 'perplexity']).default('openai'),
+  // The preferred provider — but resolveAiProvider() (server/ai/provider.ts)
+  // falls back through whichever of the four actually have a key configured
+  // if this one doesn't, so this is a preference, not a hard requirement.
+  AI_PROVIDER: z.enum(['openai', 'anthropic', 'perplexity', 'nvidia']).default('openai'),
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-4-8'),
+  // NVIDIA's hosted inference API (OpenAI-compatible). Optional, same
+  // degrade-honestly reasoning as the other three.
+  NVIDIA_API_KEY: z.string().min(1).optional(),
+  NVIDIA_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
 
   // Payments. Provider-neutral: 'none' is the beta scaffold (records the chosen
   // plan, takes no money). Raw card data never touches this server either way.
@@ -128,6 +149,20 @@ const schema = z.object({
   // blunt abuse guard on every guarded route (the Ask per-day cap is a separate
   // entitlement limit). `0` disables it. Coerced because env vars are strings.
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(120),
+
+  /**
+   * A tighter, per-minute guard on the routes that call an AI provider.
+   *
+   * The Ask per-day entitlement cap stops someone from running up costs over
+   * a day, but says nothing about the next 60 seconds — nothing previously
+   * stopped a burst of, say, 100 Ask requests in one minute, each a real
+   * OpenAI call, all still comfortably inside both the daily cap and the
+   * general 120/min route limit above. This is deliberately much lower than
+   * RATE_LIMIT_PER_MINUTE: a real back-and-forth with Ask Kloyya rarely needs
+   * more than a handful of questions a minute; a tight loop trying to run up
+   * a bill does.
+   */
+  AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(8),
 
   /**
    * Shared secret for the scheduled-sync endpoint.

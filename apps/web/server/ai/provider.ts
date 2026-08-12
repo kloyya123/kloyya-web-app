@@ -55,7 +55,7 @@ export class AiError extends Error {
 }
 
 export interface ProviderConfig {
-  provider: 'openai' | 'anthropic' | 'perplexity';
+  provider: 'openai' | 'anthropic' | 'perplexity' | 'nvidia';
   openaiApiKey?: string | undefined;
   openaiModel: string;
   anthropicApiKey?: string | undefined;
@@ -67,11 +67,14 @@ export interface ProviderConfig {
    * model in here would silently work while being the wrong knob to turn.
    */
   perplexityChatModel: string;
+  nvidiaApiKey?: string | undefined;
+  nvidiaModel: string;
 }
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
+const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const DEFAULT_MAX_TOKENS = 1024;
 
 /** OpenAI chat completions. The system prompt rides as the first message. */
@@ -220,22 +223,137 @@ function perplexityProvider(apiKey: string, model: string): AiProvider {
 }
 
 /**
- * The configured provider, or null when the selected one has no key.
+ * NVIDIA's hosted inference API — OpenAI-compatible, so the request/response
+ * shape is identical to `openaiProvider`; only the base URL, key, and model
+ * differ. Kept as its own function rather than a parameterized "OpenAI-shaped"
+ * helper, matching how `perplexityProvider` also reuses the same wire shape —
+ * each vendor's own quirks (Perplexity's `disable_search`, here potentially a
+ * different one later) have somewhere to live without reaching into a shared
+ * function's internals.
+ */
+function nvidiaProvider(apiKey: string, model: string): AiProvider {
+  return {
+    name: 'nvidia',
+    model,
+    async complete(params) {
+      const doFetch = params.fetchImpl ?? fetch;
+      const response = await doFetch(NVIDIA_URL, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+          messages: [
+            { role: 'system', content: params.system },
+            ...params.messages,
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new AiError(`NVIDIA request failed (HTTP ${response.status}).`);
+      }
+
+      const body = (await response.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      const text = body.choices?.[0]?.message?.content;
+      if (typeof text !== 'string') throw new AiError('NVIDIA returned no message.');
+      return { text };
+    },
+  };
+}
+
+function providerFor(config: ProviderConfig, name: ProviderConfig['provider']): AiProvider | null {
+  switch (name) {
+    case 'anthropic':
+      return config.anthropicApiKey
+        ? anthropicProvider(config.anthropicApiKey, config.anthropicModel)
+        : null;
+    case 'openai':
+      return config.openaiApiKey ? openaiProvider(config.openaiApiKey, config.openaiModel) : null;
+    case 'nvidia':
+      return config.nvidiaApiKey ? nvidiaProvider(config.nvidiaApiKey, config.nvidiaModel) : null;
+    case 'perplexity':
+      return config.perplexityApiKey
+        ? perplexityProvider(config.perplexityApiKey, config.perplexityChatModel)
+        : null;
+  }
+}
+
+/**
+ * Quality-ordered fallback, most capable general-purpose reasoner first.
+ * Perplexity sits last on purpose: per `perplexityProvider`'s own docs it is
+ * being used off-label here (a search model with search forced off), so it is
+ * the least suited of the four to be reasoning over evidence when a real
+ * choice exists.
+ */
+const FALLBACK_ORDER: ProviderConfig['provider'][] = ['anthropic', 'openai', 'nvidia', 'perplexity'];
+
+/**
+ * The best available provider — preferred first, then the rest of
+ * `FALLBACK_ORDER` — wrapped so a failure at CALL TIME also falls through,
+ * not just a missing key at resolve time.
  *
- * Null is not an error — it is the honest "AI isn't set up here" state, and the
- * caller renders it as such. Only a configured-but-failing provider throws, and
- * that happens at call time, not here.
+ * That distinction matters: a key that exists but is out of credit, revoked,
+ * or hitting the host's own rate limit looks identical to "configured" here —
+ * the difference only shows up once `.complete()` actually runs and the
+ * provider answers with an error. Stopping at the first configured provider,
+ * the way this used to work, meant one exhausted OpenAI key took down Ask
+ * Kloyya even with a perfectly good Anthropic or NVIDIA key sitting unused
+ * right next to it. Now every configured provider gets one attempt, in
+ * order, before the caller sees a failure — "switching to the best model[s]"
+ * happens on every request, not just at deploy time.
+ *
+ * `name`/`model` on the returned object reflect whichever provider actually
+ * answered on the LAST attempt (updated as `complete()` runs), since that is
+ * what the caller should log — not a static guess made before the request.
+ *
+ * Null only when NONE of the four have a key at all — the honest "AI isn't
+ * set up here" state, which the caller renders as such.
  */
 export function resolveAiProvider(config: ProviderConfig): AiProvider | null {
-  if (config.provider === 'anthropic') {
-    return config.anthropicApiKey
-      ? anthropicProvider(config.anthropicApiKey, config.anthropicModel)
-      : null;
-  }
-  if (config.provider === 'perplexity') {
-    return config.perplexityApiKey
-      ? perplexityProvider(config.perplexityApiKey, config.perplexityChatModel)
-      : null;
-  }
-  return config.openaiApiKey ? openaiProvider(config.openaiApiKey, config.openaiModel) : null;
+  const order: ProviderConfig['provider'][] = [
+    config.provider,
+    ...FALLBACK_ORDER.filter((name) => name !== config.provider),
+  ];
+  const providers = order
+    .map((name) => providerFor(config, name))
+    .filter((provider): provider is AiProvider => provider !== null);
+
+  if (providers.length === 0) return null;
+
+  const state = { name: providers[0]!.name, model: providers[0]!.model };
+
+  return {
+    get name() {
+      return state.name;
+    },
+    get model() {
+      return state.model;
+    },
+    async complete(params) {
+      let lastError: unknown;
+      for (const provider of providers) {
+        try {
+          const result = await provider.complete(params);
+          state.name = provider.name;
+          state.model = provider.model;
+          return result;
+        } catch (error) {
+          lastError = error;
+          // Try the next configured provider. AiError and anything else
+          // (a network throw, a JSON parse failure) are both worth a
+          // fallback attempt — the point is resilience, not diagnosing
+          // which vendor is at fault.
+        }
+      }
+      throw lastError instanceof AiError
+        ? lastError
+        : new AiError('Every configured AI provider failed.');
+    },
+  };
 }

@@ -9,6 +9,7 @@ import { resolveAiProvider } from '@server/ai/provider';
 import { ask } from '@server/ask/service';
 import { resolveWebSearch } from '@server/ask/web-search';
 import { getAskCountToday, incrementAskCount } from '@server/ask/usage';
+import { checkRateLimit } from '@server/http/rate-limit';
 import { readTier } from '@server/plan/tier';
 import { resolveStartContext } from '@server/tenant';
 
@@ -25,6 +26,21 @@ export const POST = kasRoute('verified', async (req, ctx) => {
 
   const start = await resolveStartContext(ctx.db, ctx.identity.id);
   if (!start) throw errors.notFound('User profile');
+
+  // A tighter guard than the general per-route limit and independent of the
+  // daily entitlement below: neither says anything about the next 60 seconds,
+  // and every request past this point is a real AI-provider call that costs
+  // money regardless of whether it's within the day's allowance.
+  const burst = await checkRateLimit(ctx.db, `ai:${ctx.identity.id}`, config.AI_RATE_LIMIT_PER_MINUTE);
+  if (!burst.allowed) {
+    throw new ApiError({
+      httpStatus: API_STATUS.RateLimited,
+      errorCode: 'ask_rate_limited',
+      message: 'Slow down — that’s a lot of questions in one minute.',
+      description: `Kloyya allows ${burst.limit} Ask requests per minute per person.`,
+      suggestedResolution: `Wait about ${burst.retryAfterSeconds} seconds and try again.`,
+    });
+  }
 
   // Entitlement gate: the Free plan caps questions per day. Enforced here, not
   // only in the UI, because a client-side limit is a suggestion.
@@ -50,6 +66,8 @@ export const POST = kasRoute('verified', async (req, ctx) => {
     anthropicModel: config.ANTHROPIC_MODEL,
     perplexityApiKey: config.PERPLEXITY_API_KEY,
     perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
+    nvidiaApiKey: config.NVIDIA_API_KEY,
+    nvidiaModel: config.NVIDIA_MODEL,
   });
 
   // Null when no search key is configured, in which case Ask Kloyya answers
