@@ -694,6 +694,16 @@ export const documents = pgTable(
     /** The searchable text pulled out of the file. Empty until/unless extracted. */
     extractedText: text('extracted_text').notNull().default(''),
     status: documentStatus('status').notNull().default('processing'),
+    /**
+     * Cached AI summary for the Knowledge feature (server/knowledge/service.ts).
+     * Generated once per document, not on every read — the same reasoning as
+     * `briefings`: an AI-written summary that reworded itself on every refresh
+     * would be harder to trust than a stable one, and costs a real model call
+     * to boot. Null until a provider is configured and generation succeeds.
+     */
+    aiSummary: text('ai_summary'),
+    aiSummaryConfidence: integer('ai_summary_confidence'),
+    aiSummarizedAt: timestamp('ai_summarized_at', { withTimezone: true }),
     ...audit,
   },
   (t) => [

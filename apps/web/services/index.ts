@@ -25,6 +25,7 @@ import { MockInboxService } from './inbox/mock-inbox-service';
 import { HttpInboxService } from './inbox/http-inbox-service';
 import type { InboxService } from './inbox/types';
 import { MockKnowledgeService } from './knowledge/mock-knowledge-service';
+import { HttpKnowledgeService } from './knowledge/http-knowledge-service';
 import type { KnowledgeService } from './knowledge/types';
 import { MockProjectService } from './projects/mock-project-service';
 import { HttpProjectService } from './projects/http-project-service';
@@ -97,12 +98,12 @@ export interface Services {
  * so the demo, the test suite, and anyone without a running API keep the mock
  * layer — the 527 tests stay green because they never touch this branch.
  *
- * Only the services with a real backend are switched; `knowledge` alone has
- * no API yet — it needs a real entity/relationship extraction pipeline, not
- * just a data-source swap — and stays on the mock until that phase lands.
- * Mixing is fine on purpose: a page reading real auth and mock knowledge is
- * exactly the incremental cut-over the frontend-first architecture was built
- * to allow.
+ * Every domain service now has a real backend. `knowledge`'s is deliberately
+ * partial — real uploaded documents as articles, with a real cached AI
+ * summary per document, but `getGraph()` returns an honestly empty graph:
+ * a real entity/relationship graph needs an NLP extraction pipeline, not
+ * just a data-source swap, and is follow-on work (see
+ * server/knowledge/service.ts's module doc).
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
@@ -133,9 +134,7 @@ export const services: Services = {
   meetings: USE_REAL_API ? new HttpMeetingService() : new MockMeetingService(),
   sources: USE_REAL_API ? new HttpSourcesService() : new MockSourcesService(),
   search: USE_REAL_API ? new HttpSearchService() : new MockSearchService(),
-  // No backend yet — knowledge needs a real entity/relationship extraction
-  // pipeline (KOMGA/KARE), not just a data-source swap. See services/knowledge/types.ts.
-  knowledge: new MockKnowledgeService(),
+  knowledge: USE_REAL_API ? new HttpKnowledgeService() : new MockKnowledgeService(),
 };
 
 export type { AuthService } from './auth/types';
