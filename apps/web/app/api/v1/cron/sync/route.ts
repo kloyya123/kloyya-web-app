@@ -78,6 +78,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
     nvidiaApiKey: config.NVIDIA_API_KEY,
     nvidiaModel: config.NVIDIA_MODEL,
+    huggingfaceApiKey: config.HUGGINGFACE_API_KEY,
+    huggingfaceModel: config.HUGGINGFACE_MODEL,
   });
 
   const summary = await runScheduledSync(deps.db, {

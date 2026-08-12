@@ -2,10 +2,12 @@
  * The AI layer, one provider-neutral seam.
  *
  * Ask Kloyya doesn't know or care which model answers it — it hands a system
- * prompt and a few messages to an `AiProvider` and gets text back. Three
+ * prompt and a few messages to an `AiProvider` and gets text back. Five
  * providers implement that contract over plain fetch (no SDK, so tests inject a
- * fake fetch exactly like the connectors do): OpenAI, Claude, and Perplexity.
- * `AI_PROVIDER` selects which one a request uses.
+ * fake fetch exactly like the connectors do): OpenAI, Claude, Perplexity,
+ * NVIDIA, and Hugging Face's inference router. `AI_PROVIDER` names the
+ * preferred one; see `resolveAiProvider` below for how the rest act as
+ * automatic fallback rather than requiring a manual switch.
  *
  * Perplexity appears here as well as in server/ask/web-search.ts, and the two
  * roles are deliberately opposite. There it is the RESEARCHER and search is the
@@ -39,7 +41,7 @@ export interface CompleteParams {
 }
 
 export interface AiProvider {
-  /** 'openai' | 'anthropic' | 'perplexity' — for logging, never a secret. */
+  /** 'openai' | 'anthropic' | 'perplexity' | 'nvidia' | 'huggingface' — for logging, never a secret. */
   readonly name: string;
   /** The concrete model id in use. */
   readonly model: string;
@@ -55,7 +57,7 @@ export class AiError extends Error {
 }
 
 export interface ProviderConfig {
-  provider: 'openai' | 'anthropic' | 'perplexity' | 'nvidia';
+  provider: 'openai' | 'anthropic' | 'perplexity' | 'nvidia' | 'huggingface';
   openaiApiKey?: string | undefined;
   openaiModel: string;
   anthropicApiKey?: string | undefined;
@@ -69,12 +71,15 @@ export interface ProviderConfig {
   perplexityChatModel: string;
   nvidiaApiKey?: string | undefined;
   nvidiaModel: string;
+  huggingfaceApiKey?: string | undefined;
+  huggingfaceModel: string;
 }
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const HUGGINGFACE_URL = 'https://router.huggingface.co/v1/chat/completions';
 const DEFAULT_MAX_TOKENS = 1024;
 
 /** OpenAI chat completions. The system prompt rides as the first message. */
@@ -267,6 +272,48 @@ function nvidiaProvider(apiKey: string, model: string): AiProvider {
   };
 }
 
+/**
+ * Hugging Face's inference router — one endpoint in front of many hosted
+ * open-weight models (DeepSeek, Kimi, and others), picked by prefixing the
+ * model id with its serving provider, e.g. `deepseek-ai/DeepSeek-V4-Flash:novita`.
+ * OpenAI-compatible request/response shape, same as NVIDIA's.
+ */
+function huggingfaceProvider(apiKey: string, model: string): AiProvider {
+  return {
+    name: 'huggingface',
+    model,
+    async complete(params) {
+      const doFetch = params.fetchImpl ?? fetch;
+      const response = await doFetch(HUGGINGFACE_URL, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+          messages: [
+            { role: 'system', content: params.system },
+            ...params.messages,
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new AiError(`Hugging Face request failed (HTTP ${response.status}).`);
+      }
+
+      const body = (await response.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      const text = body.choices?.[0]?.message?.content;
+      if (typeof text !== 'string') throw new AiError('Hugging Face returned no message.');
+      return { text };
+    },
+  };
+}
+
 function providerFor(config: ProviderConfig, name: ProviderConfig['provider']): AiProvider | null {
   switch (name) {
     case 'anthropic':
@@ -277,6 +324,10 @@ function providerFor(config: ProviderConfig, name: ProviderConfig['provider']): 
       return config.openaiApiKey ? openaiProvider(config.openaiApiKey, config.openaiModel) : null;
     case 'nvidia':
       return config.nvidiaApiKey ? nvidiaProvider(config.nvidiaApiKey, config.nvidiaModel) : null;
+    case 'huggingface':
+      return config.huggingfaceApiKey
+        ? huggingfaceProvider(config.huggingfaceApiKey, config.huggingfaceModel)
+        : null;
     case 'perplexity':
       return config.perplexityApiKey
         ? perplexityProvider(config.perplexityApiKey, config.perplexityChatModel)
@@ -288,10 +339,16 @@ function providerFor(config: ProviderConfig, name: ProviderConfig['provider']): 
  * Quality-ordered fallback, most capable general-purpose reasoner first.
  * Perplexity sits last on purpose: per `perplexityProvider`'s own docs it is
  * being used off-label here (a search model with search forced off), so it is
- * the least suited of the four to be reasoning over evidence when a real
+ * the least suited of the group to be reasoning over evidence when a real
  * choice exists.
  */
-const FALLBACK_ORDER: ProviderConfig['provider'][] = ['anthropic', 'openai', 'nvidia', 'perplexity'];
+const FALLBACK_ORDER: ProviderConfig['provider'][] = [
+  'anthropic',
+  'openai',
+  'nvidia',
+  'huggingface',
+  'perplexity',
+];
 
 /**
  * The best available provider — preferred first, then the rest of
@@ -312,7 +369,7 @@ const FALLBACK_ORDER: ProviderConfig['provider'][] = ['anthropic', 'openai', 'nv
  * answered on the LAST attempt (updated as `complete()` runs), since that is
  * what the caller should log — not a static guess made before the request.
  *
- * Null only when NONE of the four have a key at all — the honest "AI isn't
+ * Null only when NONE of the five have a key at all — the honest "AI isn't
  * set up here" state, which the caller renders as such.
  */
 export function resolveAiProvider(config: ProviderConfig): AiProvider | null {

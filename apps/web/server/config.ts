@@ -129,17 +129,22 @@ const schema = z.object({
   PERPLEXITY_CHAT_MODEL: z.string().min(1).default('sonar'),
 
   // The preferred provider — but resolveAiProvider() (server/ai/provider.ts)
-  // falls back through whichever of the four actually have a key configured
+  // falls back through whichever of the five actually have a key configured
   // if this one doesn't, so this is a preference, not a hard requirement.
-  AI_PROVIDER: z.enum(['openai', 'anthropic', 'perplexity', 'nvidia']).default('openai'),
+  AI_PROVIDER: z.enum(['openai', 'anthropic', 'perplexity', 'nvidia', 'huggingface']).default('openai'),
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-4-8'),
   // NVIDIA's hosted inference API (OpenAI-compatible). Optional, same
-  // degrade-honestly reasoning as the other three.
+  // degrade-honestly reasoning as the others.
   NVIDIA_API_KEY: z.string().min(1).optional(),
   NVIDIA_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
+  // Hugging Face's inference router — one endpoint in front of many hosted
+  // open-weight models. Optional; unset simply means this provider is
+  // skipped in the fallback chain, same as any other missing key.
+  HUGGINGFACE_API_KEY: z.string().min(1).optional(),
+  HUGGINGFACE_MODEL: z.string().min(1).default('deepseek-ai/DeepSeek-V4-Flash:novita'),
 
   // Payments. Provider-neutral: 'none' is the beta scaffold (records the chosen
   // plan, takes no money). Raw card data never touches this server either way.

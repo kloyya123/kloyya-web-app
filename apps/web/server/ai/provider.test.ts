@@ -35,6 +35,8 @@ const base: ProviderConfig = {
   perplexityChatModel: 'sonar',
   nvidiaApiKey: 'nvapi-test',
   nvidiaModel: 'openai/gpt-oss-120b',
+  huggingfaceApiKey: 'hf-test',
+  huggingfaceModel: 'deepseek-ai/DeepSeek-V4-Flash:novita',
 };
 
 /** Exactly one key set, so a provider's own `.complete()` tests never trigger a fallback. */
@@ -49,6 +51,8 @@ function only(provider: ProviderConfig['provider']): ProviderConfig {
     perplexityChatModel: 'sonar',
     nvidiaApiKey: provider === 'nvidia' ? 'nvapi-test' : undefined,
     nvidiaModel: 'openai/gpt-oss-120b',
+    huggingfaceApiKey: provider === 'huggingface' ? 'hf-test' : undefined,
+    huggingfaceModel: 'deepseek-ai/DeepSeek-V4-Flash:novita',
   };
 }
 
@@ -61,6 +65,7 @@ describe('resolveAiProvider', () => {
         anthropicModel: 'claude-opus-4-8',
         perplexityChatModel: 'sonar',
         nvidiaModel: 'openai/gpt-oss-120b',
+        huggingfaceModel: 'deepseek-ai/DeepSeek-V4-Flash:novita',
       }),
     ).toBeNull();
   });
@@ -70,6 +75,7 @@ describe('resolveAiProvider', () => {
     expect(resolveAiProvider(only('anthropic'))?.name).toBe('anthropic');
     expect(resolveAiProvider(only('perplexity'))?.name).toBe('perplexity');
     expect(resolveAiProvider(only('nvidia'))?.name).toBe('nvidia');
+    expect(resolveAiProvider(only('huggingface'))?.name).toBe('huggingface');
   });
 
   it('falls back to a configured provider when the preferred one has no key', () => {
@@ -205,6 +211,42 @@ describe('NVIDIA provider', () => {
 
   it('maps a non-2xx to a transient AiError without echoing the body', async () => {
     const provider = resolveAiProvider(only('nvidia'))!;
+    const error = await provider
+      .complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'secret question' }],
+        fetchImpl: capture({ error: 'the prompt echoed back' }, 429),
+      })
+      .catch((e: Error) => e);
+
+    expect(error).toBeInstanceOf(AiError);
+    expect(String(error)).not.toContain('secret question');
+    expect(String(error)).not.toContain('the prompt echoed back');
+  });
+});
+
+describe('Hugging Face provider', () => {
+  it('sends the system prompt as the first message and reads the reply, OpenAI-shaped', async () => {
+    let seenUrl = '';
+    let seenBody: Record<string, unknown> = {};
+    const provider = resolveAiProvider(only('huggingface'))!;
+
+    const { text } = await provider.complete({
+      system: 'You are Kloyya.',
+      messages: [{ role: 'user', content: 'Hi' }],
+      fetchImpl: capture({ choices: [{ message: { content: 'Hello from Hugging Face.' } }] }, 200, (url, init) => {
+        seenUrl = url;
+        seenBody = JSON.parse(String(init?.body));
+      }),
+    });
+
+    expect(text).toBe('Hello from Hugging Face.');
+    expect(seenUrl).toContain('router.huggingface.co');
+    expect((seenBody['messages'] as { role: string }[])[0]).toMatchObject({ role: 'system' });
+  });
+
+  it('maps a non-2xx to a transient AiError without echoing the body', async () => {
+    const provider = resolveAiProvider(only('huggingface'))!;
     const error = await provider
       .complete({
         system: 's',

@@ -68,6 +68,8 @@ export const POST = kasRoute('verified', async (req, ctx) => {
     perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
     nvidiaApiKey: config.NVIDIA_API_KEY,
     nvidiaModel: config.NVIDIA_MODEL,
+    huggingfaceApiKey: config.HUGGINGFACE_API_KEY,
+    huggingfaceModel: config.HUGGINGFACE_MODEL,
   });
 
   // Null when no search key is configured, in which case Ask Kloyya answers

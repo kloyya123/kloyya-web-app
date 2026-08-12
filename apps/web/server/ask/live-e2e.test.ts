@@ -38,8 +38,12 @@ describe.skipIf(!RUN)('Ask Kloyya, live against real providers', () => {
 
     const provider = resolveAiProvider({
       provider:
-        (process.env['AI_PROVIDER'] as 'openai' | 'anthropic' | 'perplexity' | 'nvidia') ??
-        'perplexity',
+        (process.env['AI_PROVIDER'] as
+          | 'openai'
+          | 'anthropic'
+          | 'perplexity'
+          | 'nvidia'
+          | 'huggingface') ?? 'perplexity',
       openaiApiKey: process.env['OPENAI_API_KEY'],
       openaiModel: process.env['OPENAI_MODEL'] ?? 'gpt-4o-mini',
       anthropicApiKey: process.env['ANTHROPIC_API_KEY'],
@@ -48,6 +52,8 @@ describe.skipIf(!RUN)('Ask Kloyya, live against real providers', () => {
       perplexityChatModel: process.env['PERPLEXITY_CHAT_MODEL'] ?? 'sonar',
       nvidiaApiKey: process.env['NVIDIA_API_KEY'],
       nvidiaModel: process.env['NVIDIA_MODEL'] ?? 'openai/gpt-oss-120b',
+      huggingfaceApiKey: process.env['HUGGINGFACE_API_KEY'],
+      huggingfaceModel: process.env['HUGGINGFACE_MODEL'] ?? 'deepseek-ai/DeepSeek-V4-Flash:novita',
     });
     expect(provider, 'no AI provider configured').not.toBeNull();
 

@@ -40,6 +40,8 @@ export const GET = kasRoute('verified', async (_req, ctx) => {
     perplexityChatModel: config.PERPLEXITY_CHAT_MODEL,
     nvidiaApiKey: config.NVIDIA_API_KEY,
     nvidiaModel: config.NVIDIA_MODEL,
+    huggingfaceApiKey: config.HUGGINGFACE_API_KEY,
+    huggingfaceModel: config.HUGGINGFACE_MODEL,
   });
 
   const briefing = await getBriefing(ctx.db, start, provider, id);

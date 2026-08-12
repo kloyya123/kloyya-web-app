@@ -47,3 +47,6 @@ skills-lock.json
 .env
 .env.*
 !.env.example
+
+# foglamp codebase-scan (contains an edit token — never commit)
+.foglamp/
