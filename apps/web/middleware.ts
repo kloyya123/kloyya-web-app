@@ -39,6 +39,9 @@ const PUBLIC_ROUTES = [
   '/login',
   '/signup',
   '/forgot-password',
+  // The password-recovery email link lands here before any session exists —
+  // see app/auth/confirm/route.ts, which is what actually establishes one.
+  '/auth/confirm',
   '/privacy',
   '/terms',
   '/trust-center',
