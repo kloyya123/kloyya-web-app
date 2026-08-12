@@ -35,7 +35,7 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
 
   useEffect(() => {
     setBreachCount(null);
-    if (password.length < 12) return;
+    if (password.length < 8) return;
     const timer = setTimeout(() => {
       pwnedPasswordCount(password)
         .then(setBreachCount)

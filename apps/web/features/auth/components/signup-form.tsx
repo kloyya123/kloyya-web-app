@@ -107,7 +107,7 @@ export function SignUpForm() {
 
           <FormField
             label="Password"
-            description="At least 12 characters, with a mix of letters and numbers."
+            description="At least 8 characters, with a mix of letters and numbers."
             error={errors.password?.message}
             isRequired
           >

@@ -16,7 +16,7 @@ const email = z
   .transform((value) => value.trim().toLowerCase());
 
 /**
- * 12 characters minimum, plus at least one letter and one digit.
+ * 8 characters minimum, plus at least one letter and one digit.
  *
  * NIST SP 800-63B still argues against forced symbol/case rules — they push
  * people toward `Password1!` and a sticky note, not real strength. A single
@@ -25,7 +25,7 @@ const email = z
  */
 const password = z
   .string()
-  .min(12, 'Use at least 12 characters.')
+  .min(8, 'Use at least 8 characters.')
   .max(128, 'That password is too long.')
   .regex(/(?=.*[A-Za-z])(?=.*\d)/, 'Use a mix of letters and numbers.');
 
