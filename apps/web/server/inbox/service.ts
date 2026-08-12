@@ -125,7 +125,8 @@ function toThread(row: SyncedMessageRow, ctx: StartContext): { thread: EmailThre
  * newest-fetched first, so the first message seen for a given thread is its
  * most recent and wins; older messages in the same thread are dropped.
  */
-async function loadThreads(db: AppDb, ctx: StartContext): Promise<EmailThread[]> {
+/** Exported for server/search/service.ts — search indexes the same real threads. */
+export async function loadThreads(db: AppDb, ctx: StartContext): Promise<EmailThread[]> {
   const rows = await withTenantScope(db, ctx.organizationId, (tx) =>
     tx
       .select({

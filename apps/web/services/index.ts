@@ -30,6 +30,7 @@ import { MockProjectService } from './projects/mock-project-service';
 import { HttpProjectService } from './projects/http-project-service';
 import type { ProjectService } from './projects/types';
 import { MockSearchService } from './search/mock-search-service';
+import { HttpSearchService } from './search/http-search-service';
 import type { SearchService } from './search/types';
 import { MockMeetingService } from './meetings/mock-meeting-service';
 import { HttpMeetingService } from './meetings/http-meeting-service';
@@ -47,6 +48,7 @@ import { MockOrganizationService } from './organization/mock-organization-servic
 import { HttpOrganizationService } from './organization/http-organization-service';
 import type { OrganizationService } from './organization/types';
 import { MockSourcesService } from './sources/mock-sources-service';
+import { HttpSourcesService } from './sources/http-sources-service';
 import type { SourcesService } from './sources/types';
 import { MockTaskService } from './tasks/mock-task-service';
 import { HttpTaskService } from './tasks/http-task-service';
@@ -95,11 +97,12 @@ export interface Services {
  * so the demo, the test suite, and anyone without a running API keep the mock
  * layer — the 527 tests stay green because they never touch this branch.
  *
- * Only the services with a real backend are switched; the rest (knowledge,
- * search, sources) have no API yet and stay on the mock until their phases
- * land. Mixing is fine on purpose: a page reading real auth and mock search
- * is exactly the incremental cut-over the frontend-first architecture was
- * built to allow.
+ * Only the services with a real backend are switched; `knowledge` alone has
+ * no API yet — it needs a real entity/relationship extraction pipeline, not
+ * just a data-source swap — and stays on the mock until that phase lands.
+ * Mixing is fine on purpose: a page reading real auth and mock knowledge is
+ * exactly the incremental cut-over the frontend-first architecture was built
+ * to allow.
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
@@ -128,10 +131,11 @@ export const services: Services = {
   notifications: USE_REAL_API ? new HttpNotificationService() : new MockNotificationService(),
   calendar: USE_REAL_API ? new HttpCalendarService() : new MockCalendarService(),
   meetings: USE_REAL_API ? new HttpMeetingService() : new MockMeetingService(),
-  // No backend yet — these land with their roadmap phases.
-  sources: new MockSourcesService(),
+  sources: USE_REAL_API ? new HttpSourcesService() : new MockSourcesService(),
+  search: USE_REAL_API ? new HttpSearchService() : new MockSearchService(),
+  // No backend yet — knowledge needs a real entity/relationship extraction
+  // pipeline (KOMGA/KARE), not just a data-source swap. See services/knowledge/types.ts.
   knowledge: new MockKnowledgeService(),
-  search: new MockSearchService(),
 };
 
 export type { AuthService } from './auth/types';
