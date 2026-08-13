@@ -228,13 +228,28 @@ function perplexityProvider(apiKey: string, model: string): AiProvider {
 }
 
 /**
+ * Extra `max_tokens` headroom reserved for `openai/gpt-oss-120b`'s internal
+ * reasoning trace on NVIDIA's hosted endpoint.
+ *
+ * This model is a "reasoning" model: it spends tokens thinking in a separate
+ * `reasoning_content` field BEFORE writing anything into `message.content`,
+ * and both draw from the same `max_tokens` budget. Measured against the live
+ * API: a two-word answer to "say hi" alone burned 46 tokens on reasoning —
+ * every caller in this codebase requests 200-900, all comfortably below
+ * that, so every one of them got `content: null` (the budget ran out mid-
+ * thought) and read as a total failure. This is added on top of whatever the
+ * caller asked for, so their intended answer-length budget is preserved.
+ */
+const NVIDIA_REASONING_HEADROOM = 1500;
+
+/**
  * NVIDIA's hosted inference API — OpenAI-compatible, so the request/response
  * shape is identical to `openaiProvider`; only the base URL, key, and model
- * differ. Kept as its own function rather than a parameterized "OpenAI-shaped"
- * helper, matching how `perplexityProvider` also reuses the same wire shape —
- * each vendor's own quirks (Perplexity's `disable_search`, here potentially a
- * different one later) have somewhere to live without reaching into a shared
- * function's internals.
+ * differ, plus the reasoning-budget handling above. Kept as its own function
+ * rather than a parameterized "OpenAI-shaped" helper, matching how
+ * `perplexityProvider` also reuses the same wire shape — each vendor's own
+ * quirks have somewhere to live without reaching into a shared function's
+ * internals.
  */
 function nvidiaProvider(apiKey: string, model: string): AiProvider {
   return {
@@ -250,7 +265,7 @@ function nvidiaProvider(apiKey: string, model: string): AiProvider {
         },
         body: JSON.stringify({
           model,
-          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+          max_tokens: (params.maxTokens ?? DEFAULT_MAX_TOKENS) + NVIDIA_REASONING_HEADROOM,
           messages: [
             { role: 'system', content: params.system },
             ...params.messages,
@@ -263,10 +278,16 @@ function nvidiaProvider(apiKey: string, model: string): AiProvider {
       }
 
       const body = (await response.json()) as {
-        choices?: { message?: { content?: string } }[];
+        choices?: { message?: { content?: string; reasoning_content?: string } }[];
       };
-      const text = body.choices?.[0]?.message?.content;
-      if (typeof text !== 'string') throw new AiError('NVIDIA returned no message.');
+      // Fall back to the reasoning trace itself if the final answer never got
+      // written — a truncated-but-real answer beats treating this as a total
+      // failure, and the reasoning trace's own final sentence is usually it.
+      const text =
+        body.choices?.[0]?.message?.content ?? body.choices?.[0]?.message?.reasoning_content;
+      if (typeof text !== 'string' || text.trim().length === 0) {
+        throw new AiError('NVIDIA returned no message.');
+      }
       return { text };
     },
   };

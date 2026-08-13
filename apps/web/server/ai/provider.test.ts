@@ -209,6 +209,41 @@ describe('NVIDIA provider', () => {
     expect((seenBody['messages'] as { role: string }[])[0]).toMatchObject({ role: 'system' });
   });
 
+  it('asks for extra headroom on top of the caller\'s budget, for the reasoning trace', async () => {
+    let seenBody: Record<string, unknown> = {};
+    const provider = resolveAiProvider(only('nvidia'))!;
+
+    await provider.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'q' }],
+      maxTokens: 400,
+      fetchImpl: capture({ choices: [{ message: { content: 'ok' } }] }, 200, (_url, init) => {
+        seenBody = JSON.parse(String(init?.body));
+      }),
+    });
+
+    // 400 requested + the fixed reasoning headroom this provider adds.
+    expect(seenBody['max_tokens']).toBe(400 + 1500);
+  });
+
+  it('falls back to the reasoning trace when the model never wrote a final answer', async () => {
+    // openai/gpt-oss-120b, live: with too little budget, `content` comes back
+    // null while `reasoning_content` holds real text — this is exactly the
+    // shape that made every real Ask/briefing/summary call fail as "no
+    // message" until the fallback below was added.
+    const provider = resolveAiProvider(only('nvidia'))!;
+
+    const { text } = await provider.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'q' }],
+      fetchImpl: capture({
+        choices: [{ message: { content: null, reasoning_content: 'Probably "Hi".' } }],
+      }),
+    });
+
+    expect(text).toBe('Probably "Hi".');
+  });
+
   it('maps a non-2xx to a transient AiError without echoing the body', async () => {
     const provider = resolveAiProvider(only('nvidia'))!;
     const error = await provider
