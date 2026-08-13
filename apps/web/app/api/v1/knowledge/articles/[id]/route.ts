@@ -8,6 +8,10 @@ import { errors } from '@server/http/errors';
 import { getArticle } from '@server/knowledge/service';
 import { resolveStartContext } from '@server/tenant';
 
+// A summary is a real model call when one isn't cached yet — same reasoning
+// as the list route.
+export const maxDuration = 60;
+
 const idParam = z.string().uuid('That is not an article id.');
 
 export const GET = kasRoute('verified', async (_req, ctx) => {

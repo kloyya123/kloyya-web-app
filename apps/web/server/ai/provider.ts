@@ -82,6 +82,34 @@ const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const HUGGINGFACE_URL = 'https://router.huggingface.co/v1/chat/completions';
 const DEFAULT_MAX_TOKENS = 1024;
 
+/**
+ * Every provider call gets a hard deadline well under Vercel's 60s function
+ * limit (see `maxDuration` on each route that calls this). Left unbounded, a
+ * slow model host runs the request out past the platform's own timeout,
+ * which kills the function mid-flight and hands the browser a non-JSON
+ * response it can't parse — the "Kloyya received a response it could not
+ * read" failure. Timing out here instead means our own code is still the one
+ * answering, with a clean `AiError` the route turns into real JSON.
+ */
+const PROVIDER_TIMEOUT_MS = 45_000;
+
+/** Wraps a provider's fetch with the shared deadline above. */
+async function timedFetch(
+  doFetch: typeof fetch,
+  url: string,
+  init: RequestInit,
+  providerName: string,
+): Promise<Response> {
+  try {
+    return await doFetch(url, { ...init, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) });
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new AiError(`${providerName} did not respond within ${PROVIDER_TIMEOUT_MS / 1000}s.`);
+    }
+    throw error;
+  }
+}
+
 /** OpenAI chat completions. The system prompt rides as the first message. */
 function openaiProvider(apiKey: string, model: string): AiProvider {
   return {
@@ -89,21 +117,26 @@ function openaiProvider(apiKey: string, model: string): AiProvider {
     model,
     async complete(params) {
       const doFetch = params.fetchImpl ?? fetch;
-      const response = await doFetch(OPENAI_URL, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          'content-type': 'application/json',
+      const response = await timedFetch(
+        doFetch,
+        OPENAI_URL,
+        {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+            messages: [
+              { role: 'system', content: params.system },
+              ...params.messages,
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
-          messages: [
-            { role: 'system', content: params.system },
-            ...params.messages,
-          ],
-        }),
-      });
+        'OpenAI',
+      );
 
       if (!response.ok) {
         // Never echo the body — it can carry the prompt and, on some errors, the
@@ -128,20 +161,25 @@ function anthropicProvider(apiKey: string, model: string): AiProvider {
     model,
     async complete(params) {
       const doFetch = params.fetchImpl ?? fetch;
-      const response = await doFetch(ANTHROPIC_URL, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
+      const response = await timedFetch(
+        doFetch,
+        ANTHROPIC_URL,
+        {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+            system: params.system,
+            messages: params.messages,
+          }),
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
-          system: params.system,
-          messages: params.messages,
-        }),
-      });
+        'Anthropic',
+      );
 
       if (!response.ok) {
         throw new AiError(`Anthropic request failed (HTTP ${response.status}).`);
@@ -197,20 +235,25 @@ function perplexityProvider(apiKey: string, model: string): AiProvider {
     model,
     async complete(params) {
       const doFetch = params.fetchImpl ?? fetch;
-      const response = await doFetch(PERPLEXITY_URL, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          'content-type': 'application/json',
+      const response = await timedFetch(
+        doFetch,
+        PERPLEXITY_URL,
+        {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+            disable_search: true,
+            // OpenAI-compatible shape: the system prompt is the first message.
+            messages: [{ role: 'system', content: params.system }, ...params.messages],
+          }),
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
-          disable_search: true,
-          // OpenAI-compatible shape: the system prompt is the first message.
-          messages: [{ role: 'system', content: params.system }, ...params.messages],
-        }),
-      });
+        'Perplexity',
+      );
 
       if (!response.ok) {
         throw new AiError(`Perplexity request failed (HTTP ${response.status}).`);
@@ -239,6 +282,10 @@ function perplexityProvider(apiKey: string, model: string): AiProvider {
  * that, so every one of them got `content: null` (the budget ran out mid-
  * thought) and read as a total failure. This is added on top of whatever the
  * caller asked for, so their intended answer-length budget is preserved.
+ *
+ * Kept as a safety net alongside `reasoning_effort: 'low'` below, not instead
+ * of it — if NVIDIA's endpoint ever ignores that field, this still stops the
+ * null-content failure; it just costs more latency doing it.
  */
 const NVIDIA_REASONING_HEADROOM = 1500;
 
@@ -250,6 +297,13 @@ const NVIDIA_REASONING_HEADROOM = 1500;
  * `perplexityProvider` also reuses the same wire shape — each vendor's own
  * quirks have somewhere to live without reaching into a shared function's
  * internals.
+ *
+ * `reasoning_effort: 'low'` (a gpt-oss-specific field NVIDIA's endpoint
+ * passes through) is the actual fix for this model's latency, not just its
+ * token budget: left at its default, "say hi" with a 600-token ceiling took
+ * 37.6s end to end on the live API — comfortably able to blow past every
+ * route's `maxDuration` once real questions need real reasoning. Low effort
+ * cuts how much the model thinks before answering.
  */
 function nvidiaProvider(apiKey: string, model: string): AiProvider {
   return {
@@ -257,21 +311,27 @@ function nvidiaProvider(apiKey: string, model: string): AiProvider {
     model,
     async complete(params) {
       const doFetch = params.fetchImpl ?? fetch;
-      const response = await doFetch(NVIDIA_URL, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          'content-type': 'application/json',
+      const response = await timedFetch(
+        doFetch,
+        NVIDIA_URL,
+        {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: (params.maxTokens ?? DEFAULT_MAX_TOKENS) + NVIDIA_REASONING_HEADROOM,
+            reasoning_effort: 'low',
+            messages: [
+              { role: 'system', content: params.system },
+              ...params.messages,
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: (params.maxTokens ?? DEFAULT_MAX_TOKENS) + NVIDIA_REASONING_HEADROOM,
-          messages: [
-            { role: 'system', content: params.system },
-            ...params.messages,
-          ],
-        }),
-      });
+        'NVIDIA',
+      );
 
       if (!response.ok) {
         throw new AiError(`NVIDIA request failed (HTTP ${response.status}).`);
@@ -305,21 +365,26 @@ function huggingfaceProvider(apiKey: string, model: string): AiProvider {
     model,
     async complete(params) {
       const doFetch = params.fetchImpl ?? fetch;
-      const response = await doFetch(HUGGINGFACE_URL, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          'content-type': 'application/json',
+      const response = await timedFetch(
+        doFetch,
+        HUGGINGFACE_URL,
+        {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+            messages: [
+              { role: 'system', content: params.system },
+              ...params.messages,
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
-          messages: [
-            { role: 'system', content: params.system },
-            ...params.messages,
-          ],
-        }),
-      });
+        'Hugging Face',
+      );
 
       if (!response.ok) {
         throw new AiError(`Hugging Face request failed (HTTP ${response.status}).`);

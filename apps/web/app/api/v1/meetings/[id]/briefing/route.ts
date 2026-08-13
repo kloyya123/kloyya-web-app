@@ -9,6 +9,10 @@ import { checkRateLimit } from '@server/http/rate-limit';
 import { getBriefing } from '@server/meetings/service';
 import { resolveStartContext } from '@server/tenant';
 
+// Generation is a real model call the first time it isn't cached — same
+// budget as Ask Kloyya's own route.
+export const maxDuration = 60;
+
 const idParam = z.string().min(1, 'That is not a meeting id.');
 
 export const GET = kasRoute('verified', async (_req, ctx) => {

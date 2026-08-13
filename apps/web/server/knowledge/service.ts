@@ -33,6 +33,17 @@ import type { ArticleDetail, ArticleFilter, ArticleList, KnowledgeGraph } from '
 const EXCERPT_CHARS = 240;
 const AI_GENERATED_CONFIDENCE = 80;
 const EXCERPT_FALLBACK_CONFIDENCE = 20;
+/**
+ * How many uncached summaries a single `listArticles` call will generate.
+ *
+ * Each one is a real, serial model call — with NVIDIA's hosted model, tens of
+ * seconds apiece. A workspace with several freshly uploaded documents would
+ * otherwise summarize all of them in one request and blow well past the
+ * route's own `maxDuration`. This is read-through/cached (see module doc), so
+ * capping it here only defers the rest to the next load rather than skipping
+ * them — the next call picks up where this one left off.
+ */
+const MAX_SUMMARIES_PER_LIST_CALL = 1;
 
 const CATEGORY_BY_MIME: Record<string, string> = {
   'application/pdf': 'PDF',
@@ -101,13 +112,16 @@ async function ensureSummaries(
   ctx: StartContext,
   rows: DocumentRow[],
   provider: AiProvider | null,
+  maxGenerations = Infinity,
 ): Promise<DocumentRow[]> {
   const result: DocumentRow[] = [];
+  let generations = 0;
   for (const row of rows) {
-    if (row.aiSummary !== null || row.extractedText.trim().length === 0) {
+    if (row.aiSummary !== null || row.extractedText.trim().length === 0 || generations >= maxGenerations) {
       result.push(row);
       continue;
     }
+    generations += 1;
 
     const generated = provider ? await summarize(provider, row.name, row.extractedText) : null;
     const aiSummary = generated ?? excerptOf(row.extractedText);
@@ -177,7 +191,13 @@ export async function listArticles(
   provider: AiProvider | null,
   filter?: ArticleFilter,
 ): Promise<ArticleList> {
-  const rows = await ensureSummaries(db, ctx, await loadDocumentRows(db, ctx), provider);
+  const rows = await ensureSummaries(
+    db,
+    ctx,
+    await loadDocumentRows(db, ctx),
+    provider,
+    MAX_SUMMARIES_PER_LIST_CALL,
+  );
   let articles = rows.map((row) => toArticle(row, ctx));
 
   if (filter?.category) articles = articles.filter((a) => a.category === filter.category);

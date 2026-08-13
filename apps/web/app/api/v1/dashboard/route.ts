@@ -18,6 +18,11 @@ import { resolveStartContext } from '@server/tenant';
  * configured, which the dashboard renders as no briefing rather than an error —
  * the same honest-empty contract as every other panel here.
  */
+// The first read of the day pays for a real model call (generateBriefing is
+// cached per day after that) — needs the same room as the other AI routes,
+// not the platform's short default.
+export const maxDuration = 60;
+
 export const GET = kasRoute('verified', async (_req, ctx) => {
   const start = await resolveStartContext(ctx.db, ctx.identity.id);
   if (!start) throw errors.notFound('User profile');

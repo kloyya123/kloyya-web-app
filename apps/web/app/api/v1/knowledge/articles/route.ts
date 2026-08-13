@@ -8,6 +8,11 @@ import { errors } from '@server/http/errors';
 import { listArticles } from '@server/knowledge/service';
 import { resolveStartContext } from '@server/tenant';
 
+// Summary generation is a real model call per unsummarized document (see
+// ensureSummaries in server/knowledge/service.ts) — this bounds it to the
+// route's own budget, matching ask/drafts/documents/cron below.
+export const maxDuration = 60;
+
 const listQuery = z.object({
   category: z.string().min(1).optional(),
   tag: z.string().min(1).optional(),
