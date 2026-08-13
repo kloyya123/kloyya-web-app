@@ -259,6 +259,12 @@ export function resolveWebSearch(config: WebSearchConfig): WebSearchProvider | n
  * Deliberately narrow. A false positive costs a needless search; a false
  * negative just means we answer from the user's own data, which is the safer
  * failure. Kept as whole-word patterns so "newsletter" does not read as "news".
+ *
+ * The second group is an explicit ask to look outside — naming a search
+ * engine, a video site, or the act of looking something up. When a user says
+ * "google this" or "check YouTube for", they've already told us the workspace
+ * isn't where the answer lives; second-guessing that with a record count would
+ * be worse than the wasted search a false positive costs.
  */
 const EXTERNAL_SIGNALS = [
   /\bcompetitors?\b/i,
@@ -273,10 +279,24 @@ const EXTERNAL_SIGNALS = [
   /\bbest practices?\b/i,
   /\bcompare\b/i,
   /\bregulations?\b/i,
+  /\bgoogle\b/i,
+  /\byoutube\b/i,
+  /\bonline\b/i,
+  /\bon the (?:internet|web)\b/i,
+  /\bsearch (?:the )?(?:web|internet|online)\b/i,
+  /\blook(?:ing)? (?:it |this |that )?up\b/i,
 ];
 
-/** Below this many workspace records, the workspace is treated as not covering it. */
-const THIN_WORKSPACE_THRESHOLD = 2;
+/**
+ * Below this many workspace records, the workspace is treated as not covering
+ * it. Kept intentionally generous rather than exact: a handful of records that
+ * merely matched the question's keywords in a full-text search are not the
+ * same as records that actually answer it, and there's no cheap way to tell
+ * the difference without a second model call — which is a real timeout risk
+ * on top of an already-slow provider (see server/ai/provider.ts). Erring
+ * toward "search anyway" here is what keeps that a rare, not typical, path.
+ */
+const THIN_WORKSPACE_THRESHOLD = 3;
 
 /**
  * Whether to reach outside the workspace for this question.

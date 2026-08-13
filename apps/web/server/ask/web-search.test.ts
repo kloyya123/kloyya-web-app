@@ -35,6 +35,24 @@ describe('shouldSearchWeb', () => {
     // Whole-word matching: substrings would send half the inbox to the web.
     expect(shouldSearchWeb('summarise my newsletters', 8)).toBe(false);
   });
+
+  it('goes outside when explicitly asked to, even with full workspace coverage', () => {
+    for (const question of [
+      'can you google this for me?',
+      'check youtube for a demo of this',
+      'find this online',
+      'search the web for their pricing page',
+      'look this up for me',
+    ]) {
+      expect(shouldSearchWeb(question, 8), question).toBe(true);
+    }
+  });
+
+  it('treats a handful of keyword-matched records as still-thin coverage', () => {
+    // A full-text match on the question's keywords isn't the same as an
+    // answer — erring toward search here is deliberate, see THIN_WORKSPACE_THRESHOLD.
+    expect(shouldSearchWeb('what did Dana say about hiring?', 2)).toBe(true);
+  });
 });
 
 describe('resolveWebSearch', () => {
