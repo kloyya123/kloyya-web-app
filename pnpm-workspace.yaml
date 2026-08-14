@@ -6,6 +6,7 @@ packages:
 # core-js's postinstall only prints a funding ad — nothing to build — so it is
 # skipped. The others are real native builds we need.
 allowBuilds:
+  '@sentry/cli': true # downloads the CLI binary used for source-map upload at build time
   core-js: false
   esbuild: true # vitest's bundler
   sharp: true # next/image optimization

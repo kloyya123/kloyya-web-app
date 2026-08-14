@@ -194,6 +194,15 @@ const schema = z.object({
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   /** The `mailto:` or URL a push service can use to contact us about this key, per the VAPID spec. */
   VAPID_SUBJECT: z.string().min(1).default('mailto:contactsupport@kloyya.com'),
+
+  /**
+   * Error tracking (Sentry). A DSN is not a secret — it only lets a client
+   * *send* events, never read them — so it is `NEXT_PUBLIC_`, read directly by
+   * the browser, edge, and server Sentry configs alike. Same degrade-honestly
+   * shape as every other optional integration here: unset means Sentry's own
+   * SDK no-ops, not that anything here has to branch on its presence.
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof schema>;
