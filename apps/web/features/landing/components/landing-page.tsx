@@ -68,12 +68,15 @@ export function SiteHeader() {
           </Link>
         </nav>
 
-        {/* Sign in / Get Started both lead straight to Supabase auth — the
-            beta gate in middleware.ts decides what happens next, not this
-            button. An allowed email lands in the product; anyone else is
-            redirected to /#waitlist the moment they'd otherwise reach the
-            app. That gate is the single source of truth for who gets in, so
-            this header never needs its own copy of that logic. */}
+        {/* "Sign in" is for people already approved — /login goes straight to
+            Supabase auth, and the beta gate in middleware.ts decides what
+            happens next (an allowed email lands in the product; anyone else
+            is redirected to /#waitlist). The primary button is deliberately
+            NOT /signup: during the private beta, signing up only to be
+            bounced back here is a worse first impression than asking for an
+            email up front. It scrolls to the same WaitlistForm the closing
+            section uses, so there is exactly one place that writes to the
+            waitlist table. */}
         <div className="flex items-center gap-3 sm:gap-5">
           <Link
             href="/login"
@@ -82,9 +85,9 @@ export function SiteHeader() {
             <NavLinkLabel>Sign in</NavLinkLabel>
           </Link>
           <Button asChild size="md" className="rounded-full">
-            <Link href="/signup">
-              <NavLinkLabel>Get Started</NavLinkLabel>
-            </Link>
+            <a href="#waitlist">
+              <NavLinkLabel>Join the beta</NavLinkLabel>
+            </a>
           </Button>
         </div>
       </div>
@@ -121,17 +124,17 @@ function Hero() {
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="rounded-full px-7">
-              <Link href="/signup">
-                <NavLinkLabel>Get Started</NavLinkLabel>
+              <a href="#waitlist">
+                <NavLinkLabel>Join the beta</NavLinkLabel>
                 <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
+              </a>
             </Button>
-            <a
-              href="#waitlist"
+            <Link
+              href="/login"
               className="text-small text-[var(--landing-ink-soft)] underline underline-offset-4 hover:text-[var(--landing-ink)]"
             >
-              or join the waitlist
-            </a>
+              already approved? sign in
+            </Link>
           </div>
         </div>
 
