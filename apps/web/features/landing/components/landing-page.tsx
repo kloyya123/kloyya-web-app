@@ -68,12 +68,22 @@ export function SiteHeader() {
           </Link>
         </nav>
 
-        {/* No "Sign in" here on purpose: approved testers get a direct link by
-            email (see packages/db/scripts/send-beta-invite.ts), so this header
-            has one job during the private beta — collect an email. It scrolls
-            to the same WaitlistForm the closing section uses, so there is
-            exactly one place that writes to the waitlist table. */}
+        {/* "Sign in" is for people already approved — /login goes straight to
+            Supabase auth, and the beta gate in middleware.ts decides what
+            happens next (an allowed email lands in the product; anyone else
+            is redirected to /#waitlist). The primary button is deliberately
+            NOT /signup: during the private beta, signing up only to be
+            bounced back here is a worse first impression than asking for an
+            email up front. It scrolls to the same WaitlistForm the closing
+            section uses, so there is exactly one place that writes to the
+            waitlist table. */}
         <div className="flex items-center gap-3 sm:gap-5">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 text-small whitespace-nowrap text-[var(--landing-ink-soft)] hover:text-[var(--landing-ink)]"
+          >
+            <NavLinkLabel>Sign in</NavLinkLabel>
+          </Link>
           <Button asChild size="md" className="rounded-full">
             <a href="#waitlist">
               <NavLinkLabel>Join the beta</NavLinkLabel>
@@ -119,6 +129,12 @@ function Hero() {
                 <ArrowRight aria-hidden="true" className="size-4" />
               </a>
             </Button>
+            <Link
+              href="/login"
+              className="text-small text-[var(--landing-ink-soft)] underline underline-offset-4 hover:text-[var(--landing-ink)]"
+            >
+              already approved? sign in
+            </Link>
           </div>
         </div>
 
