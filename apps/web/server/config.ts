@@ -1,132 +1,309 @@
 import 'server-only';
+
 import { z } from 'zod';
 
-/**
- * Validated server environment.
- *
- * The process refuses to start if a required variable is missing or malformed —
- * a misconfigured server should fail loudly, not silently at the first request
- * that needs the missing value. Everything server code reads from the
- * environment passes through here; nothing reads `process.env` directly.
- *
- * Ported from the retired Fastify API. Dropped: API_PORT, CORS_ALLOWED_ORIGINS,
- * LOG_LEVEL, BETTER_AUTH_SECRET, BETTER_AUTH_URL — meaningless once there is no
- * standalone server, no cross-origin browser, and no Better Auth. WEB_APP_URL
- * became APP_URL: there is only one app now, and it names itself, not "the web
- * app" as seen from a separate API.
- */
-const schema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+const baseSchema = z.object({
+  NODE_ENV: z
+    .enum([
+      'development',
+      'test',
+      'production',
+    ])
+    .default('development'),
 
   DATABASE_URL: z.string().url().optional(),
   DIRECT_URL: z.string().url().optional(),
+
   REDIS_URL: z.string().optional(),
 
-  // Supabase. NEXT_PUBLIC_SUPABASE_URL is also read by browser code; validated
-  // here too so a misconfigured deployment fails at boot, not at first request.
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  DOCUMENTS_BUCKET: z.string().min(1).default('documents'),
+  NEXT_PUBLIC_SUPABASE_URL:
+    z.string().url().optional(),
 
-  /**
-   * Encrypts customers' third-party OAuth tokens at rest.
-   *
-   * Validated here, at boot, rather than at the first connection: a key that
-   * decodes to the wrong length is a deployment mistake, and the moment to find
-   * out is on startup — not when someone is halfway through connecting Gmail.
-   */
+  NEXT_PUBLIC_SUPABASE_ANON_KEY:
+    z.string().min(1).optional(),
+
+  SUPABASE_SERVICE_ROLE_KEY:
+    z.string().min(1).optional(),
+
+  DOCUMENTS_BUCKET:
+    z.string().min(1).default('documents'),
+
   TOKEN_ENCRYPTION_KEY: z
     .string()
     .optional()
     .refine(
-      (value) => value === undefined || Buffer.from(value, 'base64').length === 32,
-      'TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64url\'))"',
+      (value) =>
+        value === undefined ||
+        Buffer.from(
+          value,
+          'base64',
+        ).length === 32,
+      'TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes.',
     ),
 
-  // Email (Resend). Optional so the app boots without it; when absent,
-  // verification email is Supabase's own (dashboard-configured) and invitation
-  // email is skipped with a clear log line rather than a crash.
-  RESEND_API_KEY: z.string().min(1).optional(),
-  EMAIL_FROM: z.string().min(1).default('Kloyya <onboarding@resend.dev>'),
-  /**
-   * The Resend audience the beta waiting list mirrors into. Optional: without
-   * it the list still records every signup in Postgres, it just cannot be
-   * mailed from Resend until the audience is configured.
-   */
-  RESEND_AUDIENCE_ID: z.string().min(1).optional(),
+  RESEND_API_KEY:
+    z.string().min(1).optional(),
 
-  // Where this app is reachable — invitation links and OAuth redirects point
-  // here. One app, one origin, so this is also the OAuth callback host.
-  APP_URL: z.string().url().default('http://localhost:3000'),
+  EMAIL_FROM:
+    z.string().min(1).default(
+      'Kloyya <onboarding@resend.dev>',
+    ),
 
-  // Google OAuth. Optional so the app boots without connectors; the connect
-  // endpoint refuses clearly when they're absent rather than producing a
-  // broken authorization URL.
-  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
-  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  GOOGLE_OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .default('http://localhost:3000/api/v1/integrations/oauth/google/callback'),
+  RESEND_AUDIENCE_ID:
+    z.string().min(1).optional(),
 
-  // Microsoft OAuth (Outlook mail + calendar via Graph). One Azure app, common
-  // authority. Optional for the same reason as Google's.
-  MICROSOFT_OAUTH_CLIENT_ID: z.string().min(1).optional(),
-  MICROSOFT_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  MICROSOFT_OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .default('http://localhost:3000/api/v1/integrations/oauth/microsoft/callback'),
+  APP_URL:
+    z.string().url().optional(),
 
-  // Notion OAuth (pages + databases via search). Its tokens never expire, so
-  // there is no refresh secret to rotate — just the client pair. The callback
-  // lives under /oauth/ so it can't collide with the `notion` integration id.
-  NOTION_OAUTH_CLIENT_ID: z.string().min(1).optional(),
-  NOTION_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  NOTION_OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .default('http://localhost:3000/api/v1/integrations/oauth/notion/callback'),
+  GOOGLE_OAUTH_CLIENT_ID:
+    z.string().min(1).optional(),
 
-  // AI (Ask Kloyya). Provider-neutral: AI_PROVIDER picks the default, and the
-  // selected provider's key powers it. Both keys are server-only and optional —
-  // absent, Ask Kloyya degrades to an honest "not configured" state.
-  AI_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
-  OPENAI_API_KEY: z.string().min(1).optional(),
-  OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-4-8'),
+  GOOGLE_OAUTH_CLIENT_SECRET:
+    z.string().min(1).optional(),
 
-  // Payments. Provider-neutral: 'none' is the beta scaffold (records the chosen
-  // plan, takes no money). Raw card data never touches this server either way.
-  PAYMENT_PROVIDER: z.enum(['none']).default('none'),
+  GOOGLE_OAUTH_REDIRECT_URI:
+    z.string().url().optional(),
 
-  // General API rate limit — requests per authenticated user per minute, a
-  // blunt abuse guard on every guarded route (the Ask per-day cap is a separate
-  // entitlement limit). `0` disables it. Coerced because env vars are strings.
-  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(120),
+  MICROSOFT_OAUTH_CLIENT_ID:
+    z.string().min(1).optional(),
+
+  MICROSOFT_OAUTH_CLIENT_SECRET:
+    z.string().min(1).optional(),
+
+  MICROSOFT_OAUTH_REDIRECT_URI:
+    z.string().url().optional(),
+
+  NOTION_OAUTH_CLIENT_ID:
+    z.string().min(1).optional(),
+
+  NOTION_OAUTH_CLIENT_SECRET:
+    z.string().min(1).optional(),
+
+  NOTION_OAUTH_REDIRECT_URI:
+    z.string().url().optional(),
+
+  AI_PROVIDER:
+    z.enum([
+      'openai',
+      'anthropic',
+    ]).default('openai'),
+
+  OPENAI_API_KEY:
+    z.string().min(1).optional(),
+
+  OPENAI_MODEL:
+    z.string().min(1).default(
+      'gpt-4o-mini',
+    ),
+
+  ANTHROPIC_API_KEY:
+    z.string().min(1).optional(),
+
+  ANTHROPIC_MODEL:
+    z.string().min(1).default(
+      'claude-opus-4-8',
+    ),
+
+  PAYMENT_PROVIDER:
+    z.enum(['none']).default('none'),
+
+  RATE_LIMIT_PER_MINUTE:
+    z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(120),
 });
 
-export type Config = z.infer<typeof schema>;
+export type Config =
+  z.infer<typeof baseSchema>;
 
 function load(): Config {
-  // An empty-string env var (KEY="" in .env, or a blank Vercel variable) is the
-  // same as unset — treat it that way so optional fields don't reject "" and
-  // defaults still apply. Without this, one blank optional var breaks boot.
   const cleaned = Object.fromEntries(
-    Object.entries(process.env).filter(([, value]) => value !== ''),
+    Object.entries(process.env).filter(
+      ([, value]) => value !== '',
+    ),
   );
-  const parsed = schema.safeParse(cleaned);
+
+  const parsed =
+    baseSchema.safeParse(cleaned);
+
   if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
-      .join('\n');
-    throw new Error(`Invalid environment configuration:\n${issues}`);
+    const issues =
+      parsed.error.issues
+        .map(
+          (issue) =>
+            `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`,
+        )
+        .join('\n');
+
+    throw new Error(
+      `Invalid environment configuration:\n${issues}`,
+    );
   }
-  return parsed.data;
+
+  const config = parsed.data;
+
+
+  if (config.NODE_ENV === 'production') {
+    const requiredProduction = {
+      DATABASE_URL:
+        config.DATABASE_URL,
+
+      NEXT_PUBLIC_SUPABASE_URL:
+        config.NEXT_PUBLIC_SUPABASE_URL,
+
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:
+        config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+
+      SUPABASE_SERVICE_ROLE_KEY:
+        config.SUPABASE_SERVICE_ROLE_KEY,
+
+      TOKEN_ENCRYPTION_KEY:
+        config.TOKEN_ENCRYPTION_KEY,
+
+      APP_URL:
+        config.APP_URL,
+    };
+
+    const missing = Object.entries(
+      requiredProduction,
+    )
+      .filter(
+        ([, value]) =>
+          value === undefined ||
+          value === '',
+      )
+      .map(([name]) => name);
+
+    if (missing.length > 0) {
+      throw new Error(
+        [
+          'Production environment is incomplete.',
+          '',
+          'Missing required variables:',
+          ...missing.map(
+            (name) => `  - ${name}`,
+          ),
+        ].join('\n'),
+      );
+    }
+
+    
+    const productionUrl =
+      new URL(config.APP_URL);
+
+    if (
+      productionUrl.hostname ===
+        'localhost' ||
+      productionUrl.hostname ===
+        '127.0.0.1' ||
+      productionUrl.hostname ===
+        '0.0.0.0'
+    ) {
+      throw new Error(
+        'APP_URL cannot point to localhost in production.',
+      );
+    }
+
+   
+    const oauthRedirects = [
+      [
+        'GOOGLE_OAUTH',
+        config.GOOGLE_OAUTH_CLIENT_ID,
+        config.GOOGLE_OAUTH_CLIENT_SECRET,
+        config.GOOGLE_OAUTH_REDIRECT_URI,
+      ],
+      [
+        'MICROSOFT_OAUTH',
+        config.MICROSOFT_OAUTH_CLIENT_ID,
+        config.MICROSOFT_OAUTH_CLIENT_SECRET,
+        config.MICROSOFT_OAUTH_REDIRECT_URI,
+      ],
+      [
+        'NOTION_OAUTH',
+        config.NOTION_OAUTH_CLIENT_ID,
+        config.NOTION_OAUTH_CLIENT_SECRET,
+        config.NOTION_OAUTH_REDIRECT_URI,
+      ],
+    ] as const;
+
+    for (
+      const [
+        provider,
+        clientId,
+        clientSecret,
+        redirectUri,
+      ] of oauthRedirects
+    ) {
+      const partiallyConfigured =
+        Boolean(clientId) ||
+        Boolean(clientSecret) ||
+        Boolean(redirectUri);
+
+      if (
+        partiallyConfigured &&
+        (!clientId ||
+          !clientSecret ||
+          !redirectUri)
+      ) {
+        throw new Error(
+          `${provider} OAuth configuration is incomplete.`,
+        );
+      }
+
+      if (redirectUri) {
+        const url =
+          new URL(redirectUri);
+
+        if (
+          url.hostname ===
+            'localhost' ||
+          url.hostname ===
+            '127.0.0.1'
+        ) {
+          throw new Error(
+            `${provider}_OAUTH_REDIRECT_URI cannot point to localhost in production.`,
+          );
+        }
+      }
+    }
+
+   
+    if (
+      config.AI_PROVIDER ===
+        'openai' &&
+      !config.OPENAI_API_KEY
+    ) {
+      throw new Error(
+        'OPENAI_API_KEY is required when AI_PROVIDER=openai in production.',
+      );
+    }
+
+    if (
+      config.AI_PROVIDER ===
+        'anthropic' &&
+      !config.ANTHROPIC_API_KEY
+    ) {
+      throw new Error(
+        'ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic in production.',
+      );
+    }
+
+    if (
+      config.PAYMENT_PROVIDER !==
+      'none'
+    ) {
+      throw new Error(
+        'Unsupported PAYMENT_PROVIDER.',
+      );
+    }
+  }
+
+  return config;
 }
 
-export const config: Config = load();
+export const config = load();
 
-export const isProduction = config.NODE_ENV === 'production';
+export const isProduction =
+  config.NODE_ENV === 'production';
