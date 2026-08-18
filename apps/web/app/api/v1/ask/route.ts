@@ -4,17 +4,10 @@ import { entitlementsFor, remaining } from '@kloyya/core';
 import { kasRoute } from '@server/http/handler';
 import { config } from '@server/config';
 import { ok } from '@server/http/envelope';
-import {
-  API_STATUS,
-  ApiError,
-  errors,
-} from '@server/http/errors';
+import { API_STATUS, ApiError, errors } from '@server/http/errors';
 import { resolveAiProvider } from '@server/ai/provider';
 import { ask } from '@server/ask/service';
-import {
-  reserveAskCount,
-  releaseAskCount,
-} from '@server/ask/usage';
+import { reserveAskCount, releaseAskCount } from '@server/ask/usage';
 import { readTier } from '@server/plan/tier';
 import { resolveStartContext } from '@server/tenant';
 
@@ -23,186 +16,118 @@ const askBody = z.object({
     .string()
     .trim()
     .min(1, 'Ask a question.')
-    .max(
-      1000,
-      'That question is too long.',
-    ),
+    .max(1000, 'That question is too long.'),
 });
 
 export const maxDuration = 60;
 
-export const POST = kasRoute(
-  'verified',
-  async (req, ctx) => {
-    const { question } =
-      askBody.parse(await req.json());
+export const POST = kasRoute('verified', async (req, ctx) => {
+  const { question } = askBody.parse(await req.json());
 
-    const start =
-      await resolveStartContext(
-        ctx.db,
-        ctx.identity.id,
-      );
+  const start = await resolveStartContext(ctx.db, ctx.identity.id);
 
-    if (!start) {
-      throw errors.notFound(
-        'User profile',
-      );
-    }
+  if (!start) {
+    throw errors.notFound('User profile');
+  }
 
-    const limit =
-      entitlementsFor(
-        await readTier(ctx.db, start),
-      ).askPerDay;
+  const limit = entitlementsFor(await readTier(ctx.db, start)).askPerDay;
 
+  const reservation = await reserveAskCount(ctx.db, start, limit);
 
-    const reservation =
-      await reserveAskCount(
-        ctx.db,
-        start,
-        limit,
-      );
+  if (!reservation.allowed) {
+    throw new ApiError({
+      httpStatus: API_STATUS.RateLimited,
+      errorCode: 'ask_limit_reached',
+      message: 'You’ve reached today’s Ask Kloyya limit.',
+      description:
+        `Your plan allows ${limit} questions a day. ` +
+        'It resets at midnight UTC.',
+      suggestedResolution:
+        'Try again tomorrow, or ask a broader question to cover more ground.',
+    });
+  }
 
-    if (!reservation.allowed) {
+  let releaseReservation = true;
+
+  try {
+    const provider = resolveAiProvider({
+      provider: config.AI_PROVIDER,
+      perplexityApiKey: config.PERPLEXITY_API_KEY,
+      perplexityModel: config.PERPLEXITY_MODEL,
+    });
+
+    if (!provider) {
+      // Log the real cause server-side only. Never surface the
+      // specific env var name or hosting provider to the client —
+      // that's internal infrastructure detail.
+      console.error('[ask] AI provider not configured', {
+        provider: config.AI_PROVIDER,
+        hasApiKey: Boolean(config.PERPLEXITY_API_KEY),
+      });
+
       throw new ApiError({
-        httpStatus:
-          API_STATUS.RateLimited,
-
-        errorCode:
-          'ask_limit_reached',
-
-        message:
-          'You’ve reached today’s Ask Kloyya limit.',
-
+        httpStatus: API_STATUS.ServiceUnavailable,
+        errorCode: 'ai_unconfigured',
+        message: 'Ask Kloyya is not configured on this server.',
         description:
-          `Your plan allows ${limit} questions a day. ` +
-          'It resets at midnight UTC.',
-
+          'The AI provider is missing required configuration.',
         suggestedResolution:
-          'Try again tomorrow, or ask a broader question to cover more ground.',
+          'This has been logged. Please contact support if it persists.',
       });
     }
 
-    let releaseReservation = true;
+    const outcome = await ask(ctx.db, start, question, provider);
 
-    try {
-  
-      const provider =
-        resolveAiProvider({
-          provider:
-            config.AI_PROVIDER,
-
-          perplexityApiKey:
-            config.PERPLEXITY_API_KEY,
-
-          perplexityModel:
-            config.PERPLEXITY_MODEL,
+    if (!outcome.ok) {
+      if (outcome.reason === 'not_configured') {
+        console.error('[ask] AI provider misconfigured', {
+          provider: provider.name,
+          model: provider.model,
         });
 
-      if (!provider) {
         throw new ApiError({
-          httpStatus:
-            API_STATUS.ServiceUnavailable,
-
-          errorCode:
-            'ai_unconfigured',
-
-          message:
-            'Ask Kloyya is not configured on this server.',
-
+          httpStatus: API_STATUS.ServiceUnavailable,
+          errorCode: 'ai_unconfigured',
+          message: 'Ask Kloyya is not configured on this server.',
           description:
-            'The Perplexity Sonar API key is missing.',
-
+            'The AI provider is not configured correctly.',
           suggestedResolution:
-            'Configure CLE_SONAR_API_KLOYYA2 in Vercel, then redeploy.',
+            'This has been logged. Please contact support if it persists.',
         });
       }
 
-      const outcome =
-        await ask(
-          ctx.db,
-          start,
-          question,
-          provider,
-        );
+      throw new ApiError({
+        httpStatus: API_STATUS.ServiceUnavailable,
+        errorCode: 'ai_unavailable',
+        message: 'Kloyya could not reach the AI model just now.',
+        description:
+          'The model host is temporarily unavailable or rate-limiting the request.',
+        suggestedResolution: 'Try again in a moment.',
+      });
+    }
 
-      if (!outcome.ok) {
-        if (
-          outcome.reason ===
-          'not_configured'
-        ) {
-          throw new ApiError({
-            httpStatus:
-              API_STATUS.ServiceUnavailable,
+    releaseReservation = false;
 
-            errorCode:
-              'ai_unconfigured',
-
-            message:
-              'Ask Kloyya is not configured on this server.',
-
-            description:
-              'The Perplexity Sonar provider is not configured correctly.',
-
-            suggestedResolution:
-              'Check CLE_SONAR_API_KLOYYA2 in Vercel and redeploy.',
-          });
-        }
-
-        throw new ApiError({
-          httpStatus:
-            API_STATUS.ServiceUnavailable,
-
-          errorCode:
-            'ai_unavailable',
-
-          message:
-            'Kloyya could not reach the AI model just now.',
-
-          description:
-            'Perplexity Sonar is temporarily unavailable or rate-limiting the request.',
-
-          suggestedResolution:
-            'Try again in a moment.',
-        });
-      }
-
-
-      releaseReservation = false;
-
-      return NextResponse.json(
-        ok(
-          {
-            ...outcome.result,
-
-            usage: {
-              used:
-                reservation.used,
-
-              limit,
-
-              remaining:
-                remaining(
-                  reservation.used,
-                  limit,
-                ),
-            },
+    return NextResponse.json(
+      ok(
+        {
+          ...outcome.result,
+          usage: {
+            used: reservation.used,
+            limit,
+            remaining: remaining(reservation.used, limit),
           },
-          ctx.correlationId,
-        ),
-      );
-    } finally {
-
-      if (releaseReservation) {
-        try {
-          await releaseAskCount(
-            ctx.db,
-            start,
-            reservation.day,
-          );
-        } catch {
-
-        }
+        },
+        ctx.correlationId,
+      ),
+    );
+  } finally {
+    if (releaseReservation) {
+      try {
+        await releaseAskCount(ctx.db, start, reservation.day);
+      } catch {
+        // Keep the quota consumed if the refund fails.
       }
     }
-  },
-);
+  }
+});
