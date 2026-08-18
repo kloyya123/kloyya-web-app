@@ -7,7 +7,7 @@ import type { StartContext } from '../integrations/connect';
 export interface AskReservation {
   allowed: boolean;
   used: number;
-  limit: number;
+  limit: number | null;
   day: string;
 }
 
@@ -30,32 +30,22 @@ export async function getAskCountToday(
 ): Promise<number> {
   const day = utcDay(now);
 
-  return withTenantScope(
-    db,
-    ctx.organizationId,
-    async (tx) => {
-      const [row] = await tx
-        .select({
-          count: askUsage.count,
-        })
-        .from(askUsage)
-        .where(
-          and(
-            eq(
-              askUsage.workspaceId,
-              ctx.workspaceId,
-            ),
-            eq(
-              askUsage.day,
-              day,
-            ),
-          ),
-        )
-        .limit(1);
+  return withTenantScope(db, ctx.organizationId, async (tx) => {
+    const [row] = await tx
+      .select({
+        count: askUsage.count,
+      })
+      .from(askUsage)
+      .where(
+        and(
+          eq(askUsage.workspaceId, ctx.workspaceId),
+          eq(askUsage.day, day),
+        ),
+      )
+      .limit(1);
 
-      return row?.count ?? 0;
-    },
-  );
+    return row?.count ?? 0;
+  });
 }
 
 /**
@@ -74,15 +64,29 @@ export async function getAskCountToday(
  *
  * With this function, PostgreSQL performs the increment
  * atomically and we check the resulting value.
+ *
+ * `limit === null` represents an unlimited (e.g. Pro) plan and
+ * always succeeds without touching the usage row.
  */
 export async function reserveAskCount(
   db: AppDb,
   ctx: StartContext,
-  limit: number,
+  limit: number | null,
   now = new Date(),
 ): Promise<AskReservation> {
   const day = utcDay(now);
 
+  // Pro / unlimited.
+  if (limit === null) {
+    return {
+      allowed: true,
+      used: 0,
+      limit: null,
+      day,
+    };
+  }
+
+  // No questions allowed.
   if (limit <= 0) {
     return {
       allowed: false,
@@ -92,55 +96,36 @@ export async function reserveAskCount(
     };
   }
 
-  return withTenantScope(
-    db,
-    ctx.organizationId,
-    async (tx) => {
-      const [row] = await tx
-        .insert(askUsage)
-        .values({
-          organizationId:
-            ctx.organizationId,
-
-          workspaceId:
-            ctx.workspaceId,
-
-          day,
-
-          count: 1,
-        })
-        .onConflictDoUpdate({
-          target: [
-            askUsage.workspaceId,
-            askUsage.day,
-          ],
-
-          /**
-           * Atomic increment.
-           *
-           * PostgreSQL evaluates this expression
-           * against the current database value.
-           */
-          set: {
-            count:
-              sql`${askUsage.count} + 1`,
-          },
-        })
-        .returning({
-          count: askUsage.count,
-        });
-
-      const used =
-        row?.count ?? 1;
-
-      return {
-        allowed: used <= limit,
-        used,
-        limit,
+  return withTenantScope(db, ctx.organizationId, async (tx) => {
+    const [row] = await tx
+      .insert(askUsage)
+      .values({
+        organizationId: ctx.organizationId,
+        workspaceId: ctx.workspaceId,
         day,
-      };
-    },
-  );
+        count: 1,
+      })
+      .onConflictDoUpdate({
+        target: [askUsage.workspaceId, askUsage.day],
+        // Atomic increment. PostgreSQL evaluates this expression
+        // against the current database value.
+        set: {
+          count: sql`${askUsage.count} + 1`,
+        },
+      })
+      .returning({
+        count: askUsage.count,
+      });
+
+    const used = row?.count ?? 1;
+
+    return {
+      allowed: used <= limit,
+      used,
+      limit,
+      day,
+    };
+  });
 }
 
 /**
@@ -154,31 +139,24 @@ export async function releaseAskCount(
   ctx: StartContext,
   day: string,
 ): Promise<void> {
-  await withTenantScope(
-    db,
-    ctx.organizationId,
-    async (tx) => {
-      await tx
-        .update(askUsage)
-        .set({
-          count: sql`
-            GREATEST(${askUsage.count} - 1, 0)
-          `,
-        })
-        .where(
-          and(
-            eq(
-              askUsage.workspaceId,
-              ctx.workspaceId,
-            ),
-            eq(
-              askUsage.day,
-              day,
-            ),
-          ),
-        );
-    },
-  );
+  await withTenantScope(db, ctx.organizationId, async (tx) => {
+    await tx
+      .update(askUsage)
+      .set({
+        count: sql`
+          GREATEST(
+            ${askUsage.count} - 1,
+            0
+          )
+        `,
+      })
+      .where(
+        and(
+          eq(askUsage.workspaceId, ctx.workspaceId),
+          eq(askUsage.day, day),
+        ),
+      );
+  });
 }
 
 /**
@@ -192,34 +170,20 @@ export async function incrementAskCount(
 ): Promise<void> {
   const day = utcDay(now);
 
-  await withTenantScope(
-    db,
-    ctx.organizationId,
-    async (tx) => {
-      await tx
-        .insert(askUsage)
-        .values({
-          organizationId:
-            ctx.organizationId,
-
-          workspaceId:
-            ctx.workspaceId,
-
-          day,
-
-          count: 1,
-        })
-        .onConflictDoUpdate({
-          target: [
-            askUsage.workspaceId,
-            askUsage.day,
-          ],
-
-          set: {
-            count:
-              sql`${askUsage.count} + 1`,
-          },
-        });
-    },
-  );
+  await withTenantScope(db, ctx.organizationId, async (tx) => {
+    await tx
+      .insert(askUsage)
+      .values({
+        organizationId: ctx.organizationId,
+        workspaceId: ctx.workspaceId,
+        day,
+        count: 1,
+      })
+      .onConflictDoUpdate({
+        target: [askUsage.workspaceId, askUsage.day],
+        set: {
+          count: sql`${askUsage.count} + 1`,
+        },
+      });
+  });
 }
