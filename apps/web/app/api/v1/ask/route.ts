@@ -51,17 +51,14 @@ export const POST = kasRoute('verified', async (req, ctx) => {
 
   try {
     const provider = resolveAiProvider({
-      provider: config.AI_PROVIDER,
+      provider: 'perplexity',
       perplexityApiKey: config.PERPLEXITY_API_KEY,
       perplexityModel: config.PERPLEXITY_MODEL,
     });
 
     if (!provider) {
-      // Log the real cause server-side only. Never surface the
-      // specific env var name or hosting provider to the client —
-      // that's internal infrastructure detail.
       console.error('[ask] AI provider not configured', {
-        provider: config.AI_PROVIDER,
+        provider: 'perplexity',
         hasApiKey: Boolean(config.PERPLEXITY_API_KEY),
       });
 
@@ -69,10 +66,9 @@ export const POST = kasRoute('verified', async (req, ctx) => {
         httpStatus: API_STATUS.ServiceUnavailable,
         errorCode: 'ai_unconfigured',
         message: 'Ask Kloyya is not configured on this server.',
-        description:
-          'The AI provider is missing required configuration.',
+        description: 'No Perplexity API key is configured.',
         suggestedResolution:
-          'This has been logged. Please contact support if it persists.',
+          'Set the Perplexity API key, then redeploy.',
       });
     }
 
@@ -89,8 +85,7 @@ export const POST = kasRoute('verified', async (req, ctx) => {
           httpStatus: API_STATUS.ServiceUnavailable,
           errorCode: 'ai_unconfigured',
           message: 'Ask Kloyya is not configured on this server.',
-          description:
-            'The AI provider is not configured correctly.',
+          description: 'The AI provider is not configured correctly.',
           suggestedResolution:
             'This has been logged. Please contact support if it persists.',
         });
