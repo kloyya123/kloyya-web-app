@@ -42,12 +42,10 @@ export const POST = kasRoute('verified', async (req, ctx) => {
   }
 
   const provider = resolveAiProvider({
-    provider: config.AI_PROVIDER,
-    openaiApiKey: config.OPENAI_API_KEY,
-    openaiModel: config.OPENAI_MODEL,
-    anthropicApiKey: config.ANTHROPIC_API_KEY,
-    anthropicModel: config.ANTHROPIC_MODEL,
-  });
+  provider: 'perplexity',
+  perplexityApiKey: config.PERPLEXITY_API_KEY,
+  perplexityModel: config.PERPLEXITY_MODEL,
+});
 
   const outcome = await ask(ctx.db, start, question, provider);
 
@@ -57,7 +55,7 @@ export const POST = kasRoute('verified', async (req, ctx) => {
         httpStatus: API_STATUS.ServiceUnavailable,
         errorCode: 'ai_unconfigured',
         message: 'Ask Kloyya is not set up on this server yet.',
-        description: `No API key is configured for the "${config.AI_PROVIDER}" provider.`,
+        description: 'No Perplexity API key is configured.',
         suggestedResolution: 'Set the provider’s API key, then redeploy.',
       });
     }
