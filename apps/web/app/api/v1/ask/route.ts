@@ -51,10 +51,12 @@ export const POST = kasRoute('verified', async (req, ctx) => {
 
   try {
     const provider = resolveAiProvider({
-      provider: 'perplexity',
-      perplexityApiKey: config.PERPLEXITY_API_KEY,
-      perplexityModel: config.PERPLEXITY_MODEL,
-    });
+  provider: 'perplexity',
+  ...(config.PERPLEXITY_API_KEY
+    ? { perplexityApiKey: config.PERPLEXITY_API_KEY }
+    : {}),
+  perplexityModel: config.PERPLEXITY_MODEL,
+});
 
     if (!provider) {
       console.error('[ask] AI provider not configured', {
