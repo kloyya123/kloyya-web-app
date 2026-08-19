@@ -1,53 +1,107 @@
-import { AiError, resolveAiProvider } from './ai-provider';
+import { config } from '@server/config';
 
-// Example: the API route / handler that calls the AI provider.
-// This is the boundary where errors must be sanitized before
-// they reach the client.
+export type AiRole = 'user' | 'assistant';
 
-export async function handleAskRequest(/* ...ctx, params */) {
-  const provider = resolveAiProvider(/* config */ {} as any);
+export interface AiMessage {
+  role: AiRole;
+  content: string;
+}
 
-  if (!provider) {
-    // Config-level failure — safe to be specific, no secrets or
-    // internals leak here.
-    return jsonError(503, 'AI is not configured for this workspace.');
-  }
+export interface CompleteParams {
+  system: string;
+  messages: AiMessage[];
+  maxTokens?: number;
+  fetchImpl?: typeof fetch;
+}
 
-  try {
-    const result = await provider.complete({
-      system: '...',
-      messages: [],
-    });
+export interface AiProvider {
+  readonly name: 'perplexity';
+  readonly model: string;
+  complete(params: CompleteParams): Promise<{ text: string }>;
+}
 
-    return jsonOk({ text: result.text });
-  } catch (err) {
-    if (err instanceof AiError) {
-      // Log the real detail server-side only (status code, provider
-      // name, etc). Never forward err.message to the client — it can
-      // reveal upstream provider identity, HTTP status, and other
-      // internal implementation detail.
-      console.error('[ask] AI provider error', {
-        provider: provider.name,
-        model: provider.model,
-        message: err.message, // server-side log only
-      });
-
-      return jsonError(
-        502,
-        'We could not get an answer right now. Please try again.',
-      );
-    }
-
-    // Unexpected error shape — log full detail, still return generic.
-    console.error('[ask] unexpected error', err);
-    return jsonError(500, 'Something went wrong. Please try again.');
+export class AiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AiError';
   }
 }
 
-// Stand-ins for whatever response helpers your framework uses.
-function jsonOk(body: unknown) {
-  return { status: 200, body };
+const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
+const DEFAULT_MAX_TOKENS = 1024;
+
+function perplexityProvider(
+  apiKey: string,
+  model: string,
+): AiProvider {
+  return {
+    name: 'perplexity',
+    model,
+
+    async complete(params) {
+      const doFetch = params.fetchImpl ?? fetch;
+
+      let response: Response;
+
+      try {
+        response = await doFetch(PERPLEXITY_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+            messages: [
+              {
+                role: 'system',
+                content: params.system,
+              },
+              ...params.messages,
+            ],
+          }),
+        });
+      } catch {
+        throw new AiError('Perplexity request failed.');
+      }
+
+      if (!response.ok) {
+        throw new AiError(
+          `Perplexity request failed (HTTP ${response.status}).`,
+        );
+      }
+
+      const body = (await response.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+
+      const text = body.choices?.[0]?.message?.content;
+
+      if (typeof text !== 'string' || text.trim().length === 0) {
+        throw new AiError('Perplexity returned no message.');
+      }
+
+      return {
+        text,
+      };
+    },
+  };
 }
-function jsonError(status: number, message: string) {
-  return { status, body: { error: message } };
+
+export function resolveAiProvider(): AiProvider | null {
+  const apiKey = config.PERPLEXITY_API_KEY;
+
+  if (!apiKey) {
+    return null;
+  }
+
+  return perplexityProvider(
+    apiKey,
+    config.PERPLEXITY_MODEL,
+  );
 }
