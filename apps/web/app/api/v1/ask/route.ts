@@ -11,6 +11,9 @@ import { reserveAskCount, releaseAskCount } from '@server/ask/usage';
 import { readTier } from '@server/plan/tier';
 import { resolveStartContext } from '@server/tenant';
 
+/**
+ * Ask Kloyya answers from the caller's own connected tools, and cites them.
+ */
 const askBody = z.object({
   question: z
     .string()
@@ -19,6 +22,7 @@ const askBody = z.object({
     .max(1000, 'That question is too long.'),
 });
 
+// Gmail/Drive-backed answers can be slow on Vercel.
 export const maxDuration = 60;
 
 export const POST = kasRoute('verified', async (req, ctx) => {
@@ -51,16 +55,17 @@ export const POST = kasRoute('verified', async (req, ctx) => {
 
   try {
     const provider = resolveAiProvider({
-  provider: 'perplexity',
-  ...(config.PERPLEXITY_API_KEY
-    ? { perplexityApiKey: config.PERPLEXITY_API_KEY }
-    : {}),
-  perplexityModel: config.PERPLEXITY_MODEL,
-});
+      provider: config.AI_PROVIDER,
+      perplexityApiKey: config.PERPLEXITY_API_KEY,
+      perplexityModel: config.PERPLEXITY_MODEL,
+    });
 
     if (!provider) {
+      // Log the real cause server-side only. Never surface the
+      // specific env var name or hosting provider to the client —
+      // that's internal infrastructure detail.
       console.error('[ask] AI provider not configured', {
-        provider: 'perplexity',
+        provider: config.AI_PROVIDER,
         hasApiKey: Boolean(config.PERPLEXITY_API_KEY),
       });
 
@@ -68,9 +73,10 @@ export const POST = kasRoute('verified', async (req, ctx) => {
         httpStatus: API_STATUS.ServiceUnavailable,
         errorCode: 'ai_unconfigured',
         message: 'Ask Kloyya is not configured on this server.',
-        description: 'No Perplexity API key is configured.',
+        description:
+          'The AI provider is missing required configuration.',
         suggestedResolution:
-          'Set the Perplexity API key, then redeploy.',
+          'This has been logged. Please contact support if it persists.',
       });
     }
 
@@ -87,7 +93,8 @@ export const POST = kasRoute('verified', async (req, ctx) => {
           httpStatus: API_STATUS.ServiceUnavailable,
           errorCode: 'ai_unconfigured',
           message: 'Ask Kloyya is not configured on this server.',
-          description: 'The AI provider is not configured correctly.',
+          description:
+            'The AI provider is not configured correctly.',
           suggestedResolution:
             'This has been logged. Please contact support if it persists.',
         });

@@ -25,6 +25,7 @@
  *   tsx scripts/send-beta-invite.ts --all-waiting        (everyone not yet invited)
  *   tsx scripts/send-beta-invite.ts --dry-run a@example.com
  */
+import { createClient } from '@supabase/supabase-js';
 import postgres from 'postgres';
 import { Resend } from 'resend';
 
@@ -38,6 +39,8 @@ const connectionString = process.env['DIRECT_URL'] ?? process.env['DATABASE_URL'
 const resendKey = process.env['RESEND_API_KEY'];
 const from = process.env['EMAIL_FROM'] ?? 'Kloyya <contactsupport@kloyya.com>';
 const siteUrl = (process.env['NEXT_PUBLIC_SITE_URL'] ?? 'https://www.kloyya.com').replace(/\/$/, '');
+const supabaseUrl = process.env['NEXT_PUBLIC_SUPABASE_URL'];
+const serviceRoleKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
 const allowlist = (process.env['BETA_ALLOWED_EMAILS'] ?? '')
   .split(',')
   .map((entry) => entry.trim().toLowerCase())
@@ -66,13 +69,48 @@ const sql = postgres(connectionString, { prepare: false, max: 1 });
  * aliases into a standalone script. The copy is small and its only job is to
  * render one message — if the wording diverges, the app's version is canonical.
  */
+/**
+ * A one-click sign-in link for one address.
+ *
+ * The invitation used to point at /login, which assumes the tester remembers a
+ * password they set days ago while the product was being built. They usually do
+ * not, and "click the link, then work out your password" is not access.
+ *
+ * A magic link removes the guess: following it exchanges a token at Supabase and
+ * lands them signed in. Returns null if generation fails, and the caller falls
+ * back to the plain /login URL rather than sending nothing.
+ */
+async function magicLinkFor(email: string): Promise<string | null> {
+  if (!supabaseUrl || !serviceRoleKey) return null;
+  try {
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: { redirectTo: `${siteUrl}/dashboard` },
+    });
+    if (error) {
+      console.log(`        (magic link unavailable: ${error.message})`);
+      return null;
+    }
+    return data?.properties?.action_link ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function invitation(signInUrl: string): { subject: string; html: string; text: string } {
   const text = [
     "You're in. Kloyya is ready for you.",
     '',
     `Sign in: ${signInUrl}`,
     '',
-    'Use the address this email was sent to. First time in, Kloyya will ask a few',
+    'The link above signs you in directly — no password needed. It expires, so if',
+    'it stops working, ask for another or use Forgot password at the sign-in page.',
+    '',
+    'First time in, Kloyya will ask a few',
     'questions to set itself up, then invite you to connect Gmail, Google Calendar,',
     'Google Drive or Notion. Connect at least one and it will start reading.',
     '',
@@ -86,10 +124,12 @@ function invitation(signInUrl: string): { subject: string; html: string; text: s
     '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;',
     'font-size:15px;line-height:1.6;color:#1a1a1a;max-width:520px;margin:0 auto;padding:24px">',
     "<p style=\"font-size:17px;font-weight:600;margin:0 0 16px\">You're in.</p>",
-    '<p>Kloyya is ready for you. Sign in with the address this email was sent to.</p>',
+    '<p>Kloyya is ready for you. The button below signs you in directly — no password needed.</p>',
     `<p style="margin:24px 0"><a href="${signInUrl}" `,
     'style="background:#2563eb;color:#fff;padding:11px 18px;border-radius:8px;',
     'text-decoration:none;display:inline-block">Sign in to Kloyya</a></p>',
+    '<p style="color:#6b6b6b;font-size:13px">This link expires. If it stops working, ',
+    'use Forgot password at the sign-in page or ask us for another.</p>',
     '<p>First time in, Kloyya asks a few questions to set itself up, then invites you ',
     'to connect Gmail, Google Calendar, Google Drive or Notion. Connect at least one ',
     'and it will start reading.</p>',
@@ -120,11 +160,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  const signInUrl = `${siteUrl}/login`;
-  const message = invitation(signInUrl);
+  const loginUrl = `${siteUrl}/login`;
   const resend = resendKey ? new Resend(resendKey) : null;
 
-  console.log(`\nSign-in URL: ${signInUrl}`);
+  console.log(`\nFallback URL: ${loginUrl}`);
   console.log(`From:        ${from}`);
   console.log(`Allowlist:   ${allowlist.length} address(es)\n`);
 
@@ -149,8 +188,12 @@ async function main(): Promise<void> {
       continue;
     }
 
+    // Generated per recipient: a magic link is a credential for one person.
+    const link = (await magicLinkFor(email)) ?? loginUrl;
+    const message = invitation(link);
+
     if (dryRun) {
-      console.log(`  DRY   ${email}`);
+      console.log(`  DRY   ${email} — ${link === loginUrl ? 'password sign-in' : 'one-click link'}`);
       sent += 1;
       continue;
     }
@@ -170,7 +213,7 @@ async function main(): Promise<void> {
 
     // Only stamped after a confirmed send, so a failure can be retried.
     await sql`UPDATE waitlist SET invited_at = now(), updated_at = now() WHERE email = ${email}`;
-    console.log(`  SENT  ${email}`);
+    console.log(`  SENT  ${email} — ${link === loginUrl ? 'password sign-in' : 'one-click link'}`);
     sent += 1;
   }
 

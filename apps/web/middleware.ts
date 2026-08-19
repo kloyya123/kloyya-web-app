@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { isBetaAllowed } from '@/lib/beta-access';
+import { describeAllowlist, isBetaAllowed } from '@/lib/beta-access';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { SESSION_COOKIE_NAME } from '@/services/auth/session-store';
 
@@ -25,16 +25,15 @@ const ROOT = '/';
 const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password'];
 /** Reachable while authenticated but not yet fully provisioned. */
 const PROVISIONING_ROUTES = ['/verify-email', '/onboarding', '/workspace-init'];
-/** Where a signed-in but non-allowlisted account is held during the beta. */
-const BETA_WALL = '/beta';
+/** Where a signed-in account that is not on the allowlist is held. */
+const WAITLIST_WALL = '/waitlist';
 
 interface AuthState {
   authed: boolean;
   verified: boolean;
   onboarded: boolean;
-  /** On the private-beta allowlist. See lib/beta-access.ts. */
-  betaAllowed: boolean;
-  email: string | null;
+  /** On the access allowlist. See lib/beta-access.ts. */
+  allowed: boolean;
 }
 
 /**
@@ -64,17 +63,18 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
     return redirect(login);
   }
 
-  // Signed in, but not on the private-beta allowlist.
+  // Signed in, but not on the allowlist.
   //
   // Checked before verification and onboarding on purpose: walking someone
-  // through an email code and an eight-step wizard only to tell them at the end
-  // that they cannot come in would be a cruel way to spend their time. They are
-  // held at /beta, which explains the situation and takes their address for the
-  // waitlist. The landing page stays reachable so there is somewhere to go.
-  if (!state.betaAllowed) {
-    if (pathname === BETA_WALL || pathname === ROOT) return carry;
-    return redirect(new URL(BETA_WALL, request.url));
+  // through an email code and an eight-step wizard only to refuse them at the
+  // end would be a cruel way to spend their time.
+  if (!state.allowed) {
+    if (pathname === WAITLIST_WALL || pathname === ROOT) return carry;
+    return redirect(new URL(WAITLIST_WALL, request.url));
   }
+
+  // An allowed user has no reason to sit on the wall.
+  if (pathname === WAITLIST_WALL) return redirect(new URL('/dashboard', request.url));
 
   // Authenticated but unverified: the only way forward is the code.
   if (!state.verified) {
@@ -85,9 +85,6 @@ function decide(request: NextRequest, state: AuthState, carry: NextResponse): Ne
   if (!state.onboarded) {
     return pathname.startsWith('/onboarding') ? carry : redirect(new URL('/onboarding', request.url));
   }
-
-  // An allowlisted user has no reason to sit on the beta wall.
-  if (pathname === BETA_WALL) return redirect(new URL('/dashboard', request.url));
 
   // Fully provisioned. Bounce away from `/`, the auth screens, and the
   // provisioning screens — a signed-in user has no business on the login page.
@@ -133,18 +130,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return decide(
-    request,
-    {
-      authed: Boolean(user),
-      verified: Boolean(user?.email_confirmed_at),
-      onboarded: user?.user_metadata?.['onboarded'] === true,
-      // Read from the verified JWT's email claim, never from a header or query
-      // parameter — this decides who gets into the product.
-      betaAllowed: isBetaAllowed(user?.email),
-      email: user?.email ?? null,
-    },
-    response,
+  return withGateHeader(
+    decide(
+      request,
+      {
+        authed: Boolean(user),
+        verified: Boolean(user?.email_confirmed_at),
+        onboarded: user?.user_metadata?.['onboarded'] === true,
+        // From the verified JWT's email claim, never a header or query parameter.
+        allowed: isBetaAllowed(user?.email),
+      },
+      response,
+    ),
   );
 }
 
@@ -155,8 +152,7 @@ function mockMiddleware(request: NextRequest): NextResponse {
     authed: false,
     verified: false,
     onboarded: false,
-    betaAllowed: false,
-    email: null,
+    allowed: false,
   };
 
   if (raw) {
@@ -173,8 +169,7 @@ function mockMiddleware(request: NextRequest): NextResponse {
           authed: true,
           verified: s.user.isEmailVerified === true,
           onboarded: s.user.hasCompletedOnboarding === true,
-          betaAllowed: isBetaAllowed(s.user.email),
-          email: s.user.email ?? null,
+          allowed: isBetaAllowed(s.user.email),
         };
       }
     } catch {
@@ -182,7 +177,26 @@ function mockMiddleware(request: NextRequest): NextResponse {
     }
   }
 
-  return decide(request, state, NextResponse.next());
+  return withGateHeader(decide(request, state, NextResponse.next()));
+}
+
+/**
+ * Report what the gate can see, as a response header.
+ *
+ * TEMPORARY. The previous version of this gate refused an allowlisted address
+ * and the cause could never be established, because nothing about the check was
+ * observable from outside — a missing variable, a malformed one, and a session
+ * without an email all produced the same wall.
+ *
+ * Middleware runs on the Edge runtime, so its view of the environment is not
+ * necessarily an API route's view; this header is the only way to read the Edge
+ * side directly. It carries a count and entry LENGTHS, never an address, so a
+ * stray quote or trailing space shows up as a wrong length without publishing
+ * anyone's email. Remove once the gate is confirmed working.
+ */
+function withGateHeader(response: NextResponse): NextResponse {
+  response.headers.set('x-kloyya-gate', describeAllowlist());
+  return response;
 }
 
 export const config = {

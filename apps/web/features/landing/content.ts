@@ -85,7 +85,7 @@ export interface Plan {
 
 /**
  * Deliberately vague about the Free allowance ("limited asks per day") rather
- * than naming a number: the entitlement is tuned during the beta, and a landing
+ * than naming a number: the entitlement is still being tuned, and a landing
  * page that quotes a figure the product later changes is a promise broken.
  */
 export const PLANS: Plan[] = [
@@ -139,7 +139,7 @@ export const FAQS: Faq[] = [
   },
   {
     q: 'Is there a mobile app?',
-    a: 'The web app works on your phone today. Native iOS and Android apps are in private beta, and beta users get them first.',
+    a: 'The web app works on your phone today. Native iOS and Android apps are in development, and people already using Kloyya get them first.',
   },
   {
     q: 'What happens if I delete my account?',

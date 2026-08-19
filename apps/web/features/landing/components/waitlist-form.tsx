@@ -5,12 +5,12 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui';
 
 /**
- * The request-access form.
+ * The updates form.
  *
- * Kloyya is invitation-only, so the landing page's job is to take an address,
- * not to open an account. Sending someone to /signup would create a real
- * account they cannot use and hold them at a wall — this asks for the one thing
- * we actually need.
+ * This began as an access request, back when sign-up was gated and an address
+ * was the only thing we could take. Sign-up is open now, so the primary path is
+ * /signup and this is for someone who wants to hear about new integrations or
+ * the mobile apps without opening an account today.
  *
  * The success state is deliberately identical whether the address was new or
  * already on the list. Saying "you're already signed up" would let anyone test
@@ -66,7 +66,7 @@ export function WaitlistForm({ source = 'landing' }: { source?: string }) {
         <div>
           <p className="text-foreground font-medium">You’re on the list.</p>
           <p className="text-small text-muted-foreground mt-0.5">
-            We’ll email you when a place opens. Nothing else — no newsletter.
+            We’ll email you when something worth knowing ships. Nothing else.
           </p>
         </div>
       </div>
@@ -99,7 +99,7 @@ export function WaitlistForm({ source = 'landing' }: { source?: string }) {
           loadingLabel="Adding you"
           trailingIcon={<ArrowRight aria-hidden="true" />}
         >
-          Request access
+          Keep me posted
         </Button>
       </div>
 
@@ -109,7 +109,7 @@ export function WaitlistForm({ source = 'landing' }: { source?: string }) {
         </p>
       ) : (
         <p className="text-caption text-subtle mt-2 font-mono">
-          One email when your place opens. No newsletter, no sharing.
+          Only when something ships. No newsletter, no sharing.
         </p>
       )}
     </form>

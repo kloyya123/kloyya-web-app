@@ -1,47 +1,34 @@
 /**
  * The private-beta allowlist.
  *
- * Kloyya is not open. Only the addresses named in BETA_ALLOWED_EMAILS may reach
- * the product; everyone else gets the landing page and a waitlist form, however
- * they arrived.
+ * Only the addresses in BETA_ALLOWED_EMAILS may use the product. Everyone else
+ * gets the landing page and the waiting list.
  *
  * WHY THIS IS ENFORCED IN MIDDLEWARE, not in the sign-up form.
  *
  * Sign-up and sign-in go from the browser straight to Supabase Auth — our server
  * is not in that path and cannot refuse the request. A check in the form would
- * therefore be advice, not a control: anyone can create an account by calling
- * Supabase directly with the public anon key, which ships in the bundle.
+ * be advice, not a control: anyone can create an account by calling Supabase
+ * directly with the public anon key, which ships in the bundle.
  *
  * So the account may exist. What it cannot do is reach the app: middleware runs
- * on every request, before any protected markup is sent, and sends a
- * non-allowlisted session to /beta instead. That is the boundary.
+ * on every request, before any protected markup is sent.
  *
- * WHY AN ENV VAR, not NEXT_PUBLIC_ and not a table.
- *
- * NEXT_PUBLIC_ would put the testers' personal addresses in the JavaScript
- * bundle for anyone to read. A table would be the right answer for a real
- * waitlist with an admin UI, but for two addresses during testing it is a
- * migration, a policy, and a query per request bought for nothing. When the
- * beta opens to more than a handful, replace this with a table — the call site
- * in middleware does not change.
- *
- * Comparison is case-insensitive and trims whitespace: addresses are
- * case-insensitive in practice, and a stray space in the env var should not
- * lock out a tester.
+ * A NOTE ON THE PREVIOUS ATTEMPT. An earlier version of this gate refused an
+ * address that WAS on the list, and the cause was never established because
+ * nothing about the check was observable from outside — the same blank wall
+ * appeared whether the variable was missing, malformed, or the session carried
+ * no email. `describeAllowlist` exists so that can be told apart at a glance
+ * without exposing anyone's address.
  */
 
-/** Read the raw allowlist. Empty when unset. */
-function rawAllowlist(): string {
-  return process.env['BETA_ALLOWED_EMAILS'] ?? '';
-}
-
-/** Normalise one address for comparison. */
+/** Normalise one address for comparison. Addresses are case-insensitive. */
 function normalise(email: string): string {
   return email.trim().toLowerCase();
 }
 
 export function betaAllowlist(): string[] {
-  return rawAllowlist()
+  return (process.env['BETA_ALLOWED_EMAILS'] ?? '')
     .split(',')
     .map(normalise)
     .filter((entry) => entry.length > 0);
@@ -50,16 +37,30 @@ export function betaAllowlist(): string[] {
 /**
  * Is this address allowed into the product?
  *
- * An EMPTY allowlist means the beta gate is off and everyone with an account is
+ * An EMPTY allowlist means the gate is OFF and everyone with an account is
  * allowed. That is deliberate: the alternative — empty means nobody — would
- * lock every user, including the owner, out of production the moment the
- * variable was missing or misspelled. A gate that fails closed on a config typo
- * is an outage, and this gate protects an unreleased beta, not user data. The
- * real protections (auth, RLS, tenant scoping) are unaffected either way.
+ * lock every user out of production the moment the variable was missing or
+ * misspelled. This gates a product stage, not user data; auth, RLS and tenant
+ * scoping are unaffected either way.
  */
 export function isBetaAllowed(email: string | null | undefined): boolean {
   const allowlist = betaAllowlist();
   if (allowlist.length === 0) return true;
   if (!email) return false;
   return allowlist.includes(normalise(email));
+}
+
+/**
+ * A one-line, non-identifying description of what the gate can see.
+ *
+ * Emitted as a response header by middleware so the runtime's actual view can be
+ * checked with a single request. It reveals a count and the shape of the entries
+ * — enough to distinguish "the variable never arrived" from "it arrived with a
+ * stray quote" — but never an address.
+ */
+export function describeAllowlist(): string {
+  const list = betaAllowlist();
+  if (list.length === 0) return 'off:0';
+  // Lengths only. A wrong length is the tell for a stray quote or space.
+  return `on:${list.length}:${list.map((entry) => entry.length).join(',')}`;
 }

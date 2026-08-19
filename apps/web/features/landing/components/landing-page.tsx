@@ -27,7 +27,6 @@ export function LandingPage() {
   return (
     <div className="bg-background text-foreground min-h-dvh">
       <SiteHeader />
-      <BetaStrip />
 
       <main id="main">
         <Hero />
@@ -152,13 +151,13 @@ export function LandingPage() {
                 </ul>
 
                 <Button asChild variant={plan.featured ? 'primary' : 'outline'} size="lg">
-                  <a href="#access">Request access</a>
+                  <Link href="/signup">{plan.featured ? 'Get Pro' : 'Get started free'}</Link>
                 </Button>
               </div>
             ))}
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
-            Pricing applies when Kloyya opens. Beta testers get Pro free for three months.
+            Free is free, and it stays free. Upgrade to Pro whenever you want more.
           </p>
         </Section>
 
@@ -189,18 +188,17 @@ export function LandingPage() {
           </div>
         </Section>
 
-        <Section index="09" label="Access" title="How to get in" anchor="access">
+        <Section index="09" label="Get started" title="Three steps to your first briefing" anchor="access">
           <Lede>
-            Kloyya is invitation-only while we test the connectors on real inboxes. Leave your
-            address and we will email you when we open a place. Nothing to pay, and no card at
-            any point.
+            Creating an account takes a minute and costs nothing. Connect one tool and Kloyya
+            starts reading straight away.
           </Lede>
 
           <div className="border-border bg-border grid max-w-3xl gap-px border sm:grid-cols-3">
             {[
-              { step: '01', title: 'Leave your email', body: 'That is the whole form. No account, no password, no card.' },
-              { step: '02', title: 'We let people in gradually', body: 'A few at a time, so we can watch how the syncs behave.' },
-              { step: '03', title: 'You get an email', body: 'One message when your place opens, with a link to set up.' },
+              { step: '01', title: 'Create your account', body: 'Email and a password. No card, and the free plan does not expire.' },
+              { step: '02', title: 'Connect a tool', body: 'Gmail, Calendar, Drive or Notion. Read access only, revocable in one click.' },
+              { step: '03', title: 'Read your briefing', body: 'Kloyya works through what it found and hands you the short list.' },
             ].map((item) => (
               <div key={item.step} className="bg-background p-6">
                 <span className="text-caption text-link mb-2 block font-mono tracking-widest uppercase">
@@ -212,13 +210,27 @@ export function LandingPage() {
             ))}
           </div>
 
-          <div className="mt-6">
-            <WaitlistForm source="landing-access" />
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
+              <Link href="/signup">Create your account</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/login">Sign in</Link>
+            </Button>
           </div>
 
-          <p className="text-caption text-subtle mt-6 font-mono">
-            Mobile apps land after the web beta settles — same list, same email.
-          </p>
+          {/* The list is no longer a queue for access — anyone can sign up now —
+              so it is offered to people who want news rather than an account. */}
+          <div className="border-border/60 mt-10 border-t pt-8">
+            <h3 className="text-title text-foreground mb-1.5 font-semibold">
+              Not ready for an account?
+            </h3>
+            <p className="text-small text-muted-foreground mb-4">
+              Leave your address and we will email you when something worth knowing ships —
+              new integrations, or the mobile apps. Nothing else.
+            </p>
+            <WaitlistForm source="landing-updates" />
+          </div>
         </Section>
 
         <Section index="10" label="Start" title="Tomorrow morning, the list is already made." center>
@@ -227,11 +239,14 @@ export function LandingPage() {
           </Lede>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-              <a href="#access">Request access</a>
+              <Link href="/signup">Get started free</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/login">Sign in</Link>
             </Button>
           </div>
           <p className="text-caption text-subtle mt-4 font-mono">
-            We are letting people in a few at a time. You will hear from us by email.
+            Free to start, no card. Connect a tool and see what Kloyya finds.
           </p>
         </Section>
       </main>
@@ -263,30 +278,21 @@ function SiteHeader() {
           <a href="#faq" className="text-muted-foreground hover:text-foreground hidden rounded-sm sm:inline">
             FAQ
           </a>
-          <a
-            href="#access"
-            className="border-border text-foreground hover:bg-hover rounded-sm border px-3 py-1.5 transition-colors"
+          <Link
+            href="/login"
+            className="text-muted-foreground hover:text-foreground rounded-sm transition-colors"
           >
-            Request access
-          </a>
+            Sign in
+          </Link>
+          <Link
+            href="/signup"
+            className="bg-intelligence-blue text-on-intelligence-blue rounded-sm px-3 py-1.5 transition-colors hover:bg-intelligence-blue/90"
+          >
+            Get started
+          </Link>
         </nav>
       </div>
     </header>
-  );
-}
-
-function BetaStrip() {
-  return (
-    <div className="bg-intelligence-blue/10 border-border border-b">
-      <p className="text-caption text-muted-foreground mx-auto flex max-w-content flex-wrap items-center justify-center gap-3 px-6 py-2.5 text-center font-mono">
-        <span aria-hidden="true" className="bg-intelligence-blue size-1.5 shrink-0 rounded-full" />
-        <span>
-          <span className="text-link font-semibold tracking-wider uppercase">Private beta</span>
-          {' · '}
-          invitation-only while we test — request access below
-        </span>
-      </p>
-    </div>
   );
 }
 
@@ -324,7 +330,7 @@ function Hero() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" trailingIcon={<ArrowRight aria-hidden="true" />}>
-                <a href="#access">Request access</a>
+                <Link href="/signup">Get started free</Link>
               </Button>
               <Button asChild variant="outline" size="lg" leadingIcon={<Play aria-hidden="true" />}>
                 <a href="#demo">Watch the demo</a>
@@ -332,7 +338,7 @@ function Hero() {
             </div>
 
             <p className="text-caption text-subtle mt-4 font-mono">
-              Invitation-only while we test. No card, ever, to join the list.
+              Free to start. No card required. The free plan does not expire.
             </p>
           </div>
 
