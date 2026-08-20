@@ -91,8 +91,8 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
     }
     await markConnecting(ctx.db, start, id);
     authUrl = buildMicrosoftAuthUrl({
-      clientId: config.MICROSOFT_OAUTH_CLIENT_ID,
-      redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI,
+      clientId: config.MICROSOFT_OAUTH_CLIENT_ID!,
+      redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI!,
       scopes: MICROSOFT_SCOPES[id]!,
       state,
     });
