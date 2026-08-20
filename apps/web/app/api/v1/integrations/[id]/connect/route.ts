@@ -77,8 +77,8 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
     }
     await markConnecting(ctx.db, start, id);
     authUrl = buildGoogleAuthUrl({
-      clientId: config.GOOGLE_OAUTH_CLIENT_ID,
-      redirectUri: config.GOOGLE_OAUTH_REDIRECT_URI,
+      clientId: config.GOOGLE_OAUTH_CLIENT_ID!,
+      redirectUri: config.GOOGLE_OAUTH_REDIRECT_URI!,
       scopes: GOOGLE_SCOPES[id]!,
       state,
     });
