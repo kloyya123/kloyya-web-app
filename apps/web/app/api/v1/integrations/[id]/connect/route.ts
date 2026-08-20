@@ -102,9 +102,9 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
     }
     await markConnecting(ctx.db, start, id);
     // Notion has no scopes — access is granted per-page in Notion's own UI.
-    authUrl = buildNotionAuthUrl({
-      clientId: config.NOTION_OAUTH_CLIENT_ID,
-      redirectUri: config.NOTION_OAUTH_REDIRECT_URI,
+        authUrl = buildNotionAuthUrl({
+      clientId: config.NOTION_OAUTH_CLIENT_ID!,
+      redirectUri: config.NOTION_OAUTH_REDIRECT_URI!,
       state,
     });
   }
