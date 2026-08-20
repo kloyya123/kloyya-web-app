@@ -56,7 +56,7 @@ function adapterFor(provider: Provider): ProviderAdapter | null {
             code,
             clientId: config.GOOGLE_OAUTH_CLIENT_ID!,
             clientSecret: config.GOOGLE_OAUTH_CLIENT_SECRET!,
-            redirectUri: config.GOOGLE_OAUTH_REDIRECT_URI,
+            redirectUri: config.GOOGLE_OAUTH_REDIRECT_URI!,
           }),
         store: storeGoogleTokens,
       };
@@ -71,7 +71,7 @@ function adapterFor(provider: Provider): ProviderAdapter | null {
             code,
             clientId: config.MICROSOFT_OAUTH_CLIENT_ID!,
             clientSecret: config.MICROSOFT_OAUTH_CLIENT_SECRET!,
-            redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI,
+            redirectUri: config.MICROSOFT_OAUTH_REDIRECT_URI!,
           }),
         store: storeMicrosoftTokens,
       };
@@ -84,7 +84,7 @@ function adapterFor(provider: Provider): ProviderAdapter | null {
             code,
             clientId: config.NOTION_OAUTH_CLIENT_ID!,
             clientSecret: config.NOTION_OAUTH_CLIENT_SECRET!,
-            redirectUri: config.NOTION_OAUTH_REDIRECT_URI,
+           redirectUri: config.NOTION_OAUTH_REDIRECT_URI!,
           }),
         store: storeNotionTokens,
       };
