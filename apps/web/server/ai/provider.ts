@@ -93,16 +93,18 @@ function perplexityProvider(
   };
 }
 
+
 export function resolveAiProvider(config: {
   provider: 'perplexity';
-  perplexityApiKey?: string;
-  perplexityModel: string;
+  perplexityApiKey?: string | undefined;
+  perplexityModel?: string | undefined;
 }): AiProvider | null {
   if (config.provider !== 'perplexity') {
     return null;
   }
 
-  if (!config.perplexityApiKey) {
+  // On vérifie que les deux valeurs sont bien présentes et non vides
+  if (!config.perplexityApiKey || !config.perplexityModel) {
     return null;
   }
 
