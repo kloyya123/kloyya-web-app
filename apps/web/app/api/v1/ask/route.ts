@@ -54,9 +54,11 @@ export const POST = kasRoute('verified', async (req, ctx) => {
   let releaseReservation = true;
 
   try {
+    // ✅ CORRECTION : Spread conditionnel pour éviter de passer explicitement `undefined`
+    // à une propriété optionnelle, ce qui est interdit par `exactOptionalPropertyTypes: true`.
     const provider = resolveAiProvider({
       provider: config.AI_PROVIDER,
-      perplexityApiKey: config.PERPLEXITY_API_KEY,
+      ...(config.PERPLEXITY_API_KEY ? { perplexityApiKey: config.PERPLEXITY_API_KEY } : {}),
       perplexityModel: config.PERPLEXITY_MODEL,
     });
 
