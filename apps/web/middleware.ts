@@ -116,10 +116,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
+        // ✅ CORRECTION : Mutation propre de l'objet réponse existant.
+        // Plus de réassignation `response = NextResponse.next()` qui écrasait les en-têtes/cookies précédents.
+        setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
+          for (const { name, value, options } of cookiesToSet) {
+            request.cookies.set(name, value);
+            response.cookies.set(name, value, options);
+          }
         },
       },
     },
