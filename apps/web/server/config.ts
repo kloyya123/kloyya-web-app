@@ -39,16 +39,10 @@ const configSchema = z.object({
 
   RESEND_AUDIENCE_ID: z.string().min(1).optional(),
 
-  // Not defaulted: production validation below requires an
-  // explicit value and independently rejects localhost.
   APP_URL: z.string().url().optional(),
 
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  // Not defaulted: production validation below treats a present
-  // redirect URI as "this provider is configured" and requires
-  // the matching client id/secret. Defaulting this field would
-  // make every deployment look "partially configured".
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
 
   MICROSOFT_OAUTH_CLIENT_ID: z.string().min(1).optional(),
@@ -59,14 +53,19 @@ const configSchema = z.object({
   NOTION_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   NOTION_OAUTH_REDIRECT_URI: z.string().url().optional(),
 
-  AI_PROVIDER: z.literal('perplexity').default('perplexity'),
+  // ✅ CORRECTION : Accepter plusieurs fournisseurs d'IA
+  AI_PROVIDER: z.enum(['perplexity', 'openai', 'anthropic']).default('perplexity'),
 
+  // Perplexity
   PERPLEXITY_API_KEY: z.string().min(1).optional(),
   PERPLEXITY_MODEL: z.string().min(1).default('sonar'),
+  CLE_SONAR_API_KLOYYA2: z.string().min(1).optional(), // Legacy alias
 
-  // Legacy/alias env var name still used in some deployments.
-  // Prefer PERPLEXITY_API_KEY for new configuration.
-  CLE_SONAR_API_KLOYYA2: z.string().min(1).optional(),
+  // ✅ CORRECTION : Ajout des clés OpenAI et Anthropic au schéma
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).default('claude-3-5-sonnet-20241022'),
 
   PAYMENT_PROVIDER: z.literal('none').default('none'),
 
@@ -105,8 +104,7 @@ function load(): Config {
     const requiredProduction = {
       DATABASE_URL: config.DATABASE_URL,
       NEXT_PUBLIC_SUPABASE_URL: config.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY:
-        config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: config.SUPABASE_SERVICE_ROLE_KEY,
       TOKEN_ENCRYPTION_KEY: config.TOKEN_ENCRYPTION_KEY,
       APP_URL: config.APP_URL,
@@ -194,14 +192,22 @@ function load(): Config {
       }
     }
 
-    if (
-      !config.PERPLEXITY_API_KEY &&
-      !config.CLE_SONAR_API_KLOYYA2
-    ) {
-      throw new Error(
-        'A Perplexity API key is required for Ask Kloyya in production ' +
-          '(PERPLEXITY_API_KEY, or its legacy alias).',
-      );
+    // ✅ CORRECTION : Validation flexible en production.
+    // On vérifie que le fournisseur choisi a bien sa clé API, au lieu de forcer Perplexity.
+    if (config.AI_PROVIDER === 'perplexity') {
+      if (!config.PERPLEXITY_API_KEY && !config.CLE_SONAR_API_KLOYYA2) {
+        throw new Error(
+          'PERPLEXITY_API_KEY (or CLE_SONAR_API_KLOYYA2) is required when AI_PROVIDER is perplexity.'
+        );
+      }
+    } else if (config.AI_PROVIDER === 'openai') {
+      if (!config.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY is required when AI_PROVIDER is openai.');
+      }
+    } else if (config.AI_PROVIDER === 'anthropic') {
+      if (!config.ANTHROPIC_API_KEY) {
+        throw new Error('ANTHROPIC_API_KEY is required when AI_PROVIDER is anthropic.');
+      }
     }
 
     if (config.PAYMENT_PROVIDER !== 'none') {
@@ -212,7 +218,6 @@ function load(): Config {
   return {
     ...config,
     // Prefer the canonical name; fall back to the legacy alias
-    // some deployments still use.
     PERPLEXITY_API_KEY:
       config.PERPLEXITY_API_KEY ?? config.CLE_SONAR_API_KLOYYA2,
   };
