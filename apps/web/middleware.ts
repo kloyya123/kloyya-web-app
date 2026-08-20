@@ -121,7 +121,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
           for (const { name, value, options } of cookiesToSet) {
             request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
+            // On caste en 'any' pour résoudre le conflit de types entre 
+            // les CookieOptions de Supabase et les ResponseCookie de Next.js
+            response.cookies.set(name, value, options as any);
           }
         },
       },
