@@ -1,12 +1,10 @@
 import { API_STATUS, ApiError, errors } from '../http/errors';
-import { isMicrosoftIntegration } from './microsoft';
 import { isNotionIntegration } from './notion';
 import type { LifecycleResult } from './service';
 import type { SyncOutcome } from './sync';
 
 /** The provider behind a card, named for user-facing errors. */
 export function providerLabel(id: string): string {
-  if (isMicrosoftIntegration(id)) return 'Microsoft';
   if (isNotionIntegration(id)) return 'Notion';
   return 'Google';
 }

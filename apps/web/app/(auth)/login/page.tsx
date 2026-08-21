@@ -4,9 +4,17 @@ import { LoginForm } from '@/features/auth/components/login-form';
 
 export const metadata: Metadata = {
   title: 'Sign in',
-  description: 'Sign in to your Kloyya workspace.',
-  // A login page has nothing an index should hold.
-  robots: { index: false, follow: false },
+  description: 'Sign in to Kloyya and pick up your briefing, inbox, and drafts where you left them.',
+  /**
+   * Indexed on purpose, despite holding nothing a searcher wants to read.
+   *
+   * People search "kloyya login" and expect to land on the form. It is also one
+   * of the handful of pages Google can offer as a sitelink under the main
+   * result, and it can only do that for pages it is allowed to index — so
+   * `noindex` here quietly costs the whole sitelink block.
+   */
+  robots: { index: true, follow: true },
+  alternates: { canonical: '/login' },
 };
 
 /**

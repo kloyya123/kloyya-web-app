@@ -85,7 +85,7 @@ and the `rate_limits` table. All of 0018–0022 are additive.
 
 ## 4. OAuth connectors (optional)
 
-For each provider you enable (Google / Microsoft / Notion), set the redirect URI
+For each provider you enable (Google / Notion), set the redirect URI
 in **both** the provider console and the matching `*_REDIRECT_URI` env var to:
 
 ```

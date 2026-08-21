@@ -35,8 +35,8 @@ describe('MockIntegrationsService', () => {
     it('marks the initially-connected apps as connected, the rest as available', async () => {
       const list = await integrations.listConnections();
       const gmail = list.find((c) => c.definition.id === 'gmail');
-      // A catalogue app the seed deliberately leaves unconnected.
-      const untouched = list.find((c) => c.definition.id === 'outlook_calendar');
+      // A catalogue app the seed deliberately leaves in an error state.
+      const untouched = list.find((c) => c.definition.id === 'google_drive');
 
       expect(gmail?.status).toBe('connected');
       expect(untouched?.status).toBe('error');
@@ -44,7 +44,7 @@ describe('MockIntegrationsService', () => {
 
     it('carries the seeded error states through', async () => {
       const list = await integrations.listConnections();
-      const errored = list.find((c) => c.definition.id === 'outlook_calendar');
+      const errored = list.find((c) => c.definition.id === 'google_drive');
 
       expect(errored?.status).toBe('error');
       expect(errored?.errorReason).toMatch(/paused/i);
@@ -59,7 +59,7 @@ describe('MockIntegrationsService', () => {
 
   describe('connect', () => {
     it('lands an available integration in syncing, then settles to connected', async () => {
-      const result = await integrations.connect('outlook');
+      const result = await integrations.connect('slack');
 
       // Connecting isn't instant — it syncs first (the card shows the animation),
       // then an internal timer flips it to connected.
@@ -67,7 +67,7 @@ describe('MockIntegrationsService', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 2800));
       const settled = (await integrations.listConnections()).find(
-        (c) => c.definition.id === 'outlook',
+        (c) => c.definition.id === 'slack',
       );
       expect(settled?.status).toBe('connected');
       expect(settled?.lastSyncedAt).not.toBeNull();
@@ -93,7 +93,7 @@ describe('MockIntegrationsService', () => {
     });
 
     it('rejects disconnecting something not connected', async () => {
-      const error = await expectApiError(integrations.disconnect('outlook'));
+      const error = await expectApiError(integrations.disconnect('slack'));
       expect(error.httpStatus).toBe(API_STATUS.Conflict);
     });
   });
@@ -108,14 +108,14 @@ describe('MockIntegrationsService', () => {
     });
 
     it('rejects pausing something that is not connected', async () => {
-      const error = await expectApiError(integrations.pause('outlook_calendar'));
+      const error = await expectApiError(integrations.pause('slack'));
       expect(error.httpStatus).toBe(API_STATUS.Conflict);
     });
   });
 
   describe('reconnect', () => {
     it('recovers an errored integration and clears the error', async () => {
-      const result = await integrations.reconnect('outlook_calendar');
+      const result = await integrations.reconnect('google_drive');
 
       expect(result.status).toBe('connected');
       expect(result.errorReason).toBeUndefined();
@@ -142,7 +142,7 @@ describe('MockIntegrationsService', () => {
     });
 
     it('rejects syncing something not connected', async () => {
-      const error = await expectApiError(integrations.forceSync('outlook'));
+      const error = await expectApiError(integrations.forceSync('slack'));
       expect(error.httpStatus).toBe(API_STATUS.Conflict);
     });
   });
@@ -153,12 +153,12 @@ describe('MockIntegrationsService', () => {
 
       expect(summary.total).toBe(INTEGRATION_CATALOG.length);
       expect(summary.connected).toBe(INITIALLY_CONNECTED.length);
-      // The two seeded error states (Teams, Salesforce).
+      // The one seeded error state (Google Drive).
       expect(summary.needsAttention).toBe(1);
     });
 
     it('reflects a new connection immediately', async () => {
-      await integrations.connect('outlook');
+      await integrations.connect('slack');
       const summary = await integrations.getSummary();
       expect(summary.connected).toBe(INITIALLY_CONNECTED.length + 1);
     });

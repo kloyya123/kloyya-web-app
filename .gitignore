@@ -47,3 +47,10 @@ skills-lock.json
 .env
 .env.*
 !.env.example
+
+# foglamp codebase-scan (contains an edit token — never commit)
+.foglamp/
+
+# Sentry CLI writes this during a source-map-upload build when SENTRY_AUTH_TOKEN
+# is set locally — holds the token, never commit.
+.env.sentry-build-plugin

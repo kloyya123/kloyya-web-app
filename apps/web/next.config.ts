@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 /**
  * Content Security Policy.
@@ -39,6 +40,21 @@ const posthogHosts = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
   ? 'https://us.i.posthog.com https://us-assets.i.posthog.com'
   : '';
 
+// Sentry's browser SDK reports errors straight from the client, so its
+// ingest host needs the same connect-src allowance as PostHog — empty when
+// no DSN is configured, same reasoning.
+const sentryHost = (() => {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) return '';
+  try {
+    // .origin never includes the DSN's embedded public key — just the host
+    // Sentry's SDK actually posts events to.
+    return new URL(dsn).origin;
+  } catch {
+    return '';
+  }
+})();
+
 const contentSecurityPolicy = [
   `default-src 'self'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} ${posthogHosts}`.trim(),
@@ -46,8 +62,9 @@ const contentSecurityPolicy = [
   `img-src 'self' blob: data:`,
   `font-src 'self' data:`,
   // 'self' covers the same-origin /api routes; Supabase covers auth + storage;
-  // PostHog covers analytics ingestion when enabled.
-  `connect-src 'self' ${supabaseOrigin} ${posthogHosts}`.trim(),
+  // PostHog covers analytics ingestion; Sentry covers error reporting — both
+  // opt-in, both empty when unconfigured.
+  `connect-src 'self' ${supabaseOrigin} ${posthogHosts} ${sentryHost}`.trim(),
   `frame-ancestors 'none'`,
   `form-action 'self'`,
   `base-uri 'self'`,
@@ -114,4 +131,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * withSentryConfig wraps the build to also upload source maps, so a stack
+ * trace in Sentry shows real file/line numbers instead of minified gibberish.
+ * That upload step needs SENTRY_AUTH_TOKEN/SENTRY_ORG/SENTRY_PROJECT — all
+ * absent, all optional. Without them this silently skips the upload (a
+ * documented Sentry behavior, not something branched on here) and the rest
+ * of the build proceeds exactly as it did before Sentry existed. `silent:
+ * true` stops that skip from printing noise on every build in a deployment
+ * that isn't using Sentry at all.
+ */
+export default withSentryConfig(nextConfig, {
+  ...(process.env.SENTRY_ORG ? { org: process.env.SENTRY_ORG } : {}),
+  ...(process.env.SENTRY_PROJECT ? { project: process.env.SENTRY_PROJECT } : {}),
+  ...(process.env.SENTRY_AUTH_TOKEN ? { authToken: process.env.SENTRY_AUTH_TOKEN } : {}),
+  silent: true,
+  disableLogger: true,
+});

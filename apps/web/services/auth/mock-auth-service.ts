@@ -171,6 +171,15 @@ export class MockAuthService implements AuthService {
     await mockRespond(email);
   }
 
+  /**
+   * The mock has no recovery session to consume, so this just succeeds — enough
+   * for the reset screen to be exercised against the mock backend. The real
+   * service is where an expired or reused link actually throws.
+   */
+  async updatePassword(newPassword: string): Promise<void> {
+    await mockRespond(newPassword);
+  }
+
   async verifyEmail(code: string): Promise<Session> {
     const current = readSession();
     if (!current) {

@@ -16,8 +16,10 @@ import {
   Video,
   type LucideIcon,
 } from 'lucide-react';
+import type { ComponentType } from 'react';
 import type { BadgeTone } from '@/components/ui';
 import type { ConnectionStatus, IntegrationCategory } from '@/types/integrations';
+import { BRAND_ICONS } from './brand-icons';
 
 /**
  * Presentation metadata for the integration catalogue.
@@ -27,6 +29,13 @@ import type { ConnectionStatus, IntegrationCategory } from '@/types/integrations
  * outline icon — by category, with a few overrides where a category icon would
  * mislead (GitHub, Figma). The card's name carries the brand; the icon carries
  * the kind. Same honest approach as the Trust Center's source icons.
+ *
+ * The tools that are actually live today (Gmail, Google Calendar, Google
+ * Drive, Notion, Slack) are the exception: `integrationIcon` reaches for a
+ * real, brand-colored mark for those first (see `./brand-icons.tsx`) — five
+ * hand-built SVGs is not the ~50-vendor bloat the reasoning above is about,
+ * and a user looking at their own connected tools should see the logo they
+ * already recognize, not a generic envelope.
  */
 const CATEGORY_ICON: Record<IntegrationCategory, LucideIcon> = {
   communication: Mail,
@@ -54,8 +63,13 @@ const ID_ICON: Record<string, LucideIcon> = {
   bitbucket: Github,
 };
 
-export function integrationIcon(id: string, category: IntegrationCategory): LucideIcon {
-  return ID_ICON[id] ?? CATEGORY_ICON[category];
+/** A brand icon and a `LucideIcon` differ in their full prop surface, but every
+ *  call site here only ever passes `className`/`aria-hidden` — the common
+ *  subset both satisfy. */
+type IntegrationIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
+
+export function integrationIcon(id: string, category: IntegrationCategory): IntegrationIcon {
+  return BRAND_ICONS[id] ?? ID_ICON[id] ?? CATEGORY_ICON[category];
 }
 
 /**

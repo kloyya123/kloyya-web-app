@@ -19,17 +19,22 @@ import { MockDraftService } from './drafts/mock-drafts-service';
 import { HttpDraftService } from './drafts/http-drafts-service';
 import type { DraftService } from './drafts/types';
 import { MockCalendarService } from './calendar/mock-calendar-service';
+import { HttpCalendarService } from './calendar/http-calendar-service';
 import type { CalendarService } from './calendar/types';
 import { MockInboxService } from './inbox/mock-inbox-service';
+import { HttpInboxService } from './inbox/http-inbox-service';
 import type { InboxService } from './inbox/types';
 import { MockKnowledgeService } from './knowledge/mock-knowledge-service';
+import { HttpKnowledgeService } from './knowledge/http-knowledge-service';
 import type { KnowledgeService } from './knowledge/types';
 import { MockProjectService } from './projects/mock-project-service';
 import { HttpProjectService } from './projects/http-project-service';
 import type { ProjectService } from './projects/types';
 import { MockSearchService } from './search/mock-search-service';
+import { HttpSearchService } from './search/http-search-service';
 import type { SearchService } from './search/types';
 import { MockMeetingService } from './meetings/mock-meeting-service';
+import { HttpMeetingService } from './meetings/http-meeting-service';
 import type { MeetingService } from './meetings/types';
 import { MockIntegrationsService } from './integrations/mock-integrations-service';
 import { HttpIntegrationsService } from './integrations/http-integrations-service';
@@ -38,11 +43,13 @@ import { MockIntelligenceService } from './intelligence/mock-intelligence-servic
 import { HttpIntelligenceService } from './intelligence/http-intelligence-service';
 import type { IntelligenceService } from './intelligence/types';
 import { MockNotificationService } from './notifications/mock-notification-service';
+import { HttpNotificationService } from './notifications/http-notification-service';
 import type { NotificationService } from './notifications/types';
 import { MockOrganizationService } from './organization/mock-organization-service';
 import { HttpOrganizationService } from './organization/http-organization-service';
 import type { OrganizationService } from './organization/types';
 import { MockSourcesService } from './sources/mock-sources-service';
+import { HttpSourcesService } from './sources/http-sources-service';
 import type { SourcesService } from './sources/types';
 import { MockTaskService } from './tasks/mock-task-service';
 import { HttpTaskService } from './tasks/http-task-service';
@@ -91,11 +98,12 @@ export interface Services {
  * so the demo, the test suite, and anyone without a running API keep the mock
  * layer — the 527 tests stay green because they never touch this branch.
  *
- * Only the services with a real backend are switched; the rest (calendar,
- * meetings, inbox, knowledge, search, notifications, sources) have no API yet
- * and stay on the mock until their phases land. Mixing is fine
- * on purpose: a page reading real auth and mock inbox is exactly the
- * incremental cut-over the frontend-first architecture was built to allow.
+ * Every domain service now has a real backend. `knowledge`'s is deliberately
+ * partial — real uploaded documents as articles, with a real cached AI
+ * summary per document, but `getGraph()` returns an honestly empty graph:
+ * a real entity/relationship graph needs an NLP extraction pipeline, not
+ * just a data-source swap, and is follow-on work (see
+ * server/knowledge/service.ts's module doc).
  */
 const USE_REAL_API = process.env['NEXT_PUBLIC_USE_REAL_API'] === 'true';
 
@@ -120,14 +128,13 @@ export const services: Services = {
   tasks: USE_REAL_API ? new HttpTaskService() : new MockTaskService(),
   projects: USE_REAL_API ? new HttpProjectService() : new MockProjectService(),
   intelligence: USE_REAL_API ? new HttpIntelligenceService() : new MockIntelligenceService(),
-  // No backend yet — these land with their roadmap phases.
-  sources: new MockSourcesService(),
-  calendar: new MockCalendarService(),
-  meetings: new MockMeetingService(),
-  inbox: new MockInboxService(),
-  knowledge: new MockKnowledgeService(),
-  search: new MockSearchService(),
-  notifications: new MockNotificationService(),
+  inbox: USE_REAL_API ? new HttpInboxService() : new MockInboxService(),
+  notifications: USE_REAL_API ? new HttpNotificationService() : new MockNotificationService(),
+  calendar: USE_REAL_API ? new HttpCalendarService() : new MockCalendarService(),
+  meetings: USE_REAL_API ? new HttpMeetingService() : new MockMeetingService(),
+  sources: USE_REAL_API ? new HttpSourcesService() : new MockSourcesService(),
+  search: USE_REAL_API ? new HttpSearchService() : new MockSearchService(),
+  knowledge: USE_REAL_API ? new HttpKnowledgeService() : new MockKnowledgeService(),
 };
 
 export type { AuthService } from './auth/types';

@@ -298,12 +298,11 @@ function AnswerCard({ answer }: { answer: AskAnswer }) {
           </p>
         )}
 
-        <p className="text-caption text-subtle flex items-center justify-between gap-2">
-          <span>Answered by {answer.model}</span>
-          {answer.usage && answer.usage.remaining !== null ? (
+        {answer.usage && answer.usage.remaining !== null ? (
+          <p className="text-caption text-subtle flex items-center justify-end gap-2">
             <span>{answer.usage.remaining} questions left today</span>
-          ) : null}
-        </p>
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

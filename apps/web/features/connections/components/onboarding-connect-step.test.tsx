@@ -7,11 +7,7 @@ import { expectNoA11yViolations } from '@/test/a11y';
 import { renderWithProviders } from '@/test/render';
 import { OnboardingConnectStep } from './onboarding-connect-step';
 
-const CURATED_IDS = [
-  'gmail', 'outlook',
-  'google_calendar', 'outlook_calendar',
-  'google_drive', 'notion',
-];
+const CURATED_IDS = ['gmail', 'google_calendar', 'google_drive', 'notion'];
 
 /**
  * The Northwind mock pre-connects every curated tool (that story powers the
@@ -54,7 +50,8 @@ describe('OnboardingConnectStep', () => {
     // Connecting tools comes before personalization now, so this step continues
     // rather than creating the workspace (that happens last).
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Skip and continue/ })).toBeInTheDocument();
+    // Skipping is always offered, not only when nothing has been connected.
+    expect(screen.getByRole('button', { name: /Skip/ })).toBeInTheDocument();
   });
 
   it('connecting a tool runs the real permission-review flow and updates the count', async () => {

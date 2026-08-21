@@ -21,7 +21,7 @@ export function UpcomingMeetingsCard({ meetings }: { meetings: Meeting[] }) {
 
   return (
     <SidebarCard
-      title="Upcoming"
+      title="Today's schedule"
       action={
         <Link
           href="/calendar"

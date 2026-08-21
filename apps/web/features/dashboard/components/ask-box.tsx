@@ -96,7 +96,14 @@ export function AskBox() {
   }
 
   return (
-    <Card className="space-y-4 p-6" data-tour="ask-box">
+    <Card
+      className="space-y-4 border-[var(--color-intelligence-blue)]/15 p-6"
+      style={{
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--color-intelligence-blue) 6%, var(--kds-card)), color-mix(in srgb, var(--color-executive-purple) 6%, var(--kds-card)))',
+      }}
+      data-tour="ask-box"
+    >
       <div className="flex items-center gap-2.5">
         <LogoMark decorative animated className="size-6" />
         <h2 className="text-title text-foreground font-semibold">Ask Kloyya anything</h2>

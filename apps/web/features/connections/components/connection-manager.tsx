@@ -39,8 +39,9 @@ export function ConnectionManager() {
   useFirstSync(data);
   const [activeCategory, setActiveCategory] = useState<IntegrationCategory | 'all'>('all');
 
-  const grouped = useMemo(() => groupByCategory(data ?? []), [data]);
-  const stats = useMemo(() => summarize(data ?? []), [data]);
+  const connections = useMemo(() => data ?? [], [data]);
+  const grouped = useMemo(() => groupByCategory(connections), [connections]);
+  const stats = useMemo(() => summarize(connections), [connections]);
 
   if (isPending) return <ConnectionManagerSkeleton />;
 

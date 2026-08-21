@@ -12,14 +12,13 @@ export const INITIALLY_CONNECTED: ReadonlyArray<{
   error?: string;
   minutesSinceSync: number;
 }> = [
-  // Outlook is deliberately absent: the demo needs one tool still waiting to be
+  // Slack is deliberately absent: the demo needs one tool still waiting to be
   // connected, and a catalogue where everything is already on shows nothing.
   { id: 'gmail', minutesSinceSync: 0.2 },
   { id: 'google_calendar', minutesSinceSync: 1 },
-  { id: 'google_drive', minutesSinceSync: 14 },
   { id: 'notion', minutesSinceSync: 22 },
   {
-    id: 'outlook_calendar',
+    id: 'google_drive',
     minutesSinceSync: 720,
     error: 'Sync has been paused for 12 hours. Reconnect to resume.',
   },

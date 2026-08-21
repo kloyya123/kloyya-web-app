@@ -2,6 +2,10 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AppDb } from '@kloyya/db/client';
 import { withTenantScope } from '@kloyya/db/scope';
 import { syncRecords, tasks } from '@kloyya/db/schema';
+import type { Briefing } from '@kloyya/core';
+import type { AiProvider } from '../ai/provider';
+import { generateBriefing } from '../briefing/service';
+import { readEventTime, readEventTitle, readParticipants } from '../integrations/calendar-parse';
 import type { StartContext } from '../tenant';
 
 /**
@@ -17,11 +21,17 @@ import type { StartContext } from '../tenant';
  *
  * Real, because the data exists:
  *   priorities      — the workspace's own tasks, ranked by AI priority score
- *   upcomingMeetings— calendar events landed by the Google/Outlook connectors
+ *   upcomingMeetings— calendar events landed by the Google Calendar connector
  *   metrics         — counted from those two
+ *   briefing        — written from what actually landed in the last day
+ *
+ * The briefing matters more than its size suggests. Until it existed this file
+ * queried only `calendar_event`, so a workspace could sync thousands of emails,
+ * files and Notion pages and still render a blank screen — sync reported success
+ * and nothing the user connected was anywhere on the page. See briefing/service.
  *
  * Empty, because no backend produces them yet:
- *   briefing, recommendations, agents, notifications, projects
+ *   recommendations, agents, notifications, projects
  *
  * Returning [] for those is the honest answer, and every consumer already
  * renders an empty state for it — the alternative would be inventing content
@@ -47,7 +57,7 @@ export interface DashboardMeeting {
 }
 
 export interface DashboardPayload {
-  briefing: null;
+  briefing: Briefing | null;
   recommendations: never[];
   priorities: unknown[];
   projects: never[];
@@ -68,71 +78,6 @@ const PRIORITY_LIMIT = 10;
 const MEETING_WINDOW_HOURS = 24;
 
 /**
- * Read one string out of a provider payload, trying each key in turn.
- *
- * Google Calendar names the title `summary`; Microsoft Graph names it
- * `subject`. Rather than branch on the connector, ask for both — a new provider
- * that uses `title` then costs one entry rather than a new code path.
- */
-function pick(payload: Record<string, unknown>, keys: string[]): string | null {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
-  }
-  return null;
-}
-
-/**
- * Both providers wrap event times in an object: Google as
- * `{ dateTime, date }` (the second for all-day events), Graph as
- * `{ dateTime, timeZone }`. Returns an ISO string, or null when neither is
- * usable — a malformed event is skipped rather than rendered as "Invalid Date".
- */
-function readEventTime(value: unknown): string | null {
-  if (typeof value === 'string') return toIso(value);
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>;
-    for (const key of ['dateTime', 'date']) {
-      const inner = obj[key];
-      if (typeof inner === 'string') return toIso(inner);
-    }
-  }
-  return null;
-}
-
-function toIso(raw: string): string | null {
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-}
-
-/** Attendee lists differ by provider; both carry a display name and an email. */
-function readParticipants(payload: Record<string, unknown>): { userId: string; fullName: string }[] {
-  const raw = payload['attendees'];
-  if (!Array.isArray(raw)) return [];
-
-  return raw
-    .slice(0, 20) // A 300-person invite should not become 300 avatars.
-    .map((entry, index) => {
-      if (!entry || typeof entry !== 'object') return null;
-      const person = entry as Record<string, unknown>;
-      // Graph nests the address under emailAddress; Google puts it at the top.
-      const nested = person['emailAddress'];
-      const nestedObj = nested && typeof nested === 'object' ? (nested as Record<string, unknown>) : {};
-
-      const name =
-        pick(person, ['displayName']) ??
-        pick(nestedObj, ['name']) ??
-        pick(person, ['email']) ??
-        pick(nestedObj, ['address']);
-      if (!name) return null;
-
-      const email = pick(person, ['email']) ?? pick(nestedObj, ['address']);
-      return { userId: email ?? `attendee-${index}`, fullName: name };
-    })
-    .filter((p): p is { userId: string; fullName: string } => p !== null);
-}
-
-/**
  * Turn a landed calendar record into the shape the dashboard renders.
  * Returns null for anything without a usable title and start time.
  */
@@ -144,7 +89,7 @@ function toMeeting(row: {
   if (!row.payload || typeof row.payload !== 'object') return null;
   const payload = row.payload as Record<string, unknown>;
 
-  const title = pick(payload, ['summary', 'subject', 'title']);
+  const title = readEventTitle(payload);
   const startsAt = readEventTime(payload['start']);
   if (!title || !startsAt) return null;
 
@@ -176,10 +121,16 @@ export async function getDashboard(
   db: AppDb,
   ctx: StartContext,
   now: Date = new Date(),
+  provider: AiProvider | null = null,
 ): Promise<DashboardPayload> {
   const windowEnd = new Date(now.getTime() + MEETING_WINDOW_HOURS * 3_600_000);
 
-  return withTenantScope(db, ctx.organizationId, async (tx) => {
+  // Started before the queries below and awaited after them, so the model call
+  // overlaps the database work instead of following it. It never rejects — a
+  // briefing that cannot be written is null, not a failed dashboard.
+  const briefingPromise = generateBriefing(db, ctx, provider, now);
+
+  const payload = await withTenantScope(db, ctx.organizationId, async (tx) => {
     const [taskRows, openCountRow, eventRows] = await Promise.all([
       tx
         .select({
@@ -258,7 +209,7 @@ export async function getDashboard(
     }).length;
 
     return {
-      briefing: null,
+      briefing: null as Briefing | null,
       recommendations: [],
       priorities: taskRows.map((task) => ({
         ...task,
@@ -281,4 +232,6 @@ export async function getDashboard(
       },
     } satisfies DashboardPayload;
   });
+
+  return { ...payload, briefing: await briefingPromise };
 }

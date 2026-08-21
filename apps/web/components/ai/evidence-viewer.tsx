@@ -32,7 +32,7 @@ import type {
  * documents, which is untrusted content by definition.
  */
 
-const SOURCE_ICON: Record<EvidenceSourceType, LucideIcon> = {
+export const SOURCE_ICON: Record<EvidenceSourceType, LucideIcon> = {
   email: Mail,
   calendar: Calendar,
   meeting_notes: Users,

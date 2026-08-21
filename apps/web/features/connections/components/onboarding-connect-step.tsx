@@ -21,10 +21,10 @@ import { IntegrationCard } from './integration-card';
  *
  * A curated slice of the full catalogue, shown once, before the workspace
  * exists — so Kloyya initializes with real context from day one instead of an
- * empty shell. Deliberately not the whole Connection Manager: eleven familiar
- * tools in four groups, because a new user staring at fifty integrations is a
- * new user who clicks Skip. The full catalogue stays one click away at
- * /connections for the rest of the product's life.
+ * empty shell. Grouped by what each tool is rather than listed flat, because a
+ * new user staring at an undifferentiated wall of integrations is a new user who
+ * clicks Skip. The full catalogue stays one click away at /connections for the
+ * rest of the product's life.
  *
  * Everything behind each card is reused: the same IntegrationCard, the same
  * OAuth-shaped ConnectDialog with its permission review, the same integrations
@@ -34,7 +34,13 @@ import { IntegrationCard } from './integration-card';
  * starts smarter with them.
  */
 
-/** The onboarding tools: 4 real, connectable integrations. Order is display order. */
+/**
+ * What a brand-new user is offered on their first run. Order is display order.
+ *
+ * This is deliberately narrower than the catalogue — a new user staring at
+ * every connector at once is a new user who clicks Skip. The full catalogue
+ * stays one click away at /connections for the rest of the product's life.
+ */
 const CURATED_GROUPS: ReadonlyArray<{ label: string; ids: readonly string[] }> = [
   { label: 'Email', ids: ['gmail'] },
   { label: 'Calendar', ids: ['google_calendar'] },
@@ -129,15 +135,18 @@ export function OnboardingConnectStep() {
         >
           Continue
         </Button>
-        {connectedCount === 0 ? (
-          <button
-            type="button"
-            onClick={continueToWorkspace}
-            className="text-caption text-muted-foreground hover:text-foreground rounded-sm"
-          >
-            Skip and continue — you can connect tools any time
-          </button>
-        ) : null}
+        {/* Always offered, not only when nothing is connected. Someone who
+            connected one tool and wants to get on with it should not have to
+            work out that the primary button also means "I'm done". */}
+        <button
+          type="button"
+          onClick={continueToWorkspace}
+          className="text-caption text-muted-foreground hover:text-foreground rounded-sm"
+        >
+          {connectedCount === 0
+            ? 'Skip for now — you can connect tools any time'
+            : 'Skip the rest — you can connect more any time'}
+        </button>
       </footer>
     </div>
   );

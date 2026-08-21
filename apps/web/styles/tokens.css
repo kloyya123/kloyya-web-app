@@ -110,6 +110,12 @@
   --font-sans:
     var(--font-inter), system-ui, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
 
+  /* NOT part of KDS. The marketing page (features/landing) uses a serif for
+   * display headlines; the product never does. Registering it here is what
+   * makes Tailwind's `font-serif` utility exist at all — kept isolated to one
+   * font-family declaration so its non-KDS origin stays obvious. */
+  --font-serif: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+
   --text-display: 3rem; /* 48px */
   --text-display--line-height: 1.1;
   --text-heading-xl: 2.5rem; /* 40px */
@@ -348,6 +354,7 @@
   --mockup-on-accent: #ffffff;
   --mockup-caution: #b45309;
   --mockup-positive: #15803d;
+  --mockup-critical: #dc2626;
 
   color-scheme: light;
 }

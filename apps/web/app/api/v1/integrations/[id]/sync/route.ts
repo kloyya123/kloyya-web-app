@@ -7,17 +7,9 @@ import { API_STATUS, ApiError, errors } from '@server/http/errors';
 import { assertPermission } from '@server/auth/permission';
 import { createTokenCrypto } from '@server/crypto/tokens';
 import { getConnection } from '@server/integrations/service';
-import { isMicrosoftIntegration } from '@server/integrations/microsoft';
 import { isNotionIntegration } from '@server/integrations/notion';
 import { resolveStartContext } from '@server/tenant';
-import {
-  syncGmail,
-  syncGoogleCalendar,
-  syncGoogleDrive,
-  syncNotion,
-  syncOutlookCalendar,
-  syncOutlookMail,
-} from '@server/integrations/sync';
+import { syncGmail, syncGoogleCalendar, syncGoogleDrive, syncNotion } from '@server/integrations/sync';
 import { syncFailureToApiError } from '@server/integrations/route-helpers';
 
 const idParam = z.string().min(1);
@@ -29,8 +21,6 @@ const SYNCERS: Record<string, typeof syncGoogleCalendar> = {
   google_calendar: syncGoogleCalendar,
   gmail: syncGmail,
   google_drive: syncGoogleDrive,
-  outlook: syncOutlookMail,
-  outlook_calendar: syncOutlookCalendar,
   notion: syncNotion,
 };
 
@@ -53,23 +43,16 @@ export const POST = kasRoute('verified', async (_req, ctx) => {
   // Each provider syncs on its own credentials. Notion is the exception — its
   // token never expires, so it needs no client credentials, only the key to
   // decrypt the stored token.
-  const usesMicrosoft = isMicrosoftIntegration(id);
   const usesNotion = isNotionIntegration(id);
-  const clientId =
-    (usesNotion ? '' : usesMicrosoft ? config.MICROSOFT_OAUTH_CLIENT_ID : config.GOOGLE_OAUTH_CLIENT_ID) ?? '';
-  const clientSecret =
-    (usesNotion
-      ? ''
-      : usesMicrosoft
-        ? config.MICROSOFT_OAUTH_CLIENT_SECRET
-        : config.GOOGLE_OAUTH_CLIENT_SECRET) ?? '';
+  const clientId = (usesNotion ? '' : config.GOOGLE_OAUTH_CLIENT_ID) ?? '';
+  const clientSecret = (usesNotion ? '' : config.GOOGLE_OAUTH_CLIENT_SECRET) ?? '';
 
   if (!usesNotion && (!clientId || !clientSecret)) {
     throw new ApiError({
       httpStatus: API_STATUS.ServiceUnavailable,
-      errorCode: usesMicrosoft ? 'microsoft_oauth_unconfigured' : 'google_oauth_unconfigured',
-      message: `${usesMicrosoft ? 'Microsoft' : 'Google'} connections are not configured on this server.`,
-      description: `${usesMicrosoft ? 'MICROSOFT' : 'GOOGLE'}_OAUTH_CLIENT_ID and _SECRET are not set.`,
+      errorCode: 'google_oauth_unconfigured',
+      message: 'Google connections are not configured on this server.',
+      description: 'GOOGLE_OAUTH_CLIENT_ID and _SECRET are not set.',
       suggestedResolution: 'Set both, then redeploy.',
     });
   }

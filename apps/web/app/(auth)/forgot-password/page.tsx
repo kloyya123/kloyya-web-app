@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function ForgotPasswordPage() {
-  return <ForgotPasswordForm />;
+export default async function ForgotPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  // Set by app/auth/confirm/route.ts when a recovery link has already been
+  // used or has expired — never anything else, so no need to validate value.
+  const expired = params.status === 'expired';
+
+  return <ForgotPasswordForm expiredLink={expired} />;
 }

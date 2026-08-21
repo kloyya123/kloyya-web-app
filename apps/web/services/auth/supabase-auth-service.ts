@@ -144,9 +144,40 @@ export class SupabaseAuthService implements AuthService {
    */
   async requestPasswordReset(email: string): Promise<void> {
     try {
-      await this.sb.auth.resetPasswordForEmail(email);
+      // `redirectTo` is not optional in practice. Without it Supabase falls back
+      // to the project's Site URL, which dropped the user on the site root with
+      // no way to actually set a password — the reset mail worked and the reset
+      // did not. Point it at the screen that finishes the job.
+      await this.sb.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
     } catch {
       // Deliberately ignored — see above.
+    }
+  }
+
+  /**
+   * Set the new password on the recovery session Supabase established when the
+   * emailed link was followed.
+   *
+   * Unlike requestPasswordReset, this one THROWS. There is no enumeration risk
+   * at this point — the caller already proved control of the mailbox — and
+   * silently resolving would leave someone believing their password changed
+   * when it had not.
+   */
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await this.sb.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new ApiError({
+        errorCode: 'password_update_failed',
+        httpStatus: API_STATUS.BadRequest,
+        message: 'That reset link is no longer valid.',
+        description:
+          'Reset links expire and can only be used once, so this one may already have been followed.',
+        suggestedResolution: 'Request a new reset email and use the most recent link.',
+        correlationId: 'auth',
+        timestamp: new Date().toISOString(),
+      });
     }
   }
 

@@ -1,544 +1,229 @@
 import 'server-only';
-
 import { z } from 'zod';
 
-/* -------------------------------------------------------------------------- */
-/* Environment schema                                                         */
-/* -------------------------------------------------------------------------- */
+/**
+ * Validated server environment.
+ *
+ * The process refuses to start if a required variable is missing or malformed —
+ * a misconfigured server should fail loudly, not silently at the first request
+ * that needs the missing value. Everything server code reads from the
+ * environment passes through here; nothing reads `process.env` directly.
+ *
+ * Ported from the retired Fastify API. Dropped: API_PORT, CORS_ALLOWED_ORIGINS,
+ * LOG_LEVEL, BETTER_AUTH_SECRET, BETTER_AUTH_URL — meaningless once there is no
+ * standalone server, no cross-origin browser, and no Better Auth. WEB_APP_URL
+ * became APP_URL: there is only one app now, and it names itself, not "the web
+ * app" as seen from a separate API.
+ */
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-const configSchema = z.object({
-  /* ------------------------------------------------------------------------ */
-  /* Runtime                                                                  */
-  /* ------------------------------------------------------------------------ */
-
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
-
-  /* ------------------------------------------------------------------------ */
-  /* Database                                                                 */
-  /* ------------------------------------------------------------------------ */
-
-  DATABASE_URL: z
+  /**
+   * The kill switch. Flip to `"true"` in Vercel's env vars (no redeploy
+   * needed — it's read fresh on the next invocation) to take the API down
+   * cleanly with a 503 rather than whatever a real outage would otherwise do.
+   * The site-wide half of this lives in middleware.ts, read directly from
+   * `process.env` there rather than through this module — middleware runs in
+   * the Edge runtime, where pulling in this file's full validated config
+   * (server-only, Node-targeted) is the wrong tool for one boolean.
+   */
+  MAINTENANCE_MODE: z
     .string()
-    .url()
-    .optional(),
+    .optional()
+    .transform((v) => v === 'true'),
 
-  DIRECT_URL: z
-    .string()
-    .url()
-    .optional(),
+  DATABASE_URL: z.string().url().optional(),
+  DIRECT_URL: z.string().url().optional(),
 
-  /* ------------------------------------------------------------------------ */
-  /* Redis                                                                    */
-  /* ------------------------------------------------------------------------ */
+  // Supabase. NEXT_PUBLIC_SUPABASE_URL is also read by browser code; validated
+  // here too so a misconfigured deployment fails at boot, not at first request.
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  DOCUMENTS_BUCKET: z.string().min(1).default('documents'),
 
-  REDIS_URL: z
-    .string()
-    .optional(),
-
-  /* ------------------------------------------------------------------------ */
-  /* Supabase                                                                 */
-  /* ------------------------------------------------------------------------ */
-
-  NEXT_PUBLIC_SUPABASE_URL: z
-    .string()
-    .url()
-    .optional(),
-
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z
-    .string()
-    .min(1)
-    .optional(),
-
-  SUPABASE_SERVICE_ROLE_KEY: z
-    .string()
-    .min(1)
-    .optional(),
-
-  /* ------------------------------------------------------------------------ */
-  /* Documents                                                                */
-  /* ------------------------------------------------------------------------ */
-
-  DOCUMENTS_BUCKET: z
-    .string()
-    .min(1)
-    .default('documents'),
-
-  /* ------------------------------------------------------------------------ */
-  /* Token encryption                                                         */
-  /* ------------------------------------------------------------------------ */
-
+  /**
+   * Encrypts customers' third-party OAuth tokens at rest.
+   *
+   * Validated here, at boot, rather than at the first connection: a key that
+   * decodes to the wrong length is a deployment mistake, and the moment to find
+   * out is on startup — not when someone is halfway through connecting Gmail.
+   */
   TOKEN_ENCRYPTION_KEY: z
     .string()
     .optional()
     .refine(
-      (value) =>
-        value === undefined ||
-        Buffer.from(value, 'base64').length === 32,
-      'TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes.',
+      (value) => value === undefined || Buffer.from(value, 'base64').length === 32,
+      'TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64url\'))"',
     ),
 
-  /* ------------------------------------------------------------------------ */
-  /* Email                                                                     */
-  /* ------------------------------------------------------------------------ */
+  // Email (Resend). Optional so the app boots without it; when absent,
+  // verification email is Supabase's own (dashboard-configured) and invitation
+  // email is skipped with a clear log line rather than a crash.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).default('Kloyya <onboarding@resend.dev>'),
+  /**
+   * The Resend audience the beta waiting list mirrors into. Optional: without
+   * it the list still records every signup in Postgres, it just cannot be
+   * mailed from Resend until the audience is configured.
+   */
+  RESEND_AUDIENCE_ID: z.string().min(1).optional(),
 
-  RESEND_API_KEY: z
-    .string()
-    .min(1)
-    .optional(),
+  // Where this app is reachable — invitation links and OAuth redirects point
+  // here. One app, one origin, so this is also the OAuth callback host.
+  APP_URL: z.string().url().default('http://localhost:3000'),
 
-  EMAIL_FROM: z
-    .string()
-    .min(1)
-    .default('Kloyya <onboarding@resend.dev>'),
-
-  RESEND_AUDIENCE_ID: z
-    .string()
-    .min(1)
-    .optional(),
-
-  /* ------------------------------------------------------------------------ */
-  /* Application                                                              */
-  /* ------------------------------------------------------------------------ */
-
-  APP_URL: z
-    .string()
-    .url()
-    .optional(),
-
-  /* ------------------------------------------------------------------------ */
-  /* Google OAuth                                                              */
-  /* ------------------------------------------------------------------------ */
-
-  GOOGLE_OAUTH_CLIENT_ID: z
-    .string()
-    .min(1)
-    .optional(),
-
-  GOOGLE_OAUTH_CLIENT_SECRET: z
-    .string()
-    .min(1)
-    .optional(),
-
+  // Google OAuth. Optional so the app boots without connectors; the connect
+  // endpoint refuses clearly when they're absent rather than producing a
+  // broken authorization URL.
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z
     .string()
     .url()
-    .optional(),
+    .default('http://localhost:3000/api/v1/integrations/oauth/google/callback'),
 
-  /* ------------------------------------------------------------------------ */
-  /* Microsoft OAuth                                                          */
-  /* ------------------------------------------------------------------------ */
-
-  MICROSOFT_OAUTH_CLIENT_ID: z
-    .string()
-    .min(1)
-    .optional(),
-
-  MICROSOFT_OAUTH_CLIENT_SECRET: z
-    .string()
-    .min(1)
-    .optional(),
-
-  MICROSOFT_OAUTH_REDIRECT_URI: z
-    .string()
-    .url()
-    .optional(),
-
-  /* ------------------------------------------------------------------------ */
-  /* Notion OAuth                                                             */
-  /* ------------------------------------------------------------------------ */
-
-  NOTION_OAUTH_CLIENT_ID: z
-    .string()
-    .min(1)
-    .optional(),
-
-  NOTION_OAUTH_CLIENT_SECRET: z
-    .string()
-    .min(1)
-    .optional(),
-
+  // Notion OAuth (pages + databases via search). Its tokens never expire, so
+  // there is no refresh secret to rotate — just the client pair. The callback
+  // lives under /oauth/ so it can't collide with the `notion` integration id.
+  NOTION_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  NOTION_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   NOTION_OAUTH_REDIRECT_URI: z
     .string()
     .url()
-    .optional(),
+    .default('http://localhost:3000/api/v1/integrations/oauth/notion/callback'),
 
-  /* ------------------------------------------------------------------------ */
-  /* AI                                                                        */
-  /* ------------------------------------------------------------------------ */
-
-  AI_PROVIDER: z
-    .enum(['perplexity', 'openai', 'anthropic'])
-    .default('perplexity'),
-
-  /* Perplexity */
-
-  PERPLEXITY_API_KEY: z
+  // Slack OAuth (Bot Token Scopes — the app is added to a workspace, not one
+  // member's account). The bot token doesn't expire, so there is no refresh
+  // secret here either, same reasoning as Notion above.
+  SLACK_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  SLACK_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  SLACK_OAUTH_REDIRECT_URI: z
     .string()
-    .min(1)
-    .optional(),
+    .url()
+    .default('http://localhost:3000/api/v1/integrations/oauth/slack/callback'),
+  // Verifies every incoming Events API request actually came from Slack (HMAC
+  // over the raw body, per Slack's signing spec) — the webhook route refuses
+  // every request if this isn't set, rather than trusting an unsigned one.
+  SLACK_SIGNING_SECRET: z.string().min(1).optional(),
 
-  PERPLEXITY_MODEL: z
-    .string()
-    .min(1)
-    .default('sonar'),
+  // AI (Ask Kloyya). Provider-neutral: AI_PROVIDER picks the default, and the
+  // selected provider's key powers it. Both keys are server-only and optional —
+  // absent, Ask Kloyya degrades to an honest "not configured" state.
+  /**
+   * Trusted web search (Level 3 of the source hierarchy). Both optional: with
+   * neither set, Ask Kloyya answers from the workspace alone, exactly as it did
+   * before the feature existed. Perplexity wins if both are present.
+   */
+  PERPLEXITY_API_KEY: z.string().min(1).optional(),
+  PERPLEXITY_MODEL: z.string().min(1).default('sonar'),
+  TAVILY_API_KEY: z.string().min(1).optional(),
 
   /**
-   * Legacy Vercel variable.
-   *
-   * Current production environment may still use:
-   *
-   * CLE_SONAR_API_KLOYYA2
-   *
-   * This is intentionally supported so the deployment does not break
-   * before the secret is renamed to PERPLEXITY_API_KEY.
+   * The Sonar model that ANSWERS questions, as opposed to PERPLEXITY_MODEL
+   * above, which finds sources. Both roles run on the one key, but they want
+   * different settings — and eventually different models, since answering a hard
+   * question well is a different job from listing links. Kept as two variables so
+   * tuning one can never silently retune the other.
    */
-  CLE_SONAR_API_KLOYYA2: z
-    .string()
-    .min(1)
-    .optional(),
+  PERPLEXITY_CHAT_MODEL: z.string().min(1).default('sonar'),
 
-  /* OpenAI */
+  // The preferred provider — but resolveAiProvider() (server/ai/provider.ts)
+  // falls back through whichever of the five actually have a key configured
+  // if this one doesn't, so this is a preference, not a hard requirement.
+  AI_PROVIDER: z.enum(['openai', 'anthropic', 'perplexity', 'nvidia', 'huggingface']).default('openai'),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-4-8'),
+  // NVIDIA's hosted inference API (OpenAI-compatible). Optional, same
+  // degrade-honestly reasoning as the others.
+  NVIDIA_API_KEY: z.string().min(1).optional(),
+  NVIDIA_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
+  // Hugging Face's inference router — one endpoint in front of many hosted
+  // open-weight models. Optional; unset simply means this provider is
+  // skipped in the fallback chain, same as any other missing key.
+  HUGGINGFACE_API_KEY: z.string().min(1).optional(),
+  HUGGINGFACE_MODEL: z.string().min(1).default('deepseek-ai/DeepSeek-V4-Flash:novita'),
 
-  OPENAI_API_KEY: z
-    .string()
-    .min(1)
-    .optional(),
+  // Payments. Provider-neutral: 'none' is the beta scaffold (records the chosen
+  // plan, takes no money). Raw card data never touches this server either way.
+  PAYMENT_PROVIDER: z.enum(['none']).default('none'),
 
-  OPENAI_MODEL: z
-    .string()
-    .min(1)
-    .default('gpt-4o-mini'),
+  // General API rate limit — requests per authenticated user per minute, a
+  // blunt abuse guard on every guarded route (the Ask per-day cap is a separate
+  // entitlement limit). `0` disables it. Coerced because env vars are strings.
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(120),
 
-  /* Anthropic */
+  /**
+   * A tighter, per-minute guard on the routes that call an AI provider.
+   *
+   * The Ask per-day entitlement cap stops someone from running up costs over
+   * a day, but says nothing about the next 60 seconds — nothing previously
+   * stopped a burst of, say, 100 Ask requests in one minute, each a real
+   * OpenAI call, all still comfortably inside both the daily cap and the
+   * general 120/min route limit above. This is deliberately much lower than
+   * RATE_LIMIT_PER_MINUTE: a real back-and-forth with Ask Kloyya rarely needs
+   * more than a handful of questions a minute; a tight loop trying to run up
+   * a bill does.
+   */
+  AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(8),
 
-  ANTHROPIC_API_KEY: z
-    .string()
-    .min(1)
-    .optional(),
+  /**
+   * Shared secret for the scheduled-sync endpoint.
+   *
+   * That route acts on every workspace, so it cannot be guarded by a session
+   * the way the rest of the API is — the caller is Vercel Cron, not a person.
+   * Optional so local development and preview deploys boot without it, but the
+   * route refuses to run when it is unset rather than defaulting to open: an
+   * unauthenticated endpoint that syncs every tenant is worse than one that
+   * does not run at all.
+   */
+  CRON_SECRET: z.string().min(1).optional(),
 
-  ANTHROPIC_MODEL: z
-    .string()
-    .min(1)
-    .default('claude-3-5-sonnet-20241022'),
+  /**
+   * Web Push (desktop notifications). Optional, same reasoning as the OAuth
+   * pairs above: the app boots without them, and push delivery no-ops with a
+   * clear log line rather than crashing whatever triggered it. The public key
+   * is also read client-side (as NEXT_PUBLIC_VAPID_PUBLIC_KEY) for
+   * `PushManager.subscribe()` — kept as two separate env vars rather than one,
+   * since only the public half is safe in a browser bundle.
+   */
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  /** The `mailto:` or URL a push service can use to contact us about this key, per the VAPID spec. */
+  VAPID_SUBJECT: z.string().min(1).default('mailto:contactsupport@kloyya.com'),
 
-  /* ------------------------------------------------------------------------ */
-  /* Payments                                                                 */
-  /* ------------------------------------------------------------------------ */
-
-  PAYMENT_PROVIDER: z
-    .literal('none')
-    .default('none'),
-
-  /* ------------------------------------------------------------------------ */
-  /* Rate limiting                                                            */
-  /* ------------------------------------------------------------------------ */
-
-  RATE_LIMIT_PER_MINUTE: z
-    .coerce
-    .number()
-    .int()
-    .min(1)
-    .default(120),
+  /**
+   * Error tracking (Sentry). A DSN is not a secret — it only lets a client
+   * *send* events, never read them — so it is `NEXT_PUBLIC_`, read directly by
+   * the browser, edge, and server Sentry configs alike. Same degrade-honestly
+   * shape as every other optional integration here: unset means Sentry's own
+   * SDK no-ops, not that anything here has to branch on its presence.
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 });
 
-/* -------------------------------------------------------------------------- */
-/* Public config type                                                         */
-/* -------------------------------------------------------------------------- */
-
-export type Config = z.infer<typeof configSchema>;
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
-function isLocalhost(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '0.0.0.0' ||
-    hostname === '::1'
-  );
-}
-
-function validateProductionOAuth(
-  provider: string,
-  clientId: string | undefined,
-  clientSecret: string | undefined,
-  redirectUri: string | undefined,
-): void {
-  const partiallyConfigured =
-    Boolean(clientId) ||
-    Boolean(clientSecret) ||
-    Boolean(redirectUri);
-
-  if (
-    partiallyConfigured &&
-    (!clientId || !clientSecret || !redirectUri)
-  ) {
-    throw new Error(
-      `${provider} OAuth configuration is incomplete.`,
-    );
-  }
-
-  if (!redirectUri) {
-    return;
-  }
-
-  let url: URL;
-
-  try {
-    url = new URL(redirectUri);
-  } catch {
-    throw new Error(
-      `${provider}_OAUTH_REDIRECT_URI is invalid.`,
-    );
-  }
-
-  if (isLocalhost(url.hostname)) {
-    throw new Error(
-      `${provider}_OAUTH_REDIRECT_URI cannot point to localhost in production.`,
-    );
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Environment loader                                                         */
-/* -------------------------------------------------------------------------- */
+export type Config = z.infer<typeof schema>;
 
 function load(): Config {
-  /**
-   * Remove empty environment variables.
-   *
-   * This prevents:
-   *
-   *   SOME_KEY=""
-   *
-   * from being interpreted differently from an unset variable.
-   */
+  // An empty-string env var (KEY="" in .env, or a blank Vercel variable) is the
+  // same as unset — treat it that way so optional fields don't reject "" and
+  // defaults still apply. Without this, one blank optional var breaks boot.
   const cleaned = Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([, value]) => value !== '',
-    ),
+    Object.entries(process.env).filter(([, value]) => value !== ''),
   );
-
-  const parsed = configSchema.safeParse(cleaned);
-
+  const parsed = schema.safeParse(cleaned);
   if (!parsed.success) {
     const issues = parsed.error.issues
-      .map(
-        (issue) =>
-          `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`,
-      )
+      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('\n');
-
-    throw new Error(
-      `Invalid environment configuration:\n${issues}`,
-    );
+    throw new Error(`Invalid environment configuration:\n${issues}`);
   }
-
-  const parsedConfig = parsed.data;
-
-  /* ------------------------------------------------------------------------ */
-  /* Resolve Perplexity key                                                   */
-  /* ------------------------------------------------------------------------ */
-
-  /**
-   * Canonical key:
-   *
-   *   PERPLEXITY_API_KEY
-   *
-   * Legacy Vercel key:
-   *
-   *   CLE_SONAR_API_KLOYYA2
-   *
-   * Canonical always wins if both exist.
-   */
-  const perplexityApiKey =
-    parsedConfig.PERPLEXITY_API_KEY ??
-    parsedConfig.CLE_SONAR_API_KLOYYA2;
-
-  const config: Config = {
-    ...parsedConfig,
-    PERPLEXITY_API_KEY: perplexityApiKey,
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Production validation                                                    */
-  /* ------------------------------------------------------------------------ */
-
-  if (config.NODE_ENV === 'production') {
-    const requiredProduction = {
-      DATABASE_URL: config.DATABASE_URL,
-      NEXT_PUBLIC_SUPABASE_URL:
-        config.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY:
-        config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      SUPABASE_SERVICE_ROLE_KEY:
-        config.SUPABASE_SERVICE_ROLE_KEY,
-      TOKEN_ENCRYPTION_KEY:
-        config.TOKEN_ENCRYPTION_KEY,
-      APP_URL: config.APP_URL,
-    };
-
-    const missing = Object.entries(requiredProduction)
-      .filter(
-        ([, value]) =>
-          value === undefined ||
-          value === '',
-      )
-      .map(([name]) => name);
-
-    if (missing.length > 0) {
-      throw new Error(
-        [
-          'Production environment is incomplete.',
-          '',
-          'Missing required variables:',
-          ...missing.map(
-            (name) => `  - ${name}`,
-          ),
-        ].join('\n'),
-      );
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* APP_URL                                                                */
-    /* ---------------------------------------------------------------------- */
-
-    let productionUrl: URL;
-
-    try {
-      productionUrl = new URL(config.APP_URL!);
-    } catch {
-      throw new Error(
-        'APP_URL is invalid in production.',
-      );
-    }
-
-    if (isLocalhost(productionUrl.hostname)) {
-      throw new Error(
-        'APP_URL cannot point to localhost in production.',
-      );
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* OAuth                                                                   */
-    /* ---------------------------------------------------------------------- */
-
-    validateProductionOAuth(
-      'GOOGLE_OAUTH',
-      config.GOOGLE_OAUTH_CLIENT_ID,
-      config.GOOGLE_OAUTH_CLIENT_SECRET,
-      config.GOOGLE_OAUTH_REDIRECT_URI,
-    );
-
-    validateProductionOAuth(
-      'MICROSOFT_OAUTH',
-      config.MICROSOFT_OAUTH_CLIENT_ID,
-      config.MICROSOFT_OAUTH_CLIENT_SECRET,
-      config.MICROSOFT_OAUTH_REDIRECT_URI,
-    );
-
-    validateProductionOAuth(
-      'NOTION_OAUTH',
-      config.NOTION_OAUTH_CLIENT_ID,
-      config.NOTION_OAUTH_CLIENT_SECRET,
-      config.NOTION_OAUTH_REDIRECT_URI,
-    );
-
-    /* ---------------------------------------------------------------------- */
-    /* AI provider                                                             */
-    /* ---------------------------------------------------------------------- */
-
-    switch (config.AI_PROVIDER) {
-      case 'perplexity': {
-        if (!config.PERPLEXITY_API_KEY) {
-          throw new Error(
-            [
-              'Perplexity is selected as AI_PROVIDER,',
-              'but no Perplexity API key was found.',
-              '',
-              'Set one of:',
-              '  - PERPLEXITY_API_KEY',
-              '  - CLE_SONAR_API_KLOYYA2',
-            ].join('\n'),
-          );
-        }
-
-        if (!config.PERPLEXITY_MODEL) {
-          throw new Error(
-            'PERPLEXITY_MODEL is required when AI_PROVIDER is perplexity.',
-          );
-        }
-
-        break;
-      }
-
-      case 'openai': {
-        if (!config.OPENAI_API_KEY) {
-          throw new Error(
-            'OPENAI_API_KEY is required when AI_PROVIDER is openai.',
-          );
-        }
-
-        if (!config.OPENAI_MODEL) {
-          throw new Error(
-            'OPENAI_MODEL is required when AI_PROVIDER is openai.',
-          );
-        }
-
-        break;
-      }
-
-      case 'anthropic': {
-        if (!config.ANTHROPIC_API_KEY) {
-          throw new Error(
-            'ANTHROPIC_API_KEY is required when AI_PROVIDER is anthropic.',
-          );
-        }
-
-        if (!config.ANTHROPIC_MODEL) {
-          throw new Error(
-            'ANTHROPIC_MODEL is required when AI_PROVIDER is anthropic.',
-          );
-        }
-
-        break;
-      }
-
-      default: {
-        /**
-         * This should be unreachable because Zod already validates
-         * AI_PROVIDER, but keeping this guard makes the runtime
-         * invariant explicit.
-         */
-        throw new Error(
-          `Unsupported AI_PROVIDER: ${String(config.AI_PROVIDER)}`,
-        );
-      }
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* Payments                                                               */
-    /* ---------------------------------------------------------------------- */
-
-    if (config.PAYMENT_PROVIDER !== 'none') {
-      throw new Error(
-        'Unsupported PAYMENT_PROVIDER.',
-      );
-    }
-  }
-
-  return config;
+  return parsed.data;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Exported configuration                                                     */
-/* -------------------------------------------------------------------------- */
+export const config: Config = load();
 
-export const config = load();
-
-export const isProduction =
-  config.NODE_ENV === 'production';
+export const isProduction = config.NODE_ENV === 'production';

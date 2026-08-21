@@ -1,8 +1,8 @@
 import type { RawDriveFile } from './google-drive';
 import type { RawGmailMessage } from './gmail';
 import type { RawGoogleEvent } from './google-calendar';
-import type { RawGraphItem } from './graph';
 import type { RawNotionItem } from './notion-client';
+import type { RawSlackMessage } from './slack-client';
 
 /**
  * Phase 8.5 — validation before storage.
@@ -194,37 +194,6 @@ export function validateDriveFiles(files: RawDriveFile[]): ValidatedBatch<RawDri
 }
 
 /**
- * Validate a batch of Microsoft Graph items (Outlook mail or calendar).
- *
- * A Graph resource needs an id to be keyed; that is the only hard requirement.
- * The shape of a message versus an event is Graph's to define, and we don't
- * second-guess it — we only refuse what can't be stored or joined. Removals are
- * handled before validation (they carry `@removed` and are tombstoned by id), so
- * everything reaching here should be a live item.
- */
-export function validateGraphItems(items: RawGraphItem[]): ValidatedBatch<RawGraphItem> {
-  const valid: RawGraphItem[] = [];
-  const rejected: ValidationFailure[] = [];
-  const seen = new Set<string>();
-
-  for (const item of items) {
-    const id = item?.id;
-    if (typeof id !== 'string' || id.trim().length === 0) {
-      rejected.push({ externalId: null, reason: 'missing or invalid id' });
-      continue;
-    }
-    if (seen.has(id)) {
-      rejected.push({ externalId: id, reason: 'duplicate identifier in batch' });
-      continue;
-    }
-    seen.add(id);
-    valid.push(item);
-  }
-
-  return { valid, rejected };
-}
-
-/**
  * Validate a batch of raw Notion items (pages or databases from search).
  *
  * A Notion object needs an id to be keyed; that is the only hard requirement.
@@ -250,6 +219,38 @@ export function validateNotionItems(items: RawNotionItem[]): ValidatedBatch<RawN
     }
     seen.add(id);
     valid.push(item);
+  }
+
+  return { valid, rejected };
+}
+
+/**
+ * Validate a batch of raw Slack messages (already scoped to one conversation).
+ *
+ * A Slack message's `ts` is its id — unique within a conversation, which is
+ * exactly the scope this batch is called at, so the duplicate check is sound
+ * even though `ts` is not unique workspace-wide (the composite key the sync
+ * path lands with is `${channelId}:${ts}`, built by the caller). Whether a
+ * message is a system subtype worth keeping is a product decision the sync
+ * path makes, not a storability question this function answers.
+ */
+export function validateSlackMessages(messages: RawSlackMessage[]): ValidatedBatch<RawSlackMessage> {
+  const valid: RawSlackMessage[] = [];
+  const rejected: ValidationFailure[] = [];
+  const seen = new Set<string>();
+
+  for (const message of messages) {
+    const ts = message?.ts;
+    if (typeof ts !== 'string' || ts.trim().length === 0) {
+      rejected.push({ externalId: null, reason: 'missing or invalid ts' });
+      continue;
+    }
+    if (seen.has(ts)) {
+      rejected.push({ externalId: ts, reason: 'duplicate identifier in batch' });
+      continue;
+    }
+    seen.add(ts);
+    valid.push(message);
   }
 
   return { valid, rejected };

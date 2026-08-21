@@ -16,16 +16,18 @@ const email = z
   .transform((value) => value.trim().toLowerCase());
 
 /**
- * 12 characters, no composition rules.
+ * 8 characters minimum, plus at least one letter and one digit.
  *
- * NIST SP 800-63B recommends length over character-class requirements: forced
- * symbols produce `Password1!` and a sticky note. KESM mandates passkeys and
- * MFA, which is where real strength comes from.
+ * NIST SP 800-63B still argues against forced symbol/case rules — they push
+ * people toward `Password1!` and a sticky note, not real strength. A single
+ * repeated character or an all-numeric string does pass length alone, though,
+ * so a light floor (one letter, one digit) stays without going further.
  */
 const password = z
   .string()
-  .min(12, 'Use at least 12 characters.')
-  .max(128, 'That password is too long.');
+  .min(8, 'Use at least 8 characters.')
+  .max(128, 'That password is too long.')
+  .regex(/(?=.*[A-Za-z])(?=.*\d)/, 'Use a mix of letters and numbers.');
 
 export const signInSchema = z.object({
   email,
@@ -49,6 +51,23 @@ export type SignUpValues = z.infer<typeof signUpSchema>;
 
 export const forgotPasswordSchema = z.object({ email });
 export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+
+/**
+ * Setting a new password after following a reset link.
+ *
+ * Confirmation is required here but not at sign-up, and the asymmetry is
+ * deliberate: at sign-up a typo is recoverable — you reset. At reset, a typo
+ * locks you out of the account you were in the middle of recovering, and the
+ * only way back is another reset email. The second field is worth the friction
+ * exactly once.
+ */
+export const resetPasswordSchema = z
+  .object({ password, confirmPassword: z.string().min(1, 'Re-enter your new password.') })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: 'Those passwords do not match.',
+    path: ['confirmPassword'],
+  });
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
 export const verifyEmailSchema = z.object({
   code: z

@@ -12,7 +12,7 @@
 
 export { AgentStatusList, AgentStatusRow } from './agent-status';
 export { ConfidenceBadge, type ConfidenceBadgeProps } from './confidence-badge';
-export { EvidenceViewer, SourceReferences, type EvidenceViewerProps } from './evidence-viewer';
+export { EvidenceViewer, SOURCE_ICON, SourceReferences, type EvidenceViewerProps } from './evidence-viewer';
 export { ExecutiveBrief } from './executive-brief';
 export { FeedbackPanel, type FeedbackPanelProps } from './feedback-panel';
 export { ReasoningPanel, type ReasoningPanelProps } from './reasoning-panel';

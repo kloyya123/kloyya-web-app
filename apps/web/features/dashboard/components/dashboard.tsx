@@ -1,8 +1,7 @@
 'use client';
 
-import { CalendarClock, CheckSquare, ChevronDown, Clock, Mail, Plus, ShieldCheck } from 'lucide-react';
+import { CalendarClock, Clock, ChevronDown, Flag, Lightbulb, Plus, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -15,25 +14,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   ErrorState,
-  KpiCard,
   LoadingRegion,
-  Progress,
   Skeleton,
 } from '@/components/ui';
 import { toErrorPresentation } from '@/lib/error-presentation';
 import { useDashboard } from '@/hooks/use-intelligence';
 import { useAuth } from '@/providers/auth-provider';
-import { services } from '@/services';
 import { useDashboardIntroState } from '../hooks/use-dashboard-intro-state';
 import { AskBox } from './ask-box';
 import { ConnectedSourcesCard } from './connected-sources-card';
 import { DashboardIntro } from './dashboard-intro';
 import { DashboardTour } from './dashboard-tour';
 import { KloyyaTipCard, productivityTip } from './kloyya-tip-card';
+import { ProjectHealthCard } from './project-health-card';
 import { RecentActivityCard } from './recent-activity-card';
+import { RecentDecisionsCard } from './recent-decisions-card';
 import { RecentMessagesCard } from './recent-messages-card';
+import { StatRow, type Stat } from './stat-row';
+import { TodaysBriefCard } from './todays-brief-card';
 import { TodaysPrioritiesCard } from './todays-priorities-card';
 import { UpcomingMeetingsCard } from './upcoming-meetings-card';
+import { WhatsChangedCard } from './whats-changed-card';
 
 /** A standard workday, for turning meeting load into a "time protected" read. */
 const WORKDAY_HOURS = 8;
@@ -41,10 +42,11 @@ const WORKDAY_HOURS = 8;
 /**
  * Home.
  *
- * "Know what matters within five seconds" (Design Manifesto), reworked around
- * a single entry point: a stat row that answers "what's on today", Ask Kloyya
- * front and center, and a working overview of what's connected and what's
- * outstanding — instead of asking the user to read a full briefing first.
+ * "Know what matters within five seconds" (Design Manifesto). Today's Brief —
+ * an evidence-backed account of what actually happened, generated server-side
+ * by generateBriefing — is the first thing on the page; Ask Kloyya is real and
+ * stays reachable, but is no longer the entry point. A brief tells you what
+ * happened without being asked; a chat box waits to be asked something.
  */
 export function Dashboard() {
   const { session } = useAuth();
@@ -53,7 +55,7 @@ export function Dashboard() {
 
   return (
     <>
-      <DashboardIntro onDismiss={dismissIntro} />
+      {hasSeenIntro ? null : <DashboardIntro onDismiss={dismissIntro} />}
       <DashboardTour isVisible={hasSeenIntro && !hasSeenTour} onComplete={completeTour} />
       <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
@@ -68,7 +70,11 @@ export function Dashboard() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button leadingIcon={<Plus aria-hidden="true" />} trailingIcon={<ChevronDown aria-hidden="true" />}>
+            <Button
+              data-tour="new-button"
+              leadingIcon={<Plus aria-hidden="true" />}
+              trailingIcon={<ChevronDown aria-hidden="true" />}
+            >
               New
             </Button>
           </DropdownMenuTrigger>
@@ -112,12 +118,6 @@ function greeting(): string {
 
 function DashboardBody() {
   const { data, isPending, isError, error, refetch } = useDashboard();
-  // Shares its cache key with RecentMessagesCard's query — one fetch, two widgets.
-  const { data: inbox } = useQuery({
-    queryKey: ['inbox', 'list'],
-    queryFn: () => services.inbox.listInbox(),
-    staleTime: 30_000,
-  });
 
   if (isPending) return <DashboardSkeleton />;
 
@@ -129,14 +129,11 @@ function DashboardBody() {
     );
   }
 
-  const now = new Date();
   const openTasks = data.priorities.filter((task) => task.status !== 'done');
   const highPriorityCount = openTasks.filter(
     (task) => task.priority === 'Critical' || task.priority === 'High',
   ).length;
-  const upcomingCount = data.upcomingMeetings.filter(
-    (meeting) => new Date(meeting.startsAt) > now,
-  ).length;
+  const pendingDecisions = data.recommendations.filter((rec) => rec.outcome === 'pending').length;
 
   // Time NOT in meetings, out of a standard workday — a real number derived
   // from the calendar, not a fabricated "productivity" score.
@@ -150,55 +147,40 @@ function DashboardBody() {
     60 /
     60;
   const protectedHours = Math.max(0, WORKDAY_HOURS - meetingHours);
-  const protectedPercent = Math.round((protectedHours / WORKDAY_HOURS) * 100);
+
+  const stats: Stat[] = [
+    { icon: Lightbulb, tone: 'info', value: pendingDecisions, label: 'Decisions waiting' },
+    { icon: Flag, tone: 'critical', value: data.metrics.projectsAtRisk, label: 'Projects at risk' },
+    { icon: CalendarClock, tone: 'positive', value: data.metrics.meetingsToday, label: 'Meetings today' },
+    { icon: Clock, tone: 'warning', value: Math.round(protectedHours), label: 'Focus hours today' },
+  ];
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Main column: the day at a glance, Ask Kloyya, then the working cards. */}
+      {/* Main column: today's brief first, then what's changed, the working
+          cards, and Ask Kloyya last — reachable, not the entry point. */}
       <div className="min-w-0 space-y-6 lg:col-span-2">
-        <section aria-label="Today at a glance">
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <KpiCard
-              label="Events today"
-              value={String(data.upcomingMeetings.length)}
-              explanation={`${upcomingCount} upcoming`}
-              icon={CalendarClock}
-            />
-            <KpiCard
-              label="Tasks due"
-              value={String(openTasks.length)}
-              explanation={`${highPriorityCount} high priority`}
-              explanationTone={highPriorityCount > 0 ? 'critical' : 'default'}
-              icon={CheckSquare}
-            />
-            <KpiCard
-              label="New messages"
-              value={inbox ? String(inbox.unreadCount) : '—'}
-              explanation="Unread across your inbox"
-              icon={Mail}
-            />
-            <KpiCard
-              label="Focus time"
-              value={`${protectedHours.toFixed(1)}h`}
-              explanation={`${protectedPercent}% of your day`}
-              icon={Clock}
-              footer={<Progress value={protectedPercent} label="Meeting-free time today" />}
-            />
-          </div>
-        </section>
+        <TodaysBriefCard briefing={data.briefing} />
 
-        <AskBox />
+        <StatRow stats={stats} />
+
+        <WhatsChangedCard recommendations={data.recommendations} />
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <RecentActivityCard />
           <TodaysPrioritiesCard tasks={data.priorities} />
           <ConnectedSourcesCard />
         </div>
+
+        <AskBox />
       </div>
 
-      {/* Right rail: what's coming, who's reached out, and today's nudge. */}
+      {/* Right rail: what's coming, projects to watch, decisions already made,
+          who's reached out, and today's nudge. */}
       <aside className="space-y-6 lg:col-span-1">
         <UpcomingMeetingsCard meetings={data.upcomingMeetings} />
+        <ProjectHealthCard projects={data.projects} />
+        <RecentDecisionsCard recommendations={data.recommendations} />
         <RecentMessagesCard />
         <KloyyaTipCard
           tip={productivityTip({
@@ -216,6 +198,7 @@ function DashboardSkeleton() {
   return (
     <LoadingRegion label="Preparing your dashboard" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
+        <Skeleton className="h-28 w-full rounded-lg" />
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           {[0, 1, 2, 3].map((index) => (
             <Skeleton key={index} className="h-28 rounded-lg" />
@@ -229,7 +212,7 @@ function DashboardSkeleton() {
         </div>
       </div>
       <div className="space-y-6 lg:col-span-1">
-        {[0, 1, 2].map((index) => (
+        {[0, 1, 2, 3, 4].map((index) => (
           <Skeleton key={index} className="h-48 rounded-lg" />
         ))}
       </div>

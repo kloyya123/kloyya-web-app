@@ -105,12 +105,12 @@ export async function retrieveContext(
 /**
  * A one-line label for a raw provider object.
  *
- * Every provider names the human-facing thing differently — Gmail/Outlook use
+ * Every provider names the human-facing thing differently — Gmail uses
  * `subject`, Drive/Notion use `name`/`title`, calendars use `summary`/`subject`.
  * We try the common keys and fall back to the resource type, never dumping raw
  * JSON at a person.
  */
-function describe(payload: unknown, resourceType: string): string {
+export function describe(payload: unknown, resourceType: string): string {
   if (payload && typeof payload === 'object') {
     const p = payload as Record<string, unknown>;
     for (const key of ['subject', 'title', 'name', 'summary']) {

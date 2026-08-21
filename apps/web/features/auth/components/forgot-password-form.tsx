@@ -19,7 +19,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { forgotPasswordSchema, type ForgotPasswordValues } from '../schemas';
 import { FormError } from './form-error';
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ expiredLink = false }: { expiredLink?: boolean }) {
   const { requestPasswordReset } = useAuth();
   const [submitError, setSubmitError] = useState<unknown>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -60,6 +60,12 @@ export function ForgotPasswordForm() {
 
       <CardContent>
         <form onSubmit={onSubmit} noValidate className="space-y-4">
+          {expiredLink ? (
+            <div className="border-warning/30 bg-warning/10 text-caution rounded-sm border px-3 py-2.5 text-small">
+              That reset link had already been used or expired. Request a new one below.
+            </div>
+          ) : null}
+
           <FormError error={submitError} />
 
           <FormField label="Email" error={errors.email?.message} isRequired>

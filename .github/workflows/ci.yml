@@ -1,0 +1,50 @@
+name: CI
+
+# Runs on every push and pull request. This is the gate that was missing
+# before: without it, a broken typecheck/lint/test could merge on nothing
+# more than a human remembering to run the commands locally first.
+#
+# Deliberately does NOT run `next build` here. That needs real NEXT_PUBLIC_*
+# values (Supabase URL/anon key, etc.) inlined at build time, and Vercel
+# already builds this app for real, with real secrets, on every push — a
+# second build here would either need those same secrets duplicated into
+# GitHub, or run against placeholders and prove nothing a real deploy
+# wouldn't also catch. typecheck/lint/test need no secrets at all: the
+# server test suite runs against a real, ephemeral Postgres (PGLite), not a
+# live database.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
