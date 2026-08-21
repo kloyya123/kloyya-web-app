@@ -4,17 +4,20 @@ import { siteUrl } from '@/lib/site-url';
 /**
  * Crawl rules.
  *
- * Only `/` and the two auth entry points are worth indexing; everything else is
- * either behind a session or a provisioning step, and a crawler that follows
- * them gets a redirect to /login for its trouble. Disallowing them keeps the
- * index clean and stops "Sign in to Kloyya" outranking the actual home page.
+ * The marketing site and its indexing now live at kloyya.com, a separate
+ * deployment. This app is login/signup and the authenticated product, so
+ * only the two auth entry points are worth indexing — `/` is just a redirect
+ * to `/login` and earns nothing by being crawled. Everything else is behind
+ * a session or a provisioning step, and a crawler that follows them gets a
+ * redirect for its trouble.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      allow: '/',
+      allow: ['/login', '/signup'],
       disallow: [
+        '/',
         '/api/',
         '/dashboard',
         '/inbox',
