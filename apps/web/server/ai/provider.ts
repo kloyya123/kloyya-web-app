@@ -25,14 +25,14 @@ export interface CompleteParams {
 export interface ProviderConfig {
   provider: AiProviderName;
 
-  perplexityApiKey?: string;
-  perplexityModel?: string;
+  perplexityApiKey?: string | undefined;
+  perplexityModel?: string | undefined;
 
-  openaiApiKey?: string;
-  openaiModel?: string;
+  openaiApiKey?: string | undefined;
+  openaiModel?: string | undefined;
 
-  anthropicApiKey?: string;
-  anthropicModel?: string;
+  anthropicApiKey?: string | undefined;
+  anthropicModel?: string | undefined;
 }
 
 export interface AiProvider {
