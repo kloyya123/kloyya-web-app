@@ -34,7 +34,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # ✅ CORRECTION : Passage à Node 22 pour être compatible avec pnpm@11.x
+          # qui exige au minimum Node.js 22.13 (pour le module natif node:sqlite)
+          node-version: '22'
           cache: pnpm
 
       - name: Install dependencies
