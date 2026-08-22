@@ -205,8 +205,16 @@ function mockMiddleware(request: NextRequest): NextResponse {
 }
 
 export const config = {
-
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - robots.txt, sitemap.xml
+     * - static file extensions (svg, png, jpg, jpeg, webp, woff, woff2, ttf, eot, css, js)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|webp|woff|woff2|ttf|eot|css|js)$).*)',
   ],
 };
